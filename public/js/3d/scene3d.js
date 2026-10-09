@@ -6,6 +6,7 @@ import { buildRoom, disposeGroup } from './room3d.js';
 import { buildLights, setupEnvironment } from './lights3d.js';
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
+import * as controls from './controls3d.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
@@ -14,8 +15,6 @@ let room = null;
 let lights = null;
 let furniture = null;
 let foundTimer = null;
-
-export const CM = 0.01;
 
 function init(el) {
   container = el;
@@ -38,10 +37,11 @@ function init(el) {
   setupEnvironment(renderer, scene);
   camera = new THREE.PerspectiveCamera(60, 1, 0.05, 100);
   clock = new THREE.Clock();
+  controls.initControls(camera, renderer.domElement, el);
 
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });
-  onLangChange(() => { if (running) updateHint(); });
+  onLangChange(() => { if (running) controls.updateHint(); });
   return true;
 }
 
@@ -56,6 +56,7 @@ function resize() {
 // Rebuild the room only when its size changes; furniture on every change.
 function rebuild() {
   const { L, W, H, plinth } = state.room;
+  let roomChanged = false;
   const key = [L, W, H, plinth].join('x');
   if (key !== roomKey) {
     roomKey = key;
@@ -65,9 +66,9 @@ function rebuild() {
     if (lights) disposeGroup(lights);
     lights = buildLights(room.size, room.window);
     scene.add(lights);
-    camera.position.set(L * CM / 2, H * CM * 1.6, W * CM * 1.9);
-    camera.lookAt(L * CM / 2, 0, W * CM / 2);
+    roomChanged = true;
   }
+  controls.setRoom(room, roomChanged);
   buildFurniture();
 }
 
@@ -88,14 +89,10 @@ function buildFurniture() {
   if (found) foundTimer = setTimeout(() => { if (running) buildFurniture(); }, found.until - now + 20);
 }
 
-function updateHint() {
-  container.querySelector('#hint3d').textContent = t('v3d.orbitHint');
-}
-
 function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
-  clock.getDelta();
+  controls.update(Math.min(clock.getDelta(), 0.1));
   renderer.render(scene, camera);
 }
 
@@ -104,7 +101,7 @@ export function show(el) {
   running = true;
   resize();
   rebuild();
-  updateHint();
+  controls.updateHint();
   clock.start();
   loop();
 }

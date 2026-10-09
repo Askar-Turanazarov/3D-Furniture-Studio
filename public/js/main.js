@@ -2,6 +2,7 @@ import { t, initLangSwitcher, onLangChange } from './i18n.js';
 import { state, onChange, emit, itemName, docFromState, applyDoc } from './state.js';
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
+import { parseCatalog } from './catalog.js';
 import { initProjects, persist } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
@@ -128,7 +129,10 @@ async function loadCatalog() {
   try {
     const res = await fetch('/api/catalog');
     if (!res.ok) throw new Error(res.status);
-    state.catalog = await res.json();
+    const c = parseCatalog(await res.json());
+    state.catalog = c.items;
+    state.materials = c.materials;
+    state.pricing = c.pricing;
   } catch {
     toast(t('catalog.fail'), true);
   }

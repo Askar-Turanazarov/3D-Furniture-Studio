@@ -15,7 +15,9 @@ export const state = {
   openingsLocked: false,
   opSeq: 3,
   selectedOpening: null,
-  catalog: [],
+  catalog: [],        // furniture types (catalog.json → items)
+  materials: [],      // catalog.json → materials (phase 6)
+  pricing: {},        // catalog.json → pricing (phase 7)
   found: null         // { id, until } — green highlight after auto-place
 };
 

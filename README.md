@@ -31,6 +31,7 @@ A web app for custom furniture: the client enters the room size and the furnitur
 - **Opening zones:** wardrobes, dressers, kitchens, fridges and wall cabinets know how they open (hinged doors, sliding, drawers, pull-out; can be changed per item, with the number of doors). If a door or drawer hits a wall, furniture or structure at its height — an error with the shortfall: "Door/drawer will not open: “Bed” is in the way (20 cm short)". Two zones over the same floor or a zone in the room door swing give a warning. **⌓ Zones** (key `Z`) cycles: selected only → all → hidden; checks run in every mode, a selected item with a zone error always shows its zone. Auto-placement first looks for a spot with a free zone.
 - **Passages:** gaps between furniture, structure and walls narrower than the norm (setting "Passage from", 60 cm by default; gaps under 20 cm are slits, not passages) are warned: "Narrow passage 48 cm (should be 60+)". **↔ Passages** (key `P`) shows / hides the yellow bands on the plan, the badge shows how many there are; the notes column has a collapsible "Passages (N)" group, a click flashes the passage on the plan.
 - **Projects and rooms:** a project holds several rooms shown as tabs above the plan (+ Room: name, purpose, size; ⋯ — rename, duplicate as a version "variant B", delete). Each room keeps its own undo history. 📁 **Projects** — cards with a plan preview: open, new, rename, duplicate, delete, **export / import** a `.fsp3d.json` file (backup or moving to another device). The old single-room plan is migrated automatically into "My project".
+- **Room templates:** + Room → **From a template**: a *Soviet-era building* set (panel / brick 1960–90s, ceiling ≈ 2.8 m) or a *New build* set (monolithic frame 2015+, ceiling ≈ 3.0 m) — bedroom, kids room, kitchen-living room, master bedroom, living room (the Soviet one is walk-through with two doors), large bedroom, study, kitchen. Each card shows a mini plan and "12 m² · 4×3 m". A template brings windows with radiators under them, doors, structure (risers, a ledge, a column) and furniture placed without errors; afterwards everything can be changed. 📁 Projects → **New project from an apartment template**: "2-room (Soviet)" = living room + bedroom + kitchen, "3-room (new build)" = kitchen-living room + master bedroom + kids room, one tab per room. Sizes are typical for Tashkent housing; templates live in `templates.json` (`GET /api/templates`).
 - **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors).
 - **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
 
@@ -63,13 +64,14 @@ Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 
 ### Project structure
 ```
-server.js            Express: static, catalog, orders, textures (list / upload / reset / ZIP)
+server.js            Express: static, catalog, templates, orders, textures (list / upload / reset / ZIP)
 catalog.json         furniture catalogue (types, default sizes, names in 3 languages)
+templates.json       room templates (Soviet-era / new build) and apartment sets
 order.json           saved orders
 public/index.html    layout
 public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages
+                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages, templates
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
 test/                unit tests (node:test): npm test
@@ -112,6 +114,7 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **Ochilish zonalari:** shkaf, komod, oshxona, muzlatgich va osma shkaflar qanday ochilishini biladi (ochiladigan eshiklar, kupe, tortmalar, yoyiladigan; buyumda eshiklar soni bilan o‘zgartirish mumkin). Eshik yoki tortma o‘z balandligidagi devor, mebel yoki konstruktivga tegsa — yetishmaydigan sm bilan xato: «Eshikcha/tortma ochilmaydi: «Karavot» xalaqit beradi (20 sm yetmaydi)». Bir joydagi ikki zona yoki xona eshigi zonasidagi zona — ogohlantirish. **⌓ Zonalar** (`Z` tugmasi) almashadi: faqat tanlangan → hammasi → yashirin; tekshiruv har doim ishlaydi, zona xatosi bor tanlangan buyum zonasi doim ko‘rinadi. Avtojoylashtirish avval zonasi bo‘sh joyni qidiradi.
 - **O‘tish joylari:** mebel, konstruktiv va devorlar orasidagi me’yordan tor oraliqlar («O‘tish joyi» sozlamasi, standart 60 sm; 20 sm dan kichigi — tirqish) ogohlantiriladi: «Tor o‘tish joyi 48 sm (me’yor 60 dan)». **↔ O‘tishlar** (`P` tugmasi) rejadagi sariq chiziqlarni ko‘rsatadi / yashiradi, nishonda soni; xabarlar ustunida yig‘iladigan «O‘tish joylari (N)» guruhi, bosilganda o‘tish joyi rejada yonadi.
 - **Loyihalar va xonalar:** loyihada bir nechta xona bor, ular reja ustida yorliqlar ko‘rinishida (+ Xona: nomi, vazifasi, o‘lchami; ⋯ — nomini o‘zgartirish, «variant B» versiyasi sifatida nusxalash, o‘chirish). Har bir xonaning o‘z bekor qilish tarixi bor. 📁 **Loyihalar** — reja rasmi bilan kartalar: ochish, yangi, nomini o‘zgartirish, nusxalash, o‘chirish, `.fsp3d.json` faylga **eksport / import** (zaxira yoki boshqa qurilmaga ko‘chirish). Eski bitta xonali reja avtomatik ravishda «Mening loyiham»ga ko‘chiriladi.
+- **Xona shablonlari:** + Xona → **Shablondan**: *Sovet davri uyi* to‘plami (panel / g‘isht 1960–90-yillar, shift ≈ 2,8 m) yoki *Yangi bino* (monolit/karkas 2015+, shift ≈ 3,0 m) — yotoqxona, bolalar xonasi, oshxona-mehmonxona, asosiy yotoqxona, zal (sovet uyida ikki eshikli o‘tish xona), katta yotoqxona, ish xonasi, oshxona. Har bir kartada kichik reja va «12 m² · 4×3 m». Shablonda derazalar (tagida radiator), eshiklar, konstruktiv (stoyak, devor chiqig‘i, kolonna) va xatosiz joylashtirilgan mebel bor; keyin hammasini o‘zgartirish mumkin. 📁 Loyihalar → **Kvartira shablonidan yangi loyiha**: «2 xonali (sovet)» = zal + yotoqxona + oshxona, «3 xonali (yangi bino)» = oshxona-mehmonxona + asosiy yotoqxona + bolalar xonasi, har bir xona alohida yorliqda. O‘lchamlar Toshkent uylari uchun odatiy; shablonlar `templates.json` da (`GET /api/templates`).
 - **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak).
 - **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
 
@@ -144,13 +147,14 @@ http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 
 ### Loyiha tuzilmasi
 ```
-server.js            Express: statik, katalog, buyurtmalar, teksturalar (ro‘yxat / yuklash / tiklash / ZIP)
+server.js            Express: statik, katalog, shablonlar, buyurtmalar, teksturalar (ro‘yxat / yuklash / tiklash / ZIP)
 catalog.json         mebel katalogi (turlar, standart o‘lchamlar, 3 tildagi nomlar)
+templates.json       xona shablonlari (sovet uyi / yangi bino) va kvartira to‘plamlari
 order.json           saqlangan buyurtmalar
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages
+                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages, templates
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
 test/                unit testlar (node:test): npm test
@@ -193,6 +197,7 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Зоны открывания:** шкафы, комоды, кухня, холодильник и навесные шкафы знают, как открываются (распашные двери, купе, ящики, раскладной; можно поменять у предмета, вместе с числом дверей). Если дверца или ящик упирается в стену, мебель или конструктив на своей высоте — ошибка с нехваткой: «Дверца/ящик не откроется: мешает «Кровать» (не хватает 20 см)». Две зоны на одном месте или зона в зоне двери комнаты — предупреждение. **⌓ Зоны** (клавиша `Z`) по кругу: только выбранный → все → скрыты; проверки работают в любом режиме, у выбранного предмета с ошибкой зона видна всегда. Автоподбор сначала ищет место со свободной зоной.
 - **Проходы:** промежутки между мебелью, конструктивом и стенами уже нормы (настройка «Проход от», 60 см по умолчанию; меньше 20 см — щель, а не проход) дают предупреждение: «Узкий проход 48 см (норма от 60)». **↔ Проходы** (клавиша `P`) показывает / скрывает жёлтые полосы на плане, бейдж — их число; в колонке уведомлений сворачиваемая группа «Проходы (N)», клик подсвечивает проход на плане.
 - **Проекты и комнаты:** в проекте несколько комнат — вкладки над планом (+ Комната: название, назначение, размеры; ⋯ — переименовать, дублировать как версию «вариант Б», удалить). У каждой комнаты своя история отмены. 📁 **Проекты** — карточки с превью плана: открыть, новый, переименовать, дублировать, удалить, **экспорт / импорт** файла `.fsp3d.json` (резервная копия или перенос на другое устройство). Старый план одной комнаты автоматически переносится в «Мой проект».
+- **Шаблоны комнат:** + Комната → **Из шаблона**: набор *Советский дом* (панель / кирпич 1960–90-х, потолок ≈ 2,8 м) или *Новостройка* (монолит/каркас 2015+, потолок ≈ 3,0 м) — спальня, детская, кухня-гостиная, мастер-спальня, зал (в советском — проходной с двумя дверями), большая спальня, кабинет, кухня. На карточке мини-план и «12 м² · 4×3 м». В шаблоне окна с батареями под ними, двери, конструктив (стояки, выступ, колонна) и мебель, расставленная без ошибок; дальше всё можно менять. 📁 Проекты → **Новый проект из шаблона квартиры**: «2-комнатная (сов.)» = зал + спальня + кухня, «3-комнатная (новостройка)» = кухня-гостиная + мастер-спальня + детская, каждая комната — своей вкладкой. Размеры типичные для жилья Ташкента; шаблоны лежат в `templates.json` (`GET /api/templates`).
 - **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок).
 - **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
 
@@ -225,13 +230,14 @@ npm start
 
 ### Структура проекта
 ```
-server.js            Express: статика, каталог, заявки, текстуры (список / загрузка / сброс / ZIP)
+server.js            Express: статика, каталог, шаблоны, заявки, текстуры (список / загрузка / сброс / ZIP)
 catalog.json         каталог мебели (типы, размеры по умолчанию, названия на 3 языках)
+templates.json       шаблоны комнат (советский дом / новостройка) и наборы квартир
 order.json           сохранённые заявки
 public/index.html    разметка
 public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages
+                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages, templates
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
 test/                модульные тесты (node:test): npm test

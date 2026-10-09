@@ -1,0 +1,90 @@
+import { test, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  normalizeDoc, makeRoom, makeProject, listProjects, loadProject, saveProjectNow, deleteProject,
+  migrateV1, openLastProject, activeRoom, onSaveError
+} from '../public/js/storage.js';
+import { state, item } from './helpers.js';
+
+function fakeStorage(limit = Infinity) {
+  const m = new Map();
+  return {
+    getItem: k => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => {
+      const size = [...m].reduce((s, [key, val]) => s + (key === k ? 0 : val.length), 0) + String(v).length;
+      if (size > limit) throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+      m.set(k, String(v));
+    },
+    removeItem: k => m.delete(k),
+    keys: () => [...m.keys()]
+  };
+}
+
+beforeEach(() => { globalThis.localStorage = fakeStorage(); });
+
+const v1 = () => {
+  const s = state({ items: [item({ id: 4 }), item({ id: 7, x: 200 })] });
+  return { room: s.room, settings: s.settings, items: s.items, seq: 2, openings: [{ id: 5, kind: 'door' }], openingsLocked: true };
+};
+
+test('migrates the v1 plan into a project and keeps the v1 key', () => {
+  localStorage.setItem('fsp3d.plan.v1', JSON.stringify(v1()));
+  const p = migrateV1('My project', 'Room 1');
+  assert.equal(p.name, 'My project');
+  assert.equal(p.rooms.length, 1);
+  const r = activeRoom(p);
+  assert.equal(r.name, 'Room 1');
+  assert.equal(r.items.length, 2);
+  assert.equal(r.seq, 8, 'seq repaired from item ids');
+  assert.equal(r.opSeq, 6);
+  assert.equal(r.openingsLocked, true);
+  assert.ok(localStorage.getItem('fsp3d.plan.v1'));
+  assert.equal(listProjects().length, 1);
+  assert.equal(migrateV1('x', 'y'), null, 'migrates only once');
+});
+
+test('no v1 plan → nothing to migrate', () => {
+  assert.equal(migrateV1('a', 'b'), null);
+  assert.equal(openLastProject(), null);
+});
+
+test('save and load round trip, last project is reopened', () => {
+  const a = makeProject('A', [makeRoom('R1', v1()), makeRoom('R2', {})]);
+  const b = makeProject('B', [makeRoom('R', {})]);
+  a.activeRoomId = a.rooms[1].id;
+  saveProjectNow(a);
+  saveProjectNow(b);
+  assert.deepEqual(listProjects().map(e => e.name), ['B', 'A']);
+  assert.deepEqual(loadProject(a.id), JSON.parse(JSON.stringify(a)));
+  assert.equal(openLastProject().id, b.id);
+  saveProjectNow(a);
+  assert.equal(openLastProject().id, a.id);
+  assert.equal(activeRoom(openLastProject()).name, 'R2');
+});
+
+test('delete removes the project and its index entry', () => {
+  const a = makeProject('A', [makeRoom('R', {})]);
+  saveProjectNow(a);
+  deleteProject(a.id);
+  assert.equal(loadProject(a.id), null);
+  assert.deepEqual(listProjects(), []);
+  assert.equal(openLastProject(), null);
+});
+
+test('normalizeDoc fills defaults and is stable', () => {
+  const d = normalizeDoc({ room: { L: 500 } });
+  assert.deepEqual(d.room, { L: 500, W: 300, H: 270, plinth: 2 });
+  assert.equal(d.settings.snap, 5);
+  assert.equal(d.openings, null);
+  assert.deepEqual(normalizeDoc(d), d);
+});
+
+test('storage full is reported, not thrown', () => {
+  globalThis.localStorage = fakeStorage(100);
+  let err = null;
+  onSaveError(e => { err = e; });
+  const ok = saveProjectNow(makeProject('Big', [makeRoom('R', v1())]));
+  assert.equal(ok, false);
+  assert.equal(err.name, 'QuotaExceededError');
+  onSaveError(() => {});
+});

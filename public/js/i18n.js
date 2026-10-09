@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'project.default': 'Мой проект', 'room.default': 'Комната {n}', 'storage.full': 'Не удалось сохранить: память браузера переполнена. Удалите старые проекты или экспортируйте их в файл',
     'ruler.title': 'Линейка (M): клик — начало, клик — конец, Shift — строго по горизонтали/вертикали, Esc — выход', 'ruler.clear': 'Очистить измерения', 'ruler.on': 'Линейка: кликните две точки. Точки притягиваются к стенам и краям мебели',
     'zoom.in': 'Приблизить (колесо мыши)', 'zoom.out': 'Отдалить', 'zoom.fit': 'Вписать план (сбросить масштаб). Перемещение: протяжка по пустому месту, пробел+протяжка или средняя кнопка',
     'sel.many': 'Выбрано предметов: {n}', 'align.title': 'Выровнять', 'align.left': 'По левому краю', 'align.cx': 'По центру (гориз.)', 'align.right': 'По правому краю', 'align.top': 'По верхнему краю', 'align.cy': 'По центру (верт.)', 'align.bottom': 'По нижнему краю', 'align.distX': 'Распределить по горизонтали', 'align.distY': 'Распределить по вертикали', 'sel.multiHint': 'Shift/Ctrl+клик — добавить или убрать, Shift+протяжка — рамка, Ctrl+A — все',
@@ -67,6 +68,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'project.default': 'Mening loyiham', 'room.default': 'Xona {n}', 'storage.full': 'Saqlab bo‘lmadi: brauzer xotirasi to‘lgan. Eski loyihalarni o‘chiring yoki faylga eksport qiling',
     'ruler.title': 'Chizg‘ich (M): bosish — boshlanish, bosish — oxiri, Shift — faqat gorizontal/vertikal, Esc — chiqish', 'ruler.clear': 'O‘lchovlarni tozalash', 'ruler.on': 'Chizg‘ich: ikki nuqtani bosing. Nuqtalar devorlar va mebel chetlariga yopishadi',
     'zoom.in': 'Yaqinlashtirish (sichqoncha g‘ildiragi)', 'zoom.out': 'Uzoqlashtirish', 'zoom.fit': 'Rejani sig‘dirish (masshtabni tiklash). Siljitish: bo‘sh joyda tortish, probel+tortish yoki o‘rta tugma',
     'sel.many': 'Tanlangan buyumlar: {n}', 'align.title': 'Tekislash', 'align.left': 'Chap chekka bo‘yicha', 'align.cx': 'Markaz bo‘yicha (gorizontal)', 'align.right': 'O‘ng chekka bo‘yicha', 'align.top': 'Yuqori chekka bo‘yicha', 'align.cy': 'Markaz bo‘yicha (vertikal)', 'align.bottom': 'Pastki chekka bo‘yicha', 'align.distX': 'Gorizontal teng taqsimlash', 'align.distY': 'Vertikal teng taqsimlash', 'sel.multiHint': 'Shift/Ctrl+bosish — qo‘shish yoki olib tashlash, Shift+tortish — ramka, Ctrl+A — hammasi',
@@ -133,6 +135,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'project.default': 'My project', 'room.default': 'Room {n}', 'storage.full': 'Could not save: browser storage is full. Delete old projects or export them to a file',
     'ruler.title': 'Ruler (M): click — start, click — end, Shift — straight horizontal/vertical, Esc — exit', 'ruler.clear': 'Clear measurements', 'ruler.on': 'Ruler: click two points. Points snap to walls and furniture edges',
     'zoom.in': 'Zoom in (mouse wheel)', 'zoom.out': 'Zoom out', 'zoom.fit': 'Fit plan (reset zoom). Pan: drag empty floor, Space+drag or middle button',
     'sel.many': 'Items selected: {n}', 'align.title': 'Align', 'align.left': 'Align left edges', 'align.cx': 'Align horizontal centres', 'align.right': 'Align right edges', 'align.top': 'Align top edges', 'align.cy': 'Align vertical centres', 'align.bottom': 'Align bottom edges', 'align.distX': 'Distribute horizontally', 'align.distY': 'Distribute vertically', 'sel.multiHint': 'Shift/Ctrl+click — add or remove, Shift+drag — box select, Ctrl+A — all',

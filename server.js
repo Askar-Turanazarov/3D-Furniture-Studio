@@ -9,6 +9,7 @@ const ORDERS = path.join(__dirname, 'order.json');
 
 app.use(express.json({ limit: '200kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 
 app.get('/api/catalog', async (req, res) => {
   try {

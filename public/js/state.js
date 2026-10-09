@@ -7,7 +7,7 @@ import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 
 export const state = {
   room: { L: 400, W: 300, H: 270, plinth: 2 },
-  settings: { snap: 5, gap: 3, grid: 10 },
+  settings: { snap: 5, gap: 3, grid: 10, showZones: 'selected' },   // showZones: selected | all | none
   items: [],          // { id, type, w, d, h, x, y, rot, color }
   seq: 1,
   selectedId: null,   // primary selected item

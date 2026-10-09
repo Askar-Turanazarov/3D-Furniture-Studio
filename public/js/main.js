@@ -36,13 +36,21 @@ function update() {
 }
 
 // ---- undo / redo ----
-const snapshot = () => JSON.stringify(docFromState());
+// View toggles live in settings (saved with the room) but are not undo steps.
+const VIEW_KEYS = ['showZones', 'showPassages'];
+const snapshot = () => {
+  const d = docFromState();
+  for (const k of VIEW_KEYS) delete d.settings[k];
+  return JSON.stringify(d);
+};
 
 function step(dir) {
   closeStaleField();
   const snap = dir < 0 ? history.undo() : history.redo();
   if (!snap) return;
+  const view = Object.fromEntries(VIEW_KEYS.filter(k => k in state.settings).map(k => [k, state.settings[k]]));
   applyDoc(JSON.parse(snap));
+  Object.assign(state.settings, view);
   syncForms();
   emit();
   toast(t(dir < 0 ? 'hist.undone' : 'hist.redone'));
@@ -95,7 +103,7 @@ function autoPlace(item) {
     state.found = { id: item.id, until: performance.now() + 2000 };
     state.selectedId = item.id;
     emit();
-    toast(t('auto.found', { name: itemName(item) }));
+    toast(t(res.soft ? 'auto.foundSoft' : 'auto.found', { name: itemName(item) }), res.soft);
   } else {
     emit();
     toast(describe(res), true);

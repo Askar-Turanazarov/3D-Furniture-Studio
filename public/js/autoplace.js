@@ -2,6 +2,7 @@
 // Wall-adjacent positions are tried first, then the whole room.
 import { footprint, rectOf, blocked, insideRoom, obstacleRects, zOverlaps } from './geometry.js';
 import { doorSwingRect } from './openings.js';
+import { openSpec, openZoneRect } from './zones.js';
 
 const ROTS = [0, 90, 180, 270];
 const MAX_STEPS = 600;   // per axis, keeps big rooms fast
@@ -32,10 +33,28 @@ export function findSpot(item, state) {
 
   // Current rotation first, then the rest.
   const rots = [item.rot, ...ROTS.filter(r => r !== item.rot)];
-  const fits = (x, y, rot) => {
+  const loose = (x, y, rot) => {
     const r = rectOf(item, x, y, rot);
     return insideRoom(r, room) && !blocked(r, others, gap);
   };
+  // Strict: own opening zone inside the room and free; not standing in other items' zones.
+  const spec = openSpec(item, state.catalog);
+  const otherZones = state.items.filter(i => i.id !== item.id && zOverlaps(i, item))
+    .map(i => openZoneRect(i, openSpec(i, state.catalog))).filter(Boolean);
+  const strict = (x, y, rot) => {
+    if (!loose(x, y, rot)) return false;
+    const r = rectOf(item, x, y, rot);
+    if (blocked(r, otherZones, 0)) return false;
+    const z = openZoneRect({ ...item, x, y, rot }, spec);
+    return !z || (z.x >= 0 && z.y >= 0 && z.x + z.w <= room.L && z.y + z.h <= room.W && !blocked(z, others, 0));
+  };
+  const hard = search(strict);
+  if (hard) return hard;
+  const soft = search(loose);
+  if (soft) return { ...soft, soft: true };
+  return explainFailure(item, state, others);
+
+  function search(fits) {
 
   // Pass 1: along the walls, back to the wall (front faces into the room).
   const walls = [
@@ -63,8 +82,8 @@ export function findSpot(item, state) {
     const ys = axisCandidates(p, room.W - p - f.h, f.h, 'y', others, settings);
     for (const y of ys) for (const x of xs) if (fits(x, y, rot)) return { ok: true, x, y, rot };
   }
-
-  return explainFailure(item, state, others);
+  return null;
+  }
 }
 
 // Grid positions plus exact "touching" positions next to other items.

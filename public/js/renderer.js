@@ -1,6 +1,7 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
 import { state, itemName, isSelected } from './state.js';
 import { rectOf, rayGaps, obstacleRects, zOverlaps } from './geometry.js';
+import { openSpec, openZoneRect, frontFace } from './zones.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
 import { ruler, measure } from './ruler.js';
@@ -122,6 +123,7 @@ function draw() {
   for (const it of state.items) if (it !== sel && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
   if (sel) drawItem(sel, now);
   drawObstacles(true);    // ceiling ducts and other high structure over the furniture
+  drawZones(sel);
   drawOpenings();   // over the furniture: a blocked door swing stays visible
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
   if (overlay.marquee) drawMarquee(overlay.marquee);
@@ -180,6 +182,55 @@ function drawPlinth() {
   ctx.setLineDash([6, 4]);
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, (L - 2 * p) * view.scale, (W - 2 * p) * view.scale);
+  ctx.restore();
+}
+
+// Opening zones (dashed light blue; red when blocked). Mode: selected | all | none.
+// Hidden zones still validate; a selected item with a zone error shows its zone in any mode.
+const zoneErr = it => (errors.get(it.id) || []).some(e => e.key.startsWith('err.openZone'));
+
+function drawZones(sel) {
+  const mode = state.settings.showZones || 'selected';
+  const list = mode === 'all' ? state.items
+    : state.items.filter(it => isSelected(it.id) && (mode === 'selected' || zoneErr(it)));
+  for (const it of list) drawZone(it);
+}
+
+function drawZone(it) {
+  const spec = openSpec(it, state.catalog);
+  const z = openZoneRect(it, spec);
+  if (!z) return;
+  const bad = zoneErr(it);
+  ctx.save();
+  ctx.strokeStyle = bad ? COLORS.bad : '#339af0';
+  ctx.fillStyle = bad ? 'rgba(224, 49, 49, .08)' : 'rgba(77, 171, 247, .1)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  if (spec.kind === 'swing') {
+    // One quarter arc per leaf; hinges on the outer sides.
+    const f = frontFace(it);
+    const dw = f.len / spec.doors, rad = Math.min(spec.depth, dw);
+    for (let i = 0; i < spec.doors; i++) {
+      const left = i < spec.doors / 2;
+      const s = left ? i * dw : (i + 1) * dw;
+      const hx = f.p[0] + f.u[0] * s, hy = f.p[1] + f.u[1] * s;
+      const sign = left ? 1 : -1;
+      const [cx, cy] = toScreen(hx, hy);
+      const a0 = Math.atan2(f.u[1] * sign, f.u[0] * sign), a1 = Math.atan2(f.n[1], f.n[0]);
+      const ccw = (f.u[0] * sign) * f.n[1] - (f.u[1] * sign) * f.n[0] < 0;
+      const R = rad * view.scale;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a0, a1, ccw);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else {
+    const [x, y] = toScreen(z.x, z.y);
+    ctx.fillRect(x, y, z.w * view.scale, z.h * view.scale);
+    ctx.strokeRect(x + 0.5, y + 0.5, z.w * view.scale - 1, z.h * view.scale - 1);
+  }
   ctx.restore();
 }
 

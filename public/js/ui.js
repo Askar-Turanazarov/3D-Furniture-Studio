@@ -4,6 +4,7 @@ import { state, emit, addItem, removeItems, rotateItem, duplicateItems, select, 
   selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked,
   selectObstacle, selectedOb, addObstacle, addNiche, removeObstacle, updateObstacle } from './state.js';
 import { wallLen } from './openings.js';
+import { openSpec } from './zones.js';
 
 import { rectOf } from './geometry.js';
 import { alignDeltas } from './align.js';
@@ -55,6 +56,13 @@ export function initUI({ autoPlace }) {
     if (f.elev.value !== '') {
       const e = num(f.elev.value, 0, 600);
       if (e > 0) it.elev = e; else delete it.elev;
+    }
+    // Opening: empty = as the catalog says; doors only for hinged fronts.
+    const kind = f.openKind.value;
+    if (!kind) delete it.open;
+    else {
+      it.open = { kind };
+      if (kind === 'swing' && Number(f.doors.value) >= 1) it.open.doors = num(f.doors.value, 1, 8);
     }
     emit();
   });
@@ -146,6 +154,14 @@ function initOpenings() {
   const toggleLock = () => setOpeningsLocked(!state.openingsLocked);
   $('lockBtn').addEventListener('click', toggleLock);
   $('lockBtn2').addEventListener('click', toggleLock);
+  $('zonesBtn').addEventListener('click', cycleZones);
+  window.addEventListener('keydown', e => {
+    if (e.code !== 'KeyZ' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
+    if (!$('view3d').hidden) return;
+    cycleZones();
+    e.preventDefault();
+  });
   $('addWindowBtn').addEventListener('click', () => addOpening('window'));
   $('addDoorBtn').addEventListener('click', () => addOpening('door'));
   $('openList').addEventListener('click', e => {
@@ -215,6 +231,23 @@ function initObstacles() {
   $('obDelBtn').addEventListener('click', () => { const o = selectedOb(); if (o) removeObstacle(o.id); });
 }
 
+// ⌓ Zones: selected → all → hidden → selected. A view setting: saved, not undone.
+const ZONE_MODES = ['selected', 'all', 'none'];
+export function cycleZones() {
+  const cur = ZONE_MODES.indexOf(state.settings.showZones || 'selected');
+  state.settings.showZones = ZONE_MODES[(cur + 1) % ZONE_MODES.length];
+  emit();
+  toast(t('zones.mode', { mode: t('zones.' + state.settings.showZones) }));
+}
+
+function renderZonesBtn() {
+  const mode = state.settings.showZones || 'selected';
+  const b = $('zonesBtn');
+  b.textContent = `⌓ ${t('zones.short.' + mode)}`;
+  b.title = `${t('zones.title')}: ${t('zones.' + mode)} (Z)`;
+  b.classList.toggle('active', mode !== 'none');
+}
+
 function renderObstacles() {
   const locked = state.openingsLocked;
   for (const b of $('obAdd').querySelectorAll('button')) b.disabled = locked;
@@ -278,6 +311,7 @@ export function refresh() {
   renderSelPanel();
   renderOpenings();
   renderObstacles();
+  renderZonesBtn();
   renderNotes();
 }
 
@@ -312,6 +346,11 @@ function renderSelPanel() {
     if (document.activeElement !== f[k]) f[k].value = it[k];
   }
   if (document.activeElement !== f.elev) f.elev.value = it.elev || 0;
+  const spec = openSpec(it, state.catalog);
+  if (document.activeElement !== f.openKind) f.openKind.value = it.open?.kind || '';
+  f.doors.closest('label').hidden = spec.kind !== 'swing';
+  if (document.activeElement !== f.doors) f.doors.value = spec.doors || 1;
+  f.openKind.title = t('open.' + spec.kind) + (spec.depth ? ` · ${spec.depth} ${t('unit.cm')}` : '');
 }
 
 // Notes column right of the canvas: the selected item's status + every problem item.

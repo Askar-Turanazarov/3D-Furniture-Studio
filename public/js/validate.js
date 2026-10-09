@@ -1,6 +1,7 @@
 // Validate every item: walls (with plinth), AABB overlap, min gap, ceiling height, door swing.
 import { rectOf, wallViolations, overlaps, clearance, round1, zOverlaps, zRange } from './geometry.js';
 import { doorSwingRect, windowZoneRect } from './openings.js';
+import { openSpec, openZoneRect, freeDepth, wallDepth } from './zones.js';
 
 // → Map<itemId, [{ key, params }]>
 export function validateAll(state) {
@@ -31,6 +32,27 @@ export function validateAll(state) {
         if (c < settings.gap - 1e-6) errs.push({ key: 'err.gap', params: { kind: ob.kind, n: round1(c) } });
       }
     }
+  });
+
+  // Opening zones: a door / drawer that hits a wall, an item or structure at its height will not open.
+  items.forEach((it, i) => {
+    const spec = openSpec(it, state.catalog);
+    const zone = openZoneRect(it, spec);
+    if (!zone) return;
+    let worst = null;
+    const hit = (n, params) => { if (n > 0 && (!worst || n > worst.params.n)) worst = { params: { ...params, n } }; };
+    const wd = wallDepth(it, room);
+    if (wd < spec.depth) hit(Math.ceil(spec.depth - wd), { wallBlock: true });
+    items.forEach((o, j) => {
+      if (j === i || !zOverlaps(it, o) || overlaps(rects[i], rects[j]) || !overlaps(zone, rects[j])) return;
+      hit(Math.ceil(spec.depth - Math.max(0, freeDepth(it, rects[j]))), { otherId: o.id });
+    });
+    for (const ob of state.obstacles || []) {
+      const r = { x: ob.x, y: ob.y, w: ob.w, h: ob.d };
+      if (!zOverlaps(it, ob) || overlaps(rects[i], r) || !overlaps(zone, r)) continue;
+      hit(Math.ceil(spec.depth - Math.max(0, freeDepth(it, r))), { kind: ob.kind });
+    }
+    if (worst) result.get(it.id).push({ key: worst.params.wallBlock ? 'err.openZoneWall' : 'err.openZone', params: worst.params });
   });
 
   for (let i = 0; i < items.length; i++) {
@@ -87,5 +109,19 @@ export function validateWarnings(state) {
       }
     }
   }
+  // Two zones (or a zone and the room door) over the same floor: they cannot be open at once.
+  const zones = items.map(it => openZoneRect(it, openSpec(it, state.catalog)));
+  items.forEach((it, i) => {
+    if (!zones[i]) return;
+    for (const o of state.openings || []) {
+      if (o.kind === 'door' && (it.elev || 0) < o.height && overlaps(zones[i], doorSwingRect(o, room))) {
+        result.get(it.id).push({ key: 'warn.openZoneDoor', params: {} });
+      }
+    }
+    items.forEach((o, j) => {
+      if (j === i || !zones[j] || !zOverlaps(it, o) || !overlaps(zones[i], zones[j])) return;
+      result.get(it.id).push({ key: 'warn.openZoneShared', params: { otherId: o.id } });
+    });
+  });
   return result;
 }

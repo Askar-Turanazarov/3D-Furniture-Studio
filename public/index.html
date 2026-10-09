@@ -140,6 +140,17 @@
             <input type="number" name="h" min="1" max="600"></label>
           <label><span data-i18n="dim.elev">От пола</span>
             <input type="number" name="elev" min="0" max="600"></label>
+          <label><span data-i18n="open.kind">Открывание</span>
+            <select name="openKind">
+              <option value="" data-i18n="open.auto">по типу</option>
+              <option value="swing" data-i18n="open.swing">распашные</option>
+              <option value="slide" data-i18n="open.slide">купе</option>
+              <option value="drawer" data-i18n="open.drawer">ящики</option>
+              <option value="pullout" data-i18n="open.pullout">раскладной</option>
+              <option value="none" data-i18n="open.none">нет</option>
+            </select></label>
+          <label class="doors-field"><span data-i18n="open.doors">Дверей</span>
+            <input type="number" name="doors" min="1" max="8"></label>
         </form>
         <div class="btn-row">
           <button class="btn" id="rotateBtn" title="R">⟳ <span data-i18n="sel.rotate">Повернуть</span></button>
@@ -219,6 +230,7 @@
         <button class="btn icon" id="undoBtn" data-i18n-title="hist.undo" disabled>↶</button>
         <button class="btn icon" id="redoBtn" data-i18n-title="hist.redo" disabled>↷</button>
         <button class="btn lock-toggle" id="lockBtn2"></button>
+        <button class="btn" id="zonesBtn"></button>
         <button class="btn" id="fullscreenBtn">⛶ <span data-i18n="view.fullscreen">Весь экран</span></button>
         </div>
       </div>

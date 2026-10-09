@@ -252,6 +252,7 @@
         </div>
         <button class="btn icon" id="rulerBtn" data-i18n-title="ruler.title">📏</button>
         <button class="btn icon" id="rulerClearBtn" data-i18n-title="ruler.clear" hidden>⌫</button>
+        <button class="btn icon" id="nicheBtn" data-i18n-title="niche.title">📐</button>
         <button class="btn icon" id="snap2dBtn" data-i18n-title="snap.plan">📷</button>
         <button class="btn icon" id="undoBtn" data-i18n-title="hist.undo" disabled>↶</button>
         <button class="btn icon" id="redoBtn" data-i18n-title="hist.redo" disabled>↷</button>
@@ -264,6 +265,16 @@
       <div class="stage-body" id="stageBody">
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="plan"></canvas>
+        <div class="niche-panel" id="nichePanel" hidden>
+          <b data-i18n="niche.title">Заполнить нишу</b>
+          <div id="nicheInfo"></div>
+          <label><input type="radio" name="nicheKind" value="slide" checked> <span id="nicheSlide"></span></label>
+          <label><input type="radio" name="nicheKind" value="swing"> <span id="nicheSwing"></span></label>
+          <div class="btn-row">
+            <button class="btn accent" id="nicheApply" data-i18n="niche.apply">Применить</button>
+            <button class="btn" id="nicheCancel" data-i18n="niche.cancel">Отмена</button>
+          </div>
+        </div>
         <div id="view3d" class="view3d" hidden>
           <div class="hud hud-top">
             <div class="seg" role="group">

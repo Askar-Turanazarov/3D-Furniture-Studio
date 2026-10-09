@@ -1,7 +1,7 @@
 // "Find a spot": scan (x, y) with the snap step over 4 rotations.
 // Wall-adjacent positions are tried first, then the whole room.
 import { footprint, rectOf, blocked, insideRoom, obstacleRects, zOverlaps } from './geometry.js';
-import { doorSwingRect } from './openings.js';
+import { doorSwingRect, windowZoneRect, nearestWall } from './openings.js';
 import { openSpec, openZoneRect } from './zones.js';
 
 const ROTS = [0, 90, 180, 270];
@@ -148,4 +148,72 @@ function longestFree(strip, along, others, gap) {
   }
   if (cur < end) best = Math.max(best, end - cur);
   return best;
+}
+
+// ---------- "Fill a niche": the largest wardrobe in the free run of a wall ----------
+export const NICHE = { depth: 60, minDepth: 30, minW: 40, top: 5, step: 5, highOb: 150 };
+const WALL_ROT = { north: 0, east: 90, south: 180, west: 270 };
+
+// Wall-local coords of a plan rect: along the wall [a0, a1], depth from the wall [v0, v1].
+function local(r, wall, room) {
+  switch (wall) {
+    case 'north': return { a0: r.x, a1: r.x + r.w, v0: r.y, v1: r.y + r.h };
+    case 'south': return { a0: r.x, a1: r.x + r.w, v0: room.W - r.y - r.h, v1: room.W - r.y };
+    case 'west':  return { a0: r.y, a1: r.y + r.h, v0: r.x, v1: r.x + r.w };
+    default:      return { a0: r.y, a1: r.y + r.h, v0: room.L - r.x - r.w, v1: room.L - r.x };
+  }
+}
+
+// pt — click on the plan (cm). Along the nearest wall: free run around the click up to the first
+// item, structure, door swing, window or corner (with plinth and gap); depth — 60 or less to keep
+// minPassage in front; height — to the ceiling (or the bottom of a ceiling duct) minus 5 cm.
+// → { ok: true, wall, free, item: { w, d, h, x, y, rot } } | { ok: false, key, params }
+export function largestFit(pt, state) {
+  const { room, settings } = state;
+  const p = room.plinth, gap = settings.gap || 0, minPassage = settings.minPassage || 60;
+  const { wall } = nearestWall(pt.x, pt.y, room);
+  const horiz = wall === 'north' || wall === 'south';
+  const len = horiz ? room.L : room.W, deep = horiz ? room.W : room.L;
+  const u = horiz ? pt.x : pt.y;
+  const tall = { elev: 0, h: room.H };
+
+  // Things standing at the wardrobe's height; high structure (ceiling ducts) limits the height instead.
+  const solid = state.items.filter(i => zOverlaps(i, tall)).map(i => ({ r: rectOf(i), gap }))
+    .concat((state.obstacles || []).filter(o => (o.elev || 0) < NICHE.highOb).map(o => ({ r: { x: o.x, y: o.y, w: o.w, h: o.d }, gap })));
+  const zones = (state.openings || []).map(o => ({ r: o.kind === 'door' ? doorSwingRect(o, room) : windowZoneRect(o, room), gap: 0 }));
+
+  let lo = p, hi = len - p;
+  for (const { r, gap: g } of solid.concat(zones)) {
+    const l = local(r, wall, room);
+    if (l.v0 >= p + NICHE.depth + g || l.v1 <= 0) continue;        // not in the strip along the wall
+    const a0 = l.a0 - g, a1 = l.a1 + g;
+    if (a0 < u && u < a1) return { ok: false, key: 'niche.occupied', params: {} };
+    if (a1 <= u) lo = Math.max(lo, a1); else hi = Math.min(hi, a0);
+  }
+  const free = Math.floor(hi - lo);
+  const w = Math.floor(free / NICHE.step) * NICHE.step;
+  if (w < NICHE.minW) return { ok: false, key: 'niche.narrow', params: { n: Math.max(0, free) } };
+
+  // Depth: up to 60, leaving minPassage to whatever stands in front within the run.
+  let front = deep - p;
+  for (const { r } of solid) {
+    const l = local(r, wall, room);
+    if (l.a1 > lo && l.a0 < hi && l.v0 >= p) front = Math.min(front, l.v0);
+  }
+  const d = Math.floor(Math.min(NICHE.depth, front - p - minPassage));
+  if (d < NICHE.minDepth) return { ok: false, key: 'niche.shallow', params: { n: Math.max(0, d) } };
+
+  let ceil = room.H - p;
+  for (const o of state.obstacles || []) {
+    if ((o.elev || 0) < NICHE.highOb) continue;
+    const l = local({ x: o.x, y: o.y, w: o.w, h: o.d }, wall, room);
+    if (l.a1 > lo && l.a0 < hi && l.v0 < p + d) ceil = Math.min(ceil, o.elev);
+  }
+  const h = Math.floor(ceil - NICHE.top);
+
+  const a = lo + Math.floor((hi - lo - w) / 2);
+  const rot = WALL_ROT[wall];
+  const x = wall === 'west' ? p : wall === 'east' ? room.L - p - d : a;
+  const y = wall === 'north' ? p : wall === 'south' ? room.W - p - d : a;
+  return { ok: true, wall, free, item: { w, d, h, x, y, rot } };
 }

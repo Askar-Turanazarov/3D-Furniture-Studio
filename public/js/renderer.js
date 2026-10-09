@@ -35,7 +35,7 @@ const ZOOM_MIN = 0.5, ZOOM_MAX = 8;
 let lastW = 0, lastH = 0;
 const zoomListeners = new Set();
 export function onZoom(fn) { zoomListeners.add(fn); }
-export const overlay = { marquee: null };   // world rect being dragged for box selection
+export const overlay = { marquee: null, niche: null };   // box selection rect; niche fill ghost (item-like)
 let errors = new Map();
 let pending = false;
 
@@ -142,6 +142,7 @@ function draw() {
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
   if (!drawOpts.clean) {
     if (overlay.marquee) drawMarquee(overlay.marquee);
+    if (overlay.niche) drawNicheGhost(overlay.niche);
     drawRuler();
   }
 
@@ -500,6 +501,32 @@ function drawElevTag(it, x, y, w, h) {
 }
 
 const RULER = '#0b7285';
+
+// "Fill a niche" proposal: dashed green outline, front edge and the size.
+function drawNicheGhost(it) {
+  const r = rectOf(it);
+  const [x, y] = toScreen(r.x, r.y);
+  const w = r.w * view.scale, h = r.h * view.scale;
+  ctx.save();
+  ctx.fillStyle = 'rgba(47, 158, 68, .22)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#2f9e44';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  ctx.setLineDash([]);
+  drawFront(it, x, y, w, h);
+  const text = `${it.w}×${it.d}×${it.h}`;
+  ctx.font = '700 12px system-ui, sans-serif';
+  const tw = ctx.measureText(text).width + 10;
+  ctx.fillStyle = '#2f9e44';
+  ctx.fillRect(x + w / 2 - tw / 2, y + h / 2 - 9, tw, 18);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + w / 2, y + h / 2);
+  ctx.restore();
+}
 
 function drawRuler() {
   for (const m of ruler.measures) drawMeasure(m.a, m.b, false);

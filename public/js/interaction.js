@@ -11,6 +11,7 @@ import { history } from './history.js';
 import { duplicate, toast } from './ui.js';
 import { ruler, snapLines, snapPoint, lockAxis } from './ruler.js';
 import { t } from './i18n.js';
+import { niche, initNiche, toggleNiche, nicheHover, nicheClick, nicheEscape } from './nicheTool.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
@@ -25,6 +26,7 @@ let pinch = null;             // { d, mx, my }
 export function initInteraction(canvas) {
   initZoom(canvas);
   initRuler(canvas);
+  initNiche(canvas);
   canvas.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') {
       touches.set(e.pointerId, local(canvas, e));
@@ -41,6 +43,10 @@ export function initInteraction(canvas) {
     const [wx, wy] = toWorld(...local(canvas, e));
     if (ruler.active) {
       if (e.button === 0) rulerClick(wx, wy, e.shiftKey);
+      return;
+    }
+    if (niche.active) {
+      if (e.button === 0) nicheClick(wx, wy);
       return;
     }
     const hit = hitTest(wx, wy);
@@ -99,6 +105,11 @@ export function initInteraction(canvas) {
       drag.sx = e.clientX; drag.sy = e.clientY;
       canvas.style.cursor = 'grabbing';
       return panBy(dx, dy);
+    }
+    if (!drag && niche.active) {
+      nicheHover(wx, wy);
+      canvas.style.cursor = 'crosshair';
+      return;
     }
     if (!drag && ruler.active) {
       ruler.hover = rulerPoint(wx, wy, e.shiftKey);
@@ -170,6 +181,7 @@ export function initInteraction(canvas) {
     if (!document.getElementById('view3d').hidden) return;   // keys belong to the 3D view
     const mod = e.ctrlKey || e.metaKey;
     if (!mod && e.code === 'KeyM') { toggleRuler(); return e.preventDefault(); }
+    if (niche.active && e.key === 'Escape') { nicheEscape(); return e.preventDefault(); }
     if (ruler.active && e.key === 'Escape') {
       // Esc first drops an unfinished measurement, then leaves the ruler mode.
       if (ruler.a) { ruler.a = null; requestDraw(); } else toggleRuler(false);
@@ -218,6 +230,7 @@ export function toggleRuler(on = !ruler.active) {
   if (on === ruler.active) return;
   ruler.active = on;
   ruler.a = ruler.hover = null;
+  if (on) toggleNiche(false);
   rulerCanvas.style.cursor = on ? 'crosshair' : 'default';
   if (on) toast(t('ruler.on'));
   syncRuler();
@@ -229,6 +242,7 @@ export function resetRuler() {
   ruler.a = ruler.hover = null;
   if (ruler.active) toggleRuler(false);
   else syncRuler();
+  toggleNiche(false);
 }
 
 function syncRuler() {

@@ -32,14 +32,24 @@ export function findSpot(item, state) {
     return insideRoom(r, room) && !blocked(r, others, gap);
   };
 
-  // Pass 1: along the walls.
-  for (const rot of rots) {
+  // Pass 1: along the walls, back to the wall (front faces into the room).
+  const walls = [
+    { rot: 0, side: 'north' }, { rot: 90, side: 'east' },
+    { rot: 270, side: 'west' }, { rot: 180, side: 'south' }
+  ];
+  for (const { rot, side } of walls) {
     const f = footprint(item, rot);
-    const xs = axisCandidates(p, room.L - p - f.w, f.w, 'x', others, settings);
-    const ys = axisCandidates(p, room.W - p - f.h, f.h, 'y', others, settings);
-    const wallY = [p, room.W - p - f.h], wallX = [p, room.L - p - f.w];
-    for (const y of wallY) for (const x of xs) if (fits(x, y, rot)) return { ok: true, x, y, rot };
-    for (const x of wallX) for (const y of ys) if (fits(x, y, rot)) return { ok: true, x, y, rot };
+    if (side === 'north' || side === 'south') {
+      const y = side === 'north' ? p : room.W - p - f.h;
+      for (const x of axisCandidates(p, room.L - p - f.w, f.w, 'x', others, settings)) {
+        if (fits(x, y, rot)) return { ok: true, x, y, rot };
+      }
+    } else {
+      const x = side === 'west' ? p : room.L - p - f.w;
+      for (const y of axisCandidates(p, room.W - p - f.h, f.h, 'y', others, settings)) {
+        if (fits(x, y, rot)) return { ok: true, x, y, rot };
+      }
+    }
   }
   // Pass 2: anywhere.
   for (const rot of rots) {

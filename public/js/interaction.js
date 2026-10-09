@@ -210,6 +210,14 @@ export function toggleRuler(on = !ruler.active) {
   syncRuler();
 }
 
+// Another room: measurements of the previous one make no sense.
+export function resetRuler() {
+  ruler.measures = [];
+  ruler.a = ruler.hover = null;
+  if (ruler.active) toggleRuler(false);
+  else syncRuler();
+}
+
 function syncRuler() {
   document.getElementById('rulerBtn').classList.toggle('active', ruler.active);
   document.getElementById('rulerClearBtn').hidden = !ruler.measures.length;

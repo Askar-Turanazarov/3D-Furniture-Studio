@@ -155,6 +155,11 @@
     </aside>
 
     <main class="stage">
+      <div class="room-tabs">
+        <span class="proj-name" id="projName"></span>
+        <div class="room-tabs-list" id="roomTabsList" role="tablist"></div>
+        <button class="btn add-room" id="addRoomBtn" type="button">+ <span data-i18n="room.add">Комната</span></button>
+      </div>
       <div class="stage-bar">
         <div class="seg" role="group" aria-label="View">
           <button id="view2dBtn" class="active">2D <span data-i18n="view.plan">план</span></button>
@@ -236,6 +241,30 @@
       <div class="btn-row end">
         <button type="button" class="btn ghost" id="orderCancel" data-i18n="order.cancel">Отмена</button>
         <button type="submit" class="btn primary" value="send" data-i18n="order.send">Отправить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="menu" id="roomMenu" hidden>
+    <button type="button" data-act="edit" data-i18n="room.editMenu">Переименовать, назначение</button>
+    <button type="button" data-act="delete" class="danger" data-i18n="room.delete">Удалить комнату</button>
+  </div>
+
+  <dialog id="roomDlg">
+    <form id="roomDlgForm" method="dialog">
+      <h2 id="roomDlgTitle"></h2>
+      <label class="row"><span data-i18n="room.name">Название</span>
+        <input name="name" maxlength="60"></label>
+      <label class="row"><span data-i18n="room.purpose">Назначение</span>
+        <select name="purpose"></select></label>
+      <div class="grid3" id="roomDlgSize">
+        <label><span data-i18n="room.length">Длина</span><input type="number" name="L" min="100" max="3000"></label>
+        <label><span data-i18n="room.width">Ширина</span><input type="number" name="W" min="100" max="3000"></label>
+        <label><span data-i18n="room.height">Высота</span><input type="number" name="H" min="200" max="600"></label>
+      </div>
+      <div class="btn-row end">
+        <button type="button" class="btn ghost" id="roomDlgCancel" data-i18n="order.cancel">Отмена</button>
+        <button type="submit" class="btn primary" data-i18n="room.save">Сохранить</button>
       </div>
     </form>
   </dialog>

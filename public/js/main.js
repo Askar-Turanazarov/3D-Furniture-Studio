@@ -2,12 +2,12 @@ import { t, initLangSwitcher, onLangChange } from './i18n.js';
 import { state, onChange, emit, itemName, docFromState, applyDoc } from './state.js';
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
-import { onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom, activeRoom } from './storage.js';
+import { initProjects, persist } from './projects.js';
 import { initOrder } from './order.js';
 import { initTextures } from './textures.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
 import { validateAll, validateWarnings } from './validate.js';
-import { defaultOpenings, clampOpening } from './openings.js';
+import { clampOpening } from './openings.js';
 import { initInteraction } from './interaction.js';
 import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings } from './ui.js';
 
@@ -23,27 +23,6 @@ function update() {
   closeStaleField();
   history.record(snapshot());
   syncUndo();
-}
-
-// ---- project: the state is the active room of the open project ----
-let project = null;
-
-function persist() {
-  if (!project) return;
-  Object.assign(activeRoom(project), docFromState());
-  saveProject(project);
-}
-
-function openProject() {
-  onSaveError(() => toast(t('storage.full'), true));
-  project = openLastProject() || migrateV1(t('project.default'), t('room.default', { n: 1 }));
-  if (!project) {
-    state.openings = defaultOpenings(state.room);
-    project = makeProject(t('project.default'), [makeRoom(t('room.default', { n: 1 }), docFromState())]);
-  }
-  applyDoc(activeRoom(project));
-  state.openings ??= defaultOpenings(state.room);
-  window.addEventListener('pagehide', flushSave);
 }
 
 // ---- undo / redo ----
@@ -164,7 +143,7 @@ async function start() {
   initTextures();
   initHistory();
   await loadCatalog();
-  openProject();
+  initProjects();
   fillCatalog();
   syncForms();
   onChange(update);

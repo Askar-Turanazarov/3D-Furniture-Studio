@@ -26,8 +26,9 @@ A web app for custom furniture: the client enters the room size and the furnitur
 - **Plan editing:** undo / redo (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; a whole drag is one step), duplicate (`Ctrl+D`), multi-select (`Shift`/`Ctrl`+click, `Shift`+drag box, `Ctrl+A`) with group move and an **Align / distribute** panel.
 - **Zoom & pan:** wheel zooms around the cursor (50–800 %), − / 100 % / + buttons (100 % = fit); pan by dragging the empty floor, `Space`+drag or the middle button; pinch on touch screens. The view is not saved.
 - **Ruler** (📏 / `M`): click two points; points snap to walls, plinth and furniture edges, `Shift` keeps the line straight. Shows the length and Δx / Δy; ⌫ clears all measurements.
-- **Order** — form (name, phone, comment) is saved to `order.json`.
-- **Languages:** EN / UZ / RU. The plan is kept in `localStorage`.
+- **Projects and rooms:** a project holds several rooms shown as tabs above the plan (+ Room: name, purpose, size; ⋯ — rename, duplicate as a version "variant B", delete). Each room keeps its own undo history. 📁 **Projects** — cards with a plan preview: open, new, rename, duplicate, delete, **export / import** a `.fsp3d.json` file (backup or moving to another device). The old single-room plan is migrated automatically into "My project".
+- **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors).
+- **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
 
 ### Tech stack
 Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules, no build step), Canvas 2D, Three.js (npm + importmap).
@@ -64,7 +65,7 @@ order.json           saved orders
 public/index.html    layout
 public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (undo), align, ruler
+                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
 test/                unit tests (node:test): npm test
@@ -102,8 +103,9 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **Rejani tahrirlash:** bekor qilish / qaytarish (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; butun sudrash — bitta qadam), nusxa olish (`Ctrl+D`), bir nechta tanlash (`Shift`/`Ctrl`+bosish, `Shift`+tortish — ramka, `Ctrl+A`), guruhni siljitish va **Tekislash / taqsimlash** paneli.
 - **Masshtab va siljitish:** g‘ildirak kursor atrofida yaqinlashtiradi (50–800 %), − / 100 % / + tugmalari (100 % = sig‘dirish); bo‘sh polni tortish, `Probel`+tortish yoki o‘rta tugma bilan siljitish; sensorli ekranda ikki barmoq. Ko‘rinish saqlanmaydi.
 - **Chizg‘ich** (📏 / `M`): ikki nuqtani bosing; nuqtalar devor, plintus va mebel chetlariga yopishadi, `Shift` chiziqni to‘g‘ri ushlaydi. Uzunlik va Δx / Δy ko‘rsatiladi; ⌫ — barcha o‘lchovlarni tozalash.
-- **Buyurtma** — forma (ism, telefon, izoh) `order.json` fayliga saqlanadi.
-- **Tillar:** EN / UZ / RU. Reja `localStorage`da saqlanadi.
+- **Loyihalar va xonalar:** loyihada bir nechta xona bor, ular reja ustida yorliqlar ko‘rinishida (+ Xona: nomi, vazifasi, o‘lchami; ⋯ — nomini o‘zgartirish, «variant B» versiyasi sifatida nusxalash, o‘chirish). Har bir xonaning o‘z bekor qilish tarixi bor. 📁 **Loyihalar** — reja rasmi bilan kartalar: ochish, yangi, nomini o‘zgartirish, nusxalash, o‘chirish, `.fsp3d.json` faylga **eksport / import** (zaxira yoki boshqa qurilmaga ko‘chirish). Eski bitta xonali reja avtomatik ravishda «Mening loyiham»ga ko‘chiriladi.
+- **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak).
+- **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
 
 ### Texnologiyalar
 Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modullar, yig‘ishsiz), Canvas 2D, Three.js (npm + importmap).
@@ -140,7 +142,7 @@ order.json           saqlangan buyurtmalar
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (bekor qilish), align, ruler
+                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
 test/                unit testlar (node:test): npm test
@@ -178,8 +180,9 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Правка плана:** отмена / повтор (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; всё перетаскивание — один шаг), дублирование (`Ctrl+D`), выделение нескольких (`Shift`/`Ctrl`+клик, `Shift`+протяжка — рамка, `Ctrl+A`), перемещение группы и панель **Выровнять / распределить**.
 - **Масштаб и сдвиг:** колесо приближает относительно курсора (50–800 %), кнопки − / 100 % / + (100 % = вписать); сдвиг — протяжкой по пустому полу, `Пробел`+протяжка или средней кнопкой; на тач-экране — щипок. Вид не сохраняется.
 - **Линейка** (📏 / `M`): клик по двум точкам; точки притягиваются к стенам, плинтусу и краям мебели, `Shift` держит линию ровной. Показывает длину и Δx / Δy; ⌫ — очистить все измерения.
-- **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json`.
-- **Языки:** EN / UZ / RU. План хранится в `localStorage`.
+- **Проекты и комнаты:** в проекте несколько комнат — вкладки над планом (+ Комната: название, назначение, размеры; ⋯ — переименовать, дублировать как версию «вариант Б», удалить). У каждой комнаты своя история отмены. 📁 **Проекты** — карточки с превью плана: открыть, новый, переименовать, дублировать, удалить, **экспорт / импорт** файла `.fsp3d.json` (резервная копия или перенос на другое устройство). Старый план одной комнаты автоматически переносится в «Мой проект».
+- **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок).
+- **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
 
 ### Стек
 Node.js + Express (статика + небольшой JSON API), чистый HTML/CSS/JS (ES-модули, без сборки), Canvas 2D, Three.js (npm + importmap).
@@ -216,7 +219,7 @@ order.json           сохранённые заявки
 public/index.html    разметка
 public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (отмена), align, ruler
+                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
 test/                модульные тесты (node:test): npm test

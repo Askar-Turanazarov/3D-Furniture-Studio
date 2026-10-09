@@ -1,6 +1,7 @@
 // Single app state + simple change notification.
 import { footprint } from './geometry.js';
 import { getLang } from './i18n.js';
+import { newOpening, clampOpening } from './openings.js';
 
 export const state = {
   room: { L: 400, W: 300, H: 270, plinth: 2 },
@@ -8,6 +9,10 @@ export const state = {
   items: [],          // { id, type, w, d, h, x, y, rot, color }
   seq: 1,
   selectedId: null,
+  openings: null,     // windows / doors, see openings.js (defaults are set after load)
+  openingsLocked: false,
+  opSeq: 3,
+  selectedOpening: null,
   catalog: [],
   found: null         // { id, until } — green highlight after auto-place
 };
@@ -66,5 +71,43 @@ export function rotateItem(item) {
 
 export function select(id) {
   state.selectedId = id;
+  if (id !== null) state.selectedOpening = null;
+  emit();
+}
+
+// ---- windows / doors (furniture and opening selection are exclusive) ----
+export const getOpening = id => (state.openings || []).find(o => o.id === id) || null;
+export const selectedOpening = () => getOpening(state.selectedOpening);
+
+export function selectOpening(id) {
+  state.selectedOpening = id;
+  if (id !== null) state.selectedId = null;
+  emit();
+}
+
+export function addOpening(kind) {
+  if (state.openingsLocked) return null;
+  const o = newOpening(kind, state.opSeq++, state.room);
+  state.openings.push(o);
+  selectOpening(o.id);
+  return o;
+}
+
+export function removeOpening(id) {
+  if (state.openingsLocked) return;
+  state.openings = state.openings.filter(o => o.id !== id);
+  if (state.selectedOpening === id) state.selectedOpening = null;
+  emit();
+}
+
+export function updateOpening(o, patch) {
+  if (state.openingsLocked) return;
+  Object.assign(o, patch);
+  clampOpening(o, state.room);
+  emit();
+}
+
+export function setOpeningsLocked(v) {
+  state.openingsLocked = v;
   emit();
 }

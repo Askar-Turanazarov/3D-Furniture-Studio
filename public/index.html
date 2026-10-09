@@ -42,6 +42,34 @@
         <p class="hint" data-i18n="units">Все размеры в сантиметрах</p>
       </section>
 
+      <section class="panel" id="openPanel">
+        <h2><span data-i18n="op.title">Окна и двери</span>
+          <button type="button" class="lock-btn" id="lockBtn"></button></h2>
+        <div class="btn-row">
+          <button type="button" class="btn" id="addWindowBtn" data-i18n="op.addWindow">+ Окно</button>
+          <button type="button" class="btn" id="addDoorBtn" data-i18n="op.addDoor">+ Дверь</button>
+        </div>
+        <ul class="items op-list" id="openList"></ul>
+        <form id="openForm" class="grid3" hidden>
+          <label><span data-i18n="op.wall">Стена</span>
+            <select name="wall">
+              <option value="north" data-i18n="wallName.north"></option>
+              <option value="east" data-i18n="wallName.east"></option>
+              <option value="south" data-i18n="wallName.south"></option>
+              <option value="west" data-i18n="wallName.west"></option>
+            </select></label>
+          <label><span data-i18n="op.offset">Отступ</span><input type="number" name="offset" min="0" max="3000"></label>
+          <label><span data-i18n="op.width">Ширина</span><input type="number" name="width" min="30" max="3000"></label>
+          <label><span data-i18n="op.height">Высота</span><input type="number" name="height" min="20" max="600"></label>
+          <label class="win-only"><span data-i18n="op.sill">Подоконник</span><input type="number" name="sill" min="0" max="600"></label>
+          <div class="op-actions">
+            <button type="button" class="btn door-only" id="flipBtn" data-i18n="op.flip">⇄ Петли</button>
+            <button type="button" class="btn danger" id="openDelBtn" data-i18n="op.delete">✕ Удалить</button>
+          </div>
+        </form>
+        <p class="hint" data-i18n="op.hint"></p>
+      </section>
+
       <section class="panel">
         <h2 data-i18n="add.title">Добавить мебель</h2>
         <form id="addForm">
@@ -117,7 +145,10 @@
           <button id="view2dBtn" class="active">2D <span data-i18n="view.plan">план</span></button>
           <button id="view3dBtn">3D <span data-i18n="view.scene">сцена</span></button>
         </div>
+        <div class="btn-group">
+        <button class="btn lock-toggle" id="lockBtn2"></button>
         <button class="btn" id="fullscreenBtn">⛶ <span data-i18n="view.fullscreen">Весь экран</span></button>
+        </div>
       </div>
       <div class="stage-body" id="stageBody">
       <div class="canvas-wrap" id="canvasWrap">
@@ -147,6 +178,7 @@
       <aside class="notes" id="notes">
         <div class="banner" id="banner" hidden></div>
         <p class="hint" id="notesEmpty" data-i18n="notes.empty"></p>
+        <p class="note-lock" id="notesLock" data-i18n="op.locked" hidden></p>
         <section class="notes-all" id="notesAll" hidden>
           <h3 data-i18n="notes.all">Все проблемы на плане</h3>
           <ul id="problemList"></ul>
@@ -157,6 +189,7 @@
         <span><i class="sw ok"></i><span data-i18n="legend.ok">Норма</span></span>
         <span><i class="sw bad"></i><span data-i18n="legend.bad">Ошибка</span></span>
         <span><i class="sw found"></i><span data-i18n="legend.found">Найдено место</span></span>
+        <span><i class="sw warn"></i><span data-i18n="legend.warn">Предупреждение</span></span>
         <span class="keys" data-i18n="legend.keys">R — поворот · Del — удалить · стрелки — сдвиг</span>
       </div>
     </main>

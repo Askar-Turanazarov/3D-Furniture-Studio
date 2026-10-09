@@ -1,6 +1,7 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
 import { state, itemName } from './state.js';
 import { rectOf, rayGaps } from './geometry.js';
+import { wallLen } from './openings.js';
 import { t } from './i18n.js';
 
 const COLORS = {
@@ -15,7 +16,11 @@ const COLORS = {
   bad: '#e03131',
   badFill: 'rgba(224, 49, 49, .28)',
   found: '#2f9e44',
-  foundFill: 'rgba(64, 192, 87, .35)'
+  foundFill: 'rgba(64, 192, 87, .35)',
+  glass: '#a5d8ff',
+  glassLine: '#1971c2',
+  door: '#8d6e63',
+  swing: 'rgba(141, 110, 99, .10)'
 };
 const MARGIN = 44;   // px around the room for wall + dimension labels
 const WALL_PX = 8;
@@ -70,7 +75,9 @@ function draw() {
   const now = performance.now();
   const sel = state.items.find(i => i.id === state.selectedId);
   for (const it of state.items) if (it !== sel) drawItem(it, now);
-  if (sel) { drawItem(sel, now); drawClearances(sel); }
+  if (sel) drawItem(sel, now);
+  drawOpenings();   // over the furniture: a blocked door swing stays visible
+  if (sel) drawClearances(sel);
 
   if (state.found && now < state.found.until) {
     setTimeout(requestDraw, state.found.until - now + 20);
@@ -126,6 +133,99 @@ function drawPlinth() {
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, (L - 2 * p) * view.scale, (W - 2 * p) * view.scale);
   ctx.restore();
+}
+
+// Opening on the plan in screen px: a = start along the wall, b = end; wall band is WALL_PX thick outside the floor.
+function openingGeom(o) {
+  const { L, W } = state.room;
+  const s = view.scale;
+  const [x0, y0] = toScreen(0, 0);
+  const a = o.offset * s, b = (o.offset + o.width) * s;
+  switch (o.wall) {
+    // p(u, v): u along the wall from its start, v into the room from the inner face.
+    case 'north': return { band: [x0 + a, y0 - WALL_PX, b - a, WALL_PX], p: (u, v) => [x0 + u, y0 + v], a, b, horiz: true };
+    case 'south': return { band: [x0 + a, y0 + W * s, b - a, WALL_PX], p: (u, v) => [x0 + u, y0 + W * s - v], a, b, horiz: true };
+    case 'west':  return { band: [x0 - WALL_PX, y0 + a, WALL_PX, b - a], p: (u, v) => [x0 + v, y0 + u], a, b, horiz: false };
+    default:      return { band: [x0 + L * s, y0 + a, WALL_PX, b - a], p: (u, v) => [x0 + L * s - v, y0 + u], a, b, horiz: false };
+  }
+}
+
+// Windows: glass in the wall with the classic 3-line symbol. Doors: gap, leaf and dashed swing arc.
+function drawOpenings() {
+  for (const o of state.openings || []) {
+    const g = openingGeom(o);
+    const [bx, by, bw, bh] = g.band;
+    const isSel = o.id === state.selectedOpening;
+    ctx.save();
+    if (o.kind === 'window') {
+      ctx.fillStyle = COLORS.glass;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = COLORS.glassLine;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (const k of [0, 0.5, 1]) {
+        if (g.horiz) { const y = by + k * bh; ctx.moveTo(bx, y); ctx.lineTo(bx + bw, y); }
+        else { const x = bx + k * bw; ctx.moveTo(x, by); ctx.lineTo(x, by + bh); }
+      }
+      ctx.stroke();
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    } else {
+      const r = g.b - g.a;
+      const hingeU = o.hinge === 'end' ? g.b : g.a, freeU = o.hinge === 'end' ? g.a : g.b;
+      ctx.fillStyle = COLORS.floor;
+      ctx.fillRect(bx, by, bw, bh);
+      // Swing sector.
+      const [hx, hy] = g.p(hingeU, 0);
+      const [lx, ly] = g.p(hingeU, r);
+      const [fx, fy] = g.p(freeU, 0);
+      const a0 = Math.atan2(ly - hy, lx - hx), a1 = Math.atan2(fy - hy, fx - hx);
+      let da = a1 - a0;
+      while (da > Math.PI) da -= 2 * Math.PI;
+      while (da < -Math.PI) da += 2 * Math.PI;
+      ctx.fillStyle = COLORS.swing;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.arc(hx, hy, r, a0, a0 + da, da < 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = COLORS.door;
+      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(hx, hy, r, a0, a0 + da, da < 0); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(lx, ly); ctx.stroke();
+    }
+    if (isSel) {
+      ctx.strokeStyle = COLORS.selected;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+      ctx.strokeRect(bx - 2, by - 2, bw + 4, bh + 4);
+      drawOpeningDims(o, g);
+    }
+    ctx.restore();
+  }
+}
+
+// Distances from the selected opening to both corners of its wall, drawn just inside the room.
+function drawOpeningDims(o, g) {
+  const len = wallLen(o.wall, state.room);
+  const s = view.scale;
+  const segs = [[0, g.a, o.offset], [g.b, len * s, len - o.offset - o.width]];
+  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const [u0, u1, d] of segs) {
+    if (d <= 0 || u1 - u0 < 24) continue;
+    const [x1, y1] = g.p(u0, 16), [x2, y2] = g.p(u1, 16);
+    ctx.strokeStyle = COLORS.selected;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const label = String(Math.round(d));
+    const tw = ctx.measureText(label).width + 6;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
+    ctx.fillStyle = COLORS.selected;
+    ctx.fillText(label, mx, my);
+  }
 }
 
 function drawDimensions() {

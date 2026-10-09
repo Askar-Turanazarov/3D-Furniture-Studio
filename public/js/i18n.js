@@ -1,6 +1,13 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'op.title': 'Окна и двери', 'op.addWindow': '+ Окно', 'op.addDoor': '+ Дверь', 'op.lock': '🔓 Заблокировать', 'op.unlock': '🔒 Заблокировано',
+    'op.lockShort': '🔓 Проёмы', 'op.unlockShort': '🔒 Проёмы', 'op.locked': '🔒 Окна и двери заблокированы — их нельзя сдвинуть случайно',
+    'op.window': 'Окно', 'op.door': 'Дверь', 'op.wall': 'Стена', 'op.offset': 'Отступ, см', 'op.width': 'Ширина, см', 'op.height': 'Высота, см',
+    'op.sill': 'Подоконник, см', 'op.flip': '⇄ Петли', 'op.delete': '✕ Удалить',
+    'op.hint': 'Окна и двери перетаскиваются вдоль стены (можно перенести на другую). Замок защищает их от случайного сдвига при расстановке мебели.',
+    'wallName.north': 'Северная (верх)', 'wallName.south': 'Южная (низ)', 'wallName.west': 'Левая', 'wallName.east': 'Правая',
+    'err.door': 'Мешает открыванию двери', 'warn.window': 'Закрывает окно (выше подоконника {n} см)', 'legend.warn': 'Предупреждение',
     'notes.empty': 'Выберите предмет на плане — здесь появятся проверки и подсказки', 'notes.all': 'Все проблемы на плане', 'notes.allOk': 'Ошибок размещения нет',
     'tex.title': 'Фото-текстуры (3D)', 'tex.apply': 'Применить готовые', 'tex.pack': 'Скачать набор (ZIP)',
     'tex.floor': 'Пол', 'tex.wall': 'Стены', 'tex.wood': 'Дерево мебели', 'tex.fabric': 'Обивка',
@@ -53,6 +60,13 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'op.title': 'Derazalar va eshiklar', 'op.addWindow': '+ Deraza', 'op.addDoor': '+ Eshik', 'op.lock': '🔓 Qulflash', 'op.unlock': '🔒 Qulflangan',
+    'op.lockShort': '🔓 Teshiklar', 'op.unlockShort': '🔒 Teshiklar', 'op.locked': '🔒 Derazalar va eshiklar qulflangan — ularni tasodifan surib bo‘lmaydi',
+    'op.window': 'Deraza', 'op.door': 'Eshik', 'op.wall': 'Devor', 'op.offset': 'Chekinish, sm', 'op.width': 'Kengligi, sm', 'op.height': 'Balandligi, sm',
+    'op.sill': 'Deraza tokchasi, sm', 'op.flip': '⇄ Oshiq-moshiq', 'op.delete': '✕ O‘chirish',
+    'op.hint': 'Deraza va eshiklarni devor bo‘ylab suring (boshqa devorga ham o‘tkazish mumkin). Qulf ularni mebel joylashtirishda tasodifiy siljishdan himoya qiladi.',
+    'wallName.north': 'Shimoliy (yuqori)', 'wallName.south': 'Janubiy (past)', 'wallName.west': 'Chap', 'wallName.east': 'O‘ng',
+    'err.door': 'Eshik ochilishiga xalaqit beradi', 'warn.window': 'Derazani to‘sadi (tokchadan {n} sm baland)', 'legend.warn': 'Ogohlantirish',
     'notes.empty': 'Rejada buyumni tanlang — tekshiruvlar va maslahatlar shu yerda chiqadi', 'notes.all': 'Rejadagi barcha muammolar', 'notes.allOk': 'Joylashtirish xatolari yo‘q',
     'tex.title': 'Foto-teksturalar (3D)', 'tex.apply': 'Tayyorlarini qo‘llash', 'tex.pack': 'To‘plamni yuklab olish (ZIP)',
     'tex.floor': 'Pol', 'tex.wall': 'Devorlar', 'tex.wood': 'Mebel yog‘ochi', 'tex.fabric': 'Qoplama',
@@ -105,6 +119,13 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'op.title': 'Windows & doors', 'op.addWindow': '+ Window', 'op.addDoor': '+ Door', 'op.lock': '🔓 Lock', 'op.unlock': '🔒 Locked',
+    'op.lockShort': '🔓 Openings', 'op.unlockShort': '🔒 Openings', 'op.locked': '🔒 Windows and doors are locked — they cannot be moved by accident',
+    'op.window': 'Window', 'op.door': 'Door', 'op.wall': 'Wall', 'op.offset': 'Offset, cm', 'op.width': 'Width, cm', 'op.height': 'Height, cm',
+    'op.sill': 'Sill, cm', 'op.flip': '⇄ Hinges', 'op.delete': '✕ Delete',
+    'op.hint': 'Drag windows and doors along the wall (or onto another wall). The lock keeps them from moving by accident while you arrange furniture.',
+    'wallName.north': 'North (top)', 'wallName.south': 'South (bottom)', 'wallName.west': 'Left', 'wallName.east': 'Right',
+    'err.door': 'Blocks the door swing', 'warn.window': 'Covers the window (taller than the {n} cm sill)', 'legend.warn': 'Warning',
     'notes.empty': 'Select an item on the plan — checks and hints will appear here', 'notes.all': 'All problems on the plan', 'notes.allOk': 'No placement errors',
     'tex.title': 'Photo textures (3D)', 'tex.apply': 'Apply built-in', 'tex.pack': 'Download set (ZIP)',
     'tex.floor': 'Floor', 'tex.wall': 'Walls', 'tex.wood': 'Furniture wood', 'tex.fabric': 'Upholstery',

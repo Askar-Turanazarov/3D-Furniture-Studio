@@ -147,11 +147,17 @@ function blockedAt(x, z, obs) {
   return obs.some(o => x > o.x - RADIUS && x < o.x + o.w + RADIUS && z > o.z - RADIUS && z < o.z + o.d + RADIUS);
 }
 
-// Start near the door (south-east), else the nearest free point to the room centre.
+// Start just inside the first door, else the nearest free point to the room centre.
 function spawn() {
   const { L, W } = room.size;
   const obs = obstacles();
-  const cands = [[L - 0.6, W - 0.6]];
+  const cands = [];
+  const door = (state.openings || []).find(o => o.kind === 'door');
+  if (door) {
+    const c = (door.offset + door.width / 2) / 100, inset = door.width / 100 + 0.3;
+    const p = { north: [c, inset], south: [c, W - inset], west: [inset, c], east: [L - inset, c] }[door.wall];
+    cands.push(p);
+  }
   for (let r = 0; r < Math.max(L, W); r += 0.1) {
     for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) cands.push([L / 2 + Math.cos(a) * r, W / 2 + Math.sin(a) * r]);
   }

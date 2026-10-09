@@ -5,11 +5,14 @@ import { load, save } from './storage.js';
 import { initOrder } from './order.js';
 import { initTextures } from './textures.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
-import { validateAll } from './validate.js';
+import { validateAll, validateWarnings } from './validate.js';
+import { defaultOpenings, clampOpening } from './openings.js';
 import { initInteraction } from './interaction.js';
-import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors } from './ui.js';
+import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings } from './ui.js';
 
 function update() {
+  for (const o of state.openings) clampOpening(o, state.room);
+  setWarnings(validateWarnings(state));
   const errors = validateAll(state);
   setDrawErrors(errors);
   setUiErrors(errors);
@@ -84,6 +87,7 @@ async function start() {
   initTextures();
   await loadCatalog();
   load(state);
+  state.openings ??= defaultOpenings(state.room);
   fillCatalog();
   syncForms();
   onChange(update);

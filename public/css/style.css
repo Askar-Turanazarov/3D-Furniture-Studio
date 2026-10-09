@@ -162,6 +162,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .notes-all li span { display: block; color: var(--muted); font-size: 12px; }
 .notes-all .ok { color: #2b8a3e; font-weight: 600; cursor: default; }
 .stage.is3d .notes { display: none; }
+.note-lock { margin: 0; padding: 7px 12px; border-radius: var(--radius); background: #f1f3f5; color: var(--muted); font-size: 12px; font-weight: 600; }
+.banner.warn { background: #fff9db; color: #a86200; border-color: #ffe066; }
+.notes-all li i { display: block; font-style: normal; color: #a86200; font-size: 12px; }
+
+/* ---------- windows / doors panel ---------- */
+.lock-btn {
+  margin-left: auto; font: inherit; font-size: 12px; font-weight: 700; text-transform: none; letter-spacing: 0;
+  border: 1px solid var(--line); background: #fff; color: var(--text); border-radius: 7px; padding: 3px 9px; cursor: pointer;
+}
+.lock-btn.on, .lock-toggle.on { background: #fff4e6; border-color: #ffc078; color: #d9480f; }
+.op-list { margin-top: 8px; }
+#openForm { margin-top: 8px; }
+#openForm.locked { opacity: .55; }
+.op-actions { grid-column: 1 / -1; display: flex; gap: 6px; }
+.op-actions .btn { flex: 1; }
+.stage-bar .btn-group { display: flex; gap: 6px; }
 
 .canvas-wrap {
   flex: 1; min-width: 0; min-height: 300px;
@@ -187,6 +203,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .sw.ok { background: #748ffc; }
 .sw.bad { background: var(--danger); }
 .sw.found { background: #40c057; }
+.sw.warn { background: #fab005; }
 .legend .keys { margin-left: auto; }
 
 /* ---------- dialog / toast ---------- */

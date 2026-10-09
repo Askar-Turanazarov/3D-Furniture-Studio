@@ -27,6 +27,7 @@ export function initOrder() {
       comment: f.comment.value.trim(),
       lang: getLang(),
       room: { ...state.room },
+      openings: (state.openings || []).map(({ id, ...o }) => o),
       items: state.items.map(i => ({
         type: i.type, name: itemName(i), w: i.w, d: i.d, h: i.h, x: i.x, y: i.y, rot: i.rot
       }))

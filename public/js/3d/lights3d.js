@@ -16,7 +16,7 @@ export function setupEnvironment(renderer, scene) {
 }
 
 /**
- * @param size { L, W, H } in metres; win — window rect on the north wall
+ * @param size { L, W, H } in metres; win — first window { cx, cz, nx, nz } (centre, outward normal) or null
  */
 export function buildLights({ L, W, H }, win) {
   const group = new THREE.Group();
@@ -43,11 +43,12 @@ export function buildLights({ L, W, H }, win) {
   lamp.shadow.camera.far = Math.max(L, W, H) * 2;
   group.add(lamp);
 
-  // Daylight: directional light from outside, through the north window.
-  const sun = new THREE.DirectionalLight('#fff4e0', 2.2);
-  const cx = win.x + win.w / 2;
-  sun.position.set(cx - 1.5, H + 2.5, -3.5);
-  sun.target.position.set(cx, 0, W * 0.6);
+  // Daylight: directional light from outside, through the first window (north by default).
+  const sun = new THREE.DirectionalLight('#fff4e0', win ? 2.2 : 1.2);
+  const w = win || { cx: L / 2, cz: 0, nx: 0, nz: -1 };
+  const depth = w.nz ? W : L;
+  sun.position.set(w.cx + w.nx * 3.5 + w.nz * 1.5, H + 2.5, w.cz + w.nz * 3.5 - w.nx * 1.5);
+  sun.target.position.set(w.cx - w.nx * depth * 0.6, 0, w.cz - w.nz * depth * 0.6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0005;

@@ -1,11 +1,13 @@
 // Sidebar forms, item list, selection panel, notes column and toasts.
 import { t, getLang } from './i18n.js';
-import { state, emit, addItem, removeItem, rotateItem, select, selected, getItem, itemName } from './state.js';
+import { state, emit, addItem, removeItem, rotateItem, select, selected, getItem, itemName,
+  selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked } from './state.js';
 
 const $ = id => document.getElementById(id);
 const num = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
 
 let errors = new Map();
+let warnings = new Map();
 let onAutoPlace = () => {};
 
 export function initUI({ autoPlace }) {
@@ -68,6 +70,8 @@ export function initUI({ autoPlace }) {
     }
   });
 
+  initOpenings();
+
   $('problemList').addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
     if (li) select(Number(li.dataset.id));
@@ -104,6 +108,64 @@ export function syncForms() {
 }
 
 export function setErrors(map) { errors = map; }
+export function setWarnings(map) { warnings = map; }
+
+// ---- windows / doors panel + lock ----
+function initOpenings() {
+  const toggleLock = () => setOpeningsLocked(!state.openingsLocked);
+  $('lockBtn').addEventListener('click', toggleLock);
+  $('lockBtn2').addEventListener('click', toggleLock);
+  $('addWindowBtn').addEventListener('click', () => addOpening('window'));
+  $('addDoorBtn').addEventListener('click', () => addOpening('door'));
+  $('openList').addEventListener('click', e => {
+    const li = e.target.closest('li[data-id]');
+    if (li) selectOpening(Number(li.dataset.id));
+  });
+  const form = $('openForm');
+  form.addEventListener('input', () => {
+    const o = selectedOpening();
+    if (!o) return;
+    const f = form.elements;
+    const patch = { wall: f.wall.value };
+    for (const k of ['offset', 'width', 'height', 'sill']) {
+      if (f[k].value !== '' && (k !== 'sill' || o.kind === 'window')) patch[k] = Math.round(Number(f[k].value) || 0);
+    }
+    updateOpening(o, patch);
+  });
+  $('flipBtn').addEventListener('click', () => {
+    const o = selectedOpening();
+    if (o) updateOpening(o, { hinge: o.hinge === 'end' ? 'start' : 'end' });
+  });
+  $('openDelBtn').addEventListener('click', () => { const o = selectedOpening(); if (o) removeOpening(o.id); });
+}
+
+function renderOpenings() {
+  const locked = state.openingsLocked;
+  for (const [id, key] of [['lockBtn', locked ? 'op.unlock' : 'op.lock'], ['lockBtn2', locked ? 'op.unlockShort' : 'op.lockShort']]) {
+    $(id).textContent = t(key);
+    $(id).classList.toggle('on', locked);
+  }
+  $('addWindowBtn').disabled = $('addDoorBtn').disabled = locked;
+  $('notesLock').hidden = !locked;
+  $('openList').innerHTML = (state.openings || []).map(o => `<li data-id="${o.id}" class="${o.id === state.selectedOpening ? 'selected' : ''}">
+      <i class="dot" style="background:${o.kind === 'window' ? '#74c0fc' : '#8d6e63'}"></i>
+      <span class="name">${escapeHtml(t('op.' + o.kind))}</span>
+      <span class="dims">${escapeHtml(t('wallName.' + o.wall))} · ${o.width}</span>
+    </li>`).join('');
+
+  const o = selectedOpening();
+  const form = $('openForm');
+  form.hidden = !o;
+  if (!o) return;
+  form.classList.toggle('locked', locked);
+  for (const el of form.elements) el.disabled = locked;
+  form.querySelector('.win-only').hidden = o.kind !== 'window';
+  $('flipBtn').hidden = o.kind !== 'door';
+  const f = form.elements;
+  for (const k of ['wall', 'offset', 'width', 'height', 'sill']) {
+    if (document.activeElement !== f[k] && o[k] !== undefined) f[k].value = o[k];
+  }
+}
 
 export function describe(err) {
   const p = { ...err.params };
@@ -117,6 +179,7 @@ export function describe(err) {
 export function refresh() {
   renderList();
   renderSelPanel();
+  renderOpenings();
   renderNotes();
 }
 
@@ -150,28 +213,35 @@ function renderSelPanel() {
 // Notes column right of the canvas: the selected item's status + every problem item.
 function renderNotes() {
   renderBanner();
-  const bad = state.items.filter(i => (errors.get(i.id) || []).length);
+  const errs = id => errors.get(id) || [], warns = id => warnings.get(id) || [];
+  const bad = state.items.filter(i => errs(i.id).length || warns(i.id).length);
   $('notesEmpty').hidden = !!selected() || bad.length > 0;
   $('notesAll').hidden = state.items.length === 0;
   $('problemList').innerHTML = bad.length
     ? bad.map(it => `<li data-id="${it.id}" class="${it.id === state.selectedId ? 'selected' : ''}">
         <b>${escapeHtml(itemName(it))}</b>
-        ${errors.get(it.id).map(e => `<span>${escapeHtml(describe(e))}</span>`).join('')}
+        ${errs(it.id).map(e => `<span>${escapeHtml(describe(e))}</span>`).join('')}
+        ${warns(it.id).map(e => `<i>⚠ ${escapeHtml(describe(e))}</i>`).join('')}
       </li>`).join('')
     : `<li class="ok">✓ ${escapeHtml(t('notes.allOk'))}</li>`;
 }
 
-// Banner: reasons for the selected item, else the first problem item.
+// Banner: status of the selected item; with nothing selected — the first problem item.
 function renderBanner() {
   const banner = $('banner');
   const sel = selected();
-  let target = sel && (errors.get(sel.id) || []).length ? sel : null;
-  if (!target) target = state.items.find(i => (errors.get(i.id) || []).length) || null;
+  const target = sel ? ((errors.get(sel.id) || []).length ? sel : null)
+    : state.items.find(i => (errors.get(i.id) || []).length) || null;
 
   if (target) {
     const list = errors.get(target.id).map(e => `<li>${escapeHtml(describe(e))}</li>`).join('');
     banner.className = 'banner';
     banner.innerHTML = `«${escapeHtml(itemName(target))}» — ${t('banner.problems')}<ul>${list}</ul>`;
+    banner.hidden = false;
+  } else if (sel && (warnings.get(sel.id) || []).length) {
+    const list = warnings.get(sel.id).map(e => `<li>${escapeHtml(describe(e))}</li>`).join('');
+    banner.className = 'banner warn';
+    banner.innerHTML = `⚠ ${escapeHtml(t('banner.ok', { name: itemName(sel) }))}<ul>${list}</ul>`;
     banner.hidden = false;
   } else if (sel) {
     banner.className = 'banner ok';

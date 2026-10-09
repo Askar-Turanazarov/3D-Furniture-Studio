@@ -1,17 +1,31 @@
 // Pointer (mouse + touch) drag with snap, keyboard rotate / delete / nudge.
-import { state, emit, select, selected, rotateItem, removeItem, snapValue } from './state.js';
+import { state, emit, select, selected, rotateItem, removeItem, snapValue,
+  selectOpening, selectedOpening, removeOpening, updateOpening } from './state.js';
 import { rectOf, footprint } from './geometry.js';
+import { nearestWall, wallLen } from './openings.js';
 import { toWorld, view } from './renderer.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
-let drag = null;       // { item, offX, offY, pointerId, moved }
+const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
+let drag = null;       // { item, offX, offY, pointerId } | { opening, grab, pointerId }
 
 export function initInteraction(canvas) {
   canvas.addEventListener('pointerdown', e => {
     const [wx, wy] = toWorld(...local(canvas, e));
     const hit = hitTest(wx, wy);
-    if (!hit) { if (state.selectedId !== null) select(null); return; }
-    drag = { item: hit, offX: wx - hit.x, offY: wy - hit.y, pointerId: e.pointerId, moved: false };
+    if (hit?.opening) {
+      const o = hit.opening;
+      drag = { opening: o, grab: nearestWall(wx, wy, state.room).along - o.offset, pointerId: e.pointerId };
+      canvas.setPointerCapture(e.pointerId);
+      if (state.selectedOpening !== o.id) selectOpening(o.id);
+      return;
+    }
+    if (!hit) {
+      if (state.selectedId !== null) select(null);
+      else if (state.selectedOpening !== null) selectOpening(null);
+      return;
+    }
+    drag = { item: hit, offX: wx - hit.x, offY: wy - hit.y, pointerId: e.pointerId };
     canvas.setPointerCapture(e.pointerId);
     if (state.selectedId !== hit.id) select(hit.id);
   });
@@ -24,6 +38,7 @@ export function initInteraction(canvas) {
     }
     if (e.pointerId !== drag.pointerId) return;
     canvas.style.cursor = 'grabbing';
+    if (drag.opening) return dragOpening(wx, wy);
     const it = drag.item;
     const f = footprint(it);
     const { L, W } = state.room;
@@ -34,7 +49,6 @@ export function initInteraction(canvas) {
     const ny = magnet(rawY, f.h, 'y', it) ?? snapValue(rawY);
     if (nx !== it.x || ny !== it.y) {
       it.x = nx; it.y = ny;
-      drag.moved = true;
       emit();
     }
   });
@@ -50,6 +64,7 @@ export function initInteraction(canvas) {
   window.addEventListener('keydown', e => {
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
     if (!document.getElementById('view3d').hidden) return;   // keys belong to the 3D view
+    if (selectedOpening()) return openingKey(e);
     const it = selected();
     if (!it) return;
     const step = state.settings.snap * (e.shiftKey ? 10 : 1);
@@ -72,15 +87,56 @@ function local(canvas, e) {
   return [e.clientX - r.left, e.clientY - r.top];
 }
 
-// Topmost item under the point (selected first, then reverse draw order).
+// On the wall band an opening wins; on the floor furniture wins, then an opening near its wall.
+// Locked openings are never hit, so clicks go through to the furniture.
 function hitTest(x, y) {
+  const { L, W } = state.room;
+  const onFloor = x >= 0 && x <= L && y >= 0 && y <= W;
+  const op = state.openingsLocked ? null : openingAt(x, y);
+  if (op && !onFloor) return { opening: op };
   const order = [...state.items].reverse();
   const sel = selected();
   if (sel) order.unshift(sel);
-  return order.find(it => {
+  const item = order.find(it => {
     const r = rectOf(it);
     return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   }) || null;
+  return item || (op ? { opening: op } : null);
+}
+
+function openingAt(x, y) {
+  const tol = OPENING_PX / view.scale;
+  const { wall, along, dist } = nearestWall(x, y, state.room);
+  if (dist > tol) return null;
+  return (state.openings || []).find(o => o.wall === wall && along >= o.offset - tol && along <= o.offset + o.width + tol) || null;
+}
+
+// Slide along the wall with snap; dragging towards another wall moves the opening there.
+function dragOpening(wx, wy) {
+  const o = drag.opening;
+  const nw = nearestWall(wx, wy, state.room);
+  let grab = drag.grab;
+  if (nw.wall !== o.wall) grab = drag.grab = o.width / 2;
+  const snap = Math.max(1, state.settings.snap);
+  const offset = Math.round((nw.along - grab) / snap) * snap;
+  const max = wallLen(nw.wall, state.room) - o.width;
+  const next = Math.max(0, Math.min(max, offset));
+  if (nw.wall !== o.wall || next !== o.offset) updateOpening(o, { wall: nw.wall, offset: next });
+}
+
+function openingKey(e) {
+  const o = selectedOpening();
+  const step = state.settings.snap * (e.shiftKey ? 10 : 1);
+  const back = o.wall === 'north' || o.wall === 'south' ? 'ArrowLeft' : 'ArrowUp';
+  const fwd = o.wall === 'north' || o.wall === 'south' ? 'ArrowRight' : 'ArrowDown';
+  switch (e.key) {
+    case 'Delete': case 'Backspace': removeOpening(o.id); break;
+    case 'Escape': selectOpening(null); break;
+    case back: updateOpening(o, { offset: o.offset - step }); break;
+    case fwd: updateOpening(o, { offset: o.offset + step }); break;
+    default: return;
+  }
+  e.preventDefault();
 }
 
 // Snap the item edge to the plinth line or to a neighbour edge (+gap).

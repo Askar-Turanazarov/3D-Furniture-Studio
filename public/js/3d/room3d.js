@@ -1,4 +1,4 @@
-// Room shell: floor, ceiling, 4 walls (north with a window), plinths, a door.
+// Room shell: floor, ceiling, 4 walls with window / door openings from the plan, plinths.
 // Interior: x ∈ [0, L], z ∈ [0, W], y ∈ [0, H] in metres.
 import * as THREE from 'three';
 import { getMats } from './textures3d.js';
@@ -36,11 +36,29 @@ function wallMesh(x0, x1, H, holes, mat) {
 
 const box = (w, h, d, mat, opts) => mesh(new THREE.BoxGeometry(w, h, d), mat, opts);
 
+// Local frame of a wall: x along the wall, y up, z into the room (inner face at z = 0).
+// north/east keep the plan direction; south/west are rotated by 180°/90°, so x runs backwards.
+function wallFrame(wall, L, W) {
+  switch (wall) {
+    case 'north': return { len: L, rotY: 0, pos: [0, 0, 0], flip: false };
+    case 'south': return { len: L, rotY: Math.PI, pos: [L, 0, W], flip: true };
+    case 'west':  return { len: W, rotY: Math.PI / 2, pos: [0, 0, W], flip: true };
+    default:      return { len: W, rotY: -Math.PI / 2, pos: [L, 0, 0], flip: false };
+  }
+}
+
+// Opening (cm, plan) → metres in the wall's own frame: x0 from the wall start, width, bottom, height.
+function localOpening(o, L, W) {
+  const f = wallFrame(o.wall, L, W);
+  const w = o.width / 100, off = o.offset / 100;
+  return { f, x: f.flip ? f.len - off - w : off, w, y: o.kind === 'window' ? o.sill / 100 : 0, h: o.height / 100 };
+}
+
 /**
- * @param room { L, W, H, plinth } in cm
- * @returns { group, walls: { north, south, west, east }, ceiling, window }
+ * @param room { L, W, H, plinth } in cm; openings — windows / doors (see openings.js)
+ * @returns { group, walls: { north, south, west, east }, ceiling, windows: [{ cx, cz, nx, nz }] }
  */
-export function buildRoom(room) {
+export function buildRoom(room, openings = []) {
   const M = getMats();
   const L = room.L / 100, W = room.W / 100, H = room.H / 100;
   const p = Math.max(room.plinth, 1) / 100;
@@ -58,26 +76,42 @@ export function buildRoom(room) {
   ceiling.position.set(L / 2, H, W / 2);
   group.add(ceiling);
 
-  // Window in the north wall.
-  const ww = Math.min(1.4, L * 0.45), wh = Math.min(1.45, H - 1.1), sill = 0.85;
-  const win = { x: L / 2 - ww / 2, y: sill, w: ww, h: Math.max(0.5, wh) };
-
   const walls = {
     north: new THREE.Group(), south: new THREE.Group(), west: new THREE.Group(), east: new THREE.Group()
   };
-  // North (z = 0, extruded to -T), window hole.
-  const north = wallMesh(-T, L + T, H, [win], M.wall);
+  // Holes per wall in the coordinates of each wall mesh (north/south: world x; west/east: world z).
+  const holes = { north: [], south: [], west: [], east: [] };
+  const windows = [];
+  for (const o of openings) {
+    const lo = localOpening(o, L, W);
+    const worldStart = o.offset / 100;
+    holes[o.wall].push({ x: worldStart, y: lo.y, w: lo.w, h: Math.min(lo.h, H - lo.y - 0.01) });
+    const g = new THREE.Group();
+    g.rotation.y = lo.f.rotY;
+    g.position.set(...lo.f.pos);
+    if (o.kind === 'window') {
+      g.add(...windowParts(lo, M));
+      windows.push(windowInfo(o, L, W));
+    } else {
+      // Hinge side in the wall's own frame (the frame runs backwards on south / west walls).
+      const hingeAtStart = (o.hinge !== 'end') !== lo.f.flip;
+      g.add(...doorParts(lo, hingeAtStart, M));
+    }
+    walls[o.wall].add(g);
+  }
+  // North (z = 0, extruded to -T).
+  const north = wallMesh(-T, L + T, H, holes.north, M.wall);
   north.position.z = -T;
-  walls.north.add(north, ...windowParts(win, M));
+  walls.north.add(north);
   // South (z = W, extruded to W + T).
-  const south = wallMesh(-T, L + T, H, [], M.wall);
+  const south = wallMesh(-T, L + T, H, holes.south, M.wall);
   south.position.z = W;
-  walls.south.add(south, ...doorParts(L, W, H, M));
+  walls.south.add(south);
   // West / east: local X → world Z, extrusion → world −X.
-  const west = wallMesh(0, W, H, [], M.wall);
+  const west = wallMesh(0, W, H, holes.west, M.wall);
   west.rotation.y = -Math.PI / 2;
   walls.west.add(west);
-  const east = wallMesh(0, W, H, [], M.wall);
+  const east = wallMesh(0, W, H, holes.east, M.wall);
   east.rotation.y = -Math.PI / 2;
   east.position.x = L + T;
   walls.east.add(east);
@@ -89,11 +123,23 @@ export function buildRoom(room) {
   walls.east.add(at(box(p, PLINTH_H, W, M.plinth), L - p / 2, PLINTH_H / 2, W / 2));
 
   Object.values(walls).forEach(g => group.add(g));
-  return { group, walls, ceiling, window: win, size: { L, W, H } };
+  return { group, walls, ceiling, windows, size: { L, W, H } };
+}
+
+// Window centre on the inner wall face and the outward normal (for the sun direction).
+function windowInfo(o, L, W) {
+  const c = (o.offset + o.width / 2) / 100;
+  switch (o.wall) {
+    case 'north': return { cx: c, cz: 0, nx: 0, nz: -1 };
+    case 'south': return { cx: c, cz: W, nx: 0, nz: 1 };
+    case 'west':  return { cx: 0, cz: c, nx: -1, nz: 0 };
+    default:      return { cx: L, cz: c, nx: 1, nz: 0 };
+  }
 }
 
 function at(obj, x, y, z) { obj.position.set(x, y, z); return obj; }
 
+// Window in the wall frame (z = 0 inner face, wall body at z ∈ [-T, 0]).
 function windowParts(win, M) {
   const parts = [];
   const f = 0.05;                     // frame profile
@@ -113,17 +159,18 @@ function windowParts(win, M) {
   return parts;
 }
 
-function doorParts(L, W, H, M) {
-  const dw = 0.8, dh = Math.min(2.0, H - 0.1);
-  const dx = Math.max(dw / 2 + 0.15, L - 0.6);       // near the east corner
+// Closed door in the wall frame: leaf inside the opening, casing on the inner face, handle opposite the hinges.
+function doorParts(d, hingeAtStart, M) {
+  const dw = d.w, dh = d.h - 0.01, dx = d.x + dw / 2;
   const parts = [];
-  parts.push(at(box(dw, dh, 0.04, M.door), dx, dh / 2, W - 0.02));
+  parts.push(at(box(dw, dh, 0.04, M.door), dx, dh / 2, -T / 2));
   // Casing.
-  parts.push(at(box(0.07, dh + 0.07, 0.02, M.frame), dx - dw / 2 - 0.035, (dh + 0.07) / 2, W - 0.01));
-  parts.push(at(box(0.07, dh + 0.07, 0.02, M.frame), dx + dw / 2 + 0.035, (dh + 0.07) / 2, W - 0.01));
-  parts.push(at(box(dw + 0.14, 0.07, 0.02, M.frame), dx, dh + 0.035, W - 0.01));
+  parts.push(at(box(0.07, dh + 0.07, 0.02, M.frame), dx - dw / 2 - 0.035, (dh + 0.07) / 2, 0.01));
+  parts.push(at(box(0.07, dh + 0.07, 0.02, M.frame), dx + dw / 2 + 0.035, (dh + 0.07) / 2, 0.01));
+  parts.push(at(box(dw + 0.14, 0.07, 0.02, M.frame), dx, dh + 0.035, 0.01));
   // Handle.
-  parts.push(at(box(0.12, 0.02, 0.04, M.metal), dx - dw / 2 + 0.12, 1.0, W - 0.06));
+  const hx = hingeAtStart ? dx + dw / 2 - 0.12 : dx - dw / 2 + 0.12;
+  parts.push(at(box(0.12, 0.02, 0.04, M.metal), hx, Math.min(1.0, dh * 0.5), -T / 2 + 0.04));
   return parts;
 }
 

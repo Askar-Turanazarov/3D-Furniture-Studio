@@ -73,19 +73,21 @@ async function applyQuality(q) {
   if (running) rebuild();
 }
 
-// Rebuild the room only when its size changes; furniture on every change.
+// Rebuild the room only when its size or openings change; furniture on every change.
+// The camera is re-aimed only when the room size changes.
 function rebuild() {
   const { L, W, H, plinth } = state.room;
   let roomChanged = false;
-  const key = [L, W, H, plinth].join('x');
+  const sizeKey = [L, W, H, plinth].join('x');
+  const key = sizeKey + JSON.stringify(state.openings);
   if (key !== roomKey) {
-    roomChanged = roomKey === '' ? !room : true;
+    roomChanged = roomKey === '' ? !room : !roomKey.startsWith(sizeKey + '[');
     roomKey = key;
     if (room) disposeGroup(room.group);
-    room = buildRoom(state.room);
+    room = buildRoom(state.room, state.openings || []);
     scene.add(room.group);
     if (lights) disposeGroup(lights);
-    lights = buildLights(room.size, room.window);
+    lights = buildLights(room.size, room.windows[0] || null);
     scene.add(lights);
   }
   controls.setRoom(room, roomChanged);

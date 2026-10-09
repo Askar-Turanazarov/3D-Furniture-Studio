@@ -1,6 +1,7 @@
 // "Find a spot": scan (x, y) with the snap step over 4 rotations.
 // Wall-adjacent positions are tried first, then the whole room.
 import { footprint, rectOf, blocked, insideRoom } from './geometry.js';
+import { doorSwingRect } from './openings.js';
 
 const ROTS = [0, 90, 180, 270];
 const MAX_STEPS = 600;   // per axis, keeps big rooms fast
@@ -11,7 +12,9 @@ export function findSpot(item, state) {
   const p = room.plinth;
   const Lu = room.L - 2 * p, Wu = room.W - 2 * p;
   const gap = settings.gap;
-  const others = state.items.filter(i => i.id !== item.id).map(i => rectOf(i));
+  // Door swing areas count as obstacles, so nothing is auto-placed in front of a door.
+  const others = state.items.filter(i => i.id !== item.id).map(i => rectOf(i))
+    .concat((state.openings || []).filter(o => o.kind === 'door').map(o => doorSwingRect(o, room)));
 
   if (item.h > room.H) return { ok: false, key: 'auto.tooTall', params: { n: item.h - room.H } };
 

@@ -20,7 +20,7 @@ app.get('/api/catalog', async (req, res) => {
 });
 
 app.post('/api/order', async (req, res) => {
-  const { name, phone, comment, room, items, lang } = req.body || {};
+  const { name, phone, comment, room, items, lang, openings } = req.body || {};
   if (!name || !phone || !room || !Array.isArray(items)) {
     return res.status(400).json({ error: 'invalid_order' });
   }
@@ -33,7 +33,7 @@ app.post('/api/order', async (req, res) => {
       name: String(name).slice(0, 100),
       phone: String(phone).slice(0, 30),
       comment: String(comment || '').slice(0, 1000),
-      lang, room, items
+      lang, room, items, openings: Array.isArray(openings) ? openings : []
     };
     orders.push(order);
     await fs.writeFile(ORDERS, JSON.stringify(orders, null, 2));

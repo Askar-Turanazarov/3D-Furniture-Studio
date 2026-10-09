@@ -1,7 +1,7 @@
 // Room finish panel: wall material and colour, accent wall, floor (roomDoc.style, saved and undoable).
 import { state, emit } from './state.js';
 import { t, onLangChange } from './i18n.js';
-import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR } from './style.js';
+import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR, FURN_STYLES } from './style.js';
 
 const $ = id => document.getElementById(id);
 
@@ -10,6 +10,7 @@ function fillSelects() {
   const opts = (sel, list, prefix) => sel.replaceChildren(...list.map(v => new Option(t(prefix + v), v)));
   opts(f.wallMat, WALL_MATS, 'style.wall.');
   opts(f.floor, FLOORS, 'style.floor.');
+  opts(f.furniture, FURN_STYLES, 'style.f.');
   f.accentWall.replaceChildren(new Option(t('style.noAccent'), ''), ...WALLS.map(w => new Option(t('style.w.' + w), w)));
   syncStylePanel();
 }
@@ -29,7 +30,8 @@ export function initStylePanel() {
       wall: { material: f.wallMat.value, color: wallColor },
       accentWall: f.accentWall.value || null,
       accentColor: f.accentColor.value,
-      floor: f.floor.value
+      floor: f.floor.value,
+      furniture: f.furniture.value
     };
     syncStylePanel();
     emit();
@@ -44,4 +46,5 @@ export function syncStylePanel() {
   f.accentColor.value = s.accentColor;
   f.accentColor.disabled = !s.accentWall;
   f.floor.value = s.floor;
+  f.furniture.value = s.furniture;
 }

@@ -2,6 +2,7 @@
 import { state, emit, selected } from './state.js';
 import { t, getLang } from './i18n.js';
 import { hasFacade, setItemMaterial, setItemColor } from './materials.js';
+import { FURN_STYLES, styleOf } from './style.js';
 
 const $ = id => document.getElementById(id);
 const matName = m => m.name[getLang()] || m.name.ru;
@@ -16,6 +17,13 @@ export function initMatPanel() {
     emit();
   });
   // 'change', not 'input': dragging in the colour picker would make a history step per pixel.
+  // Furniture style of one item; '' = as the room.
+  $('itemStyle').addEventListener('change', e => {
+    const it = selected();
+    if (!it) return;
+    if (e.target.value) it.style = e.target.value; else delete it.style;
+    emit();
+  });
   $('itemColor').addEventListener('change', e => {
     const it = selected();
     if (!it) return;
@@ -49,6 +57,14 @@ export function renderMatPanel(it) {
     }
     box.querySelectorAll('[data-mat]').forEach(b => b.classList.toggle('active', b.dataset.mat === cur));
   }
+  const sel = $('itemStyle');
+  const key = getLang() + styleOf(state.style).furniture;
+  if (sel.dataset.key !== key) {
+    sel.dataset.key = key;
+    sel.replaceChildren(new Option(t('style.asRoom', { s: t('style.f.' + styleOf(state.style).furniture) }), ''),
+      ...FURN_STYLES.map(v => new Option(t('style.f.' + v), v)));
+  }
+  sel.value = FURN_STYLES.includes(it.style) ? it.style : '';
   const inp = $('itemColor');
   if (document.activeElement !== inp) inp.value = /^#[0-9a-f]{6}$/i.test(it.color) ? it.color : '#90a4ae';
 }

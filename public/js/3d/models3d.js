@@ -4,6 +4,55 @@ import * as THREE from 'three';
 import { furnitureMat } from './textures3d.js';
 import { rectOf } from '../geometry.js';
 import { itemLook } from '../materials.js';
+import { itemStyle } from '../style.js';
+
+// Furniture style of the item being built: 'modern' (as drawn) | 'classic' | 'loft'.
+// Only handles, legs and facade mouldings change; the overall size never does.
+let sty = 'modern';
+
+// Handle: modern keeps the original bar / knob, classic — a brass knob, loft — a black bar.
+// (x, y, z) — where the original was placed: y = its bottom, z = its centre.
+function handle(orig, x, y, z, len, vertical, s) {
+  if (sty === 'classic') {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.014, 16, 12), furnitureMat('brass', '', s));
+    k.position.set(x, y + (vertical ? len / 2 : 0.008), z + 0.004);
+    k.castShadow = true;
+    return k;
+  }
+  if (sty === 'loft') {
+    const l = Math.max(len, 0.1);
+    return vertical ? box(0.02, l, 0.025, furnitureMat('black', '', s), x, y, z + 0.0025)
+      : box(l, 0.02, 0.025, furnitureMat('black', '', s), x, y, z + 0.0025);
+  }
+  return orig;
+}
+
+// Leg of height lh: classic — turned wood with a bulb, loft — thin black steel.
+function leg(orig, x, z, lh, size, c, s) {
+  if (sty === 'classic') {
+    const g = new THREE.Group();
+    const wood = fm('dark', c, s);
+    g.add(cyl(size * 0.32, lh, wood, x, 0, z));
+    const r = Math.min(size * 0.5, lh * 0.25);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), wood);
+    b.position.set(x, lh * 0.55, z);
+    b.castShadow = true;
+    g.add(b);
+    return g;
+  }
+  if (sty === 'loft') return box(Math.max(0.02, size * 0.6), lh, Math.max(0.02, size * 0.6), furnitureMat('black', '', s), x, 0, z);
+  return orig;
+}
+
+// Classic facade: a raised moulding frame on the front (zFront = front face).
+function panel(g, fw, fh, x, y, zFront, mat) {
+  if (sty !== 'classic' || fw < 0.12 || fh < 0.1) return;
+  const m = Math.min(0.05, fw * 0.12, fh * 0.12), t = 0.012, dz = 0.006, z = zFront + dz / 2;
+  g.add(box(fw - 2 * m, t, dz, mat, x, y + m, z));
+  g.add(box(fw - 2 * m, t, dz, mat, x, y + fh - m - t, z));
+  g.add(box(t, fh - 2 * m, dz, mat, x - fw / 2 + m + t / 2, y + m, z));
+  g.add(box(t, fh - 2 * m, dz, mat, x + fw / 2 - m - t / 2, y + m, z));
+}
 
 // Look of the item being built: catalog materials for the body and the facade (doors, drawer fronts).
 let look = { body: null, facade: null };
@@ -73,8 +122,10 @@ function wardrobe(w, d, h, c, s) {
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + 0.006 + dw / 2 + i * (dw + 0.006);
     g.add(box(dw, h - base - 0.012, doorT, face, x, base + 0.006, d / 2 - doorT / 2));
-    const hx = x + (i % 2 === 0 ? 1 : -1) * (dw / 2 - 0.05);
-    g.add(box(0.015, Math.min(0.35, h * 0.2), 0.02, metal, n === 1 ? x + dw / 2 - 0.05 : hx, base + h * 0.45, d / 2 + 0.01));
+    panel(g, dw, h - base - 0.012, x, base + 0.006, d / 2, face);
+    const hx = n === 1 ? x + dw / 2 - 0.05 : x + (i % 2 === 0 ? 1 : -1) * (dw / 2 - 0.05);
+    const hl = Math.min(0.35, h * 0.2);
+    g.add(handle(box(0.015, hl, 0.02, metal, hx, base + h * 0.45, d / 2 + 0.01), hx, base + h * 0.45, d / 2 + 0.01, hl, true, s));
   }
   return g;
 }
@@ -82,11 +133,12 @@ function wardrobe(w, d, h, c, s) {
 function table(w, d, h, c, s) {
   const g = new THREE.Group();
   const wood = fm('wood', c, s);
-  const top = Math.min(0.035, h * 0.1), leg = Math.min(0.06, w * 0.1, d * 0.1);
+  const top = Math.min(0.035, h * 0.1), lw = Math.min(0.06, w * 0.1, d * 0.1);
   g.add(box(w, top, d, wood, 0, h - top, 0));
   g.add(box(w - 0.1, 0.08, d - 0.1, wood, 0, h - top - 0.08, 0));            // apron
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    g.add(box(leg, h - top, leg, wood, sx * (w / 2 - leg / 2 - 0.03), 0, sz * (d / 2 - leg / 2 - 0.03)));
+    const x = sx * (w / 2 - lw / 2 - 0.03), z = sz * (d / 2 - lw / 2 - 0.03);
+    g.add(leg(box(lw, h - top, lw, wood, x, 0, z), x, z, h - top, lw, c, s));
   }
   return g;
 }
@@ -97,7 +149,8 @@ function sofa(w, d, h, c, s, seats) {
   const legH = Math.min(0.08, h * 0.1), seatH = Math.min(0.45, h * 0.55);
   const arm = Math.min(0.18, w * 0.12), backD = Math.min(0.22, d * 0.25);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    g.add(cyl(0.025, legH, dark, sx * (w / 2 - 0.06), 0, sz * (d / 2 - 0.06)));
+    const x = sx * (w / 2 - 0.06), z = sz * (d / 2 - 0.06);
+    g.add(leg(cyl(0.025, legH, dark, x, 0, z), x, z, legH, 0.05, c, s));
   }
   const baseTop = legH + (seatH - legH) * 0.55;
   g.add(box(w, baseTop - legH, d, fab, 0, legH, 0));                          // base
@@ -119,15 +172,18 @@ function nightstand(w, d, h, c, s) {
   const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s), dark = fm('dark', c, s);
   const legH = Math.min(0.08, h * 0.15);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    g.add(box(0.03, legH, 0.03, dark, sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04)));
+    const x = sx * (w / 2 - 0.04), z = sz * (d / 2 - 0.04);
+    g.add(leg(box(0.03, legH, 0.03, dark, x, 0, z), x, z, legH, 0.03, c, s));
   }
   g.add(box(w, h - legH, d - 0.015, wood, 0, legH, -0.0075));
   const n = h - legH > 0.4 ? 2 : 1;
   const dh = (h - legH - 0.01 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const y = legH + 0.01 + i * (dh + 0.01);
-    g.add(box(w - 0.02, dh, 0.015, fm('wood', c, s, 'facade'), 0, y, d / 2 - 0.0075));
-    g.add(cyl(0.012, 0.02, metal, 0, y + dh / 2 - 0.01, d / 2 + 0.005).rotateX(Math.PI / 2));
+    const face = fm('wood', c, s, 'facade');
+    g.add(box(w - 0.02, dh, 0.015, face, 0, y, d / 2 - 0.0075));
+    panel(g, w - 0.02, dh, 0, y, d / 2, face);
+    g.add(handle(cyl(0.012, 0.02, metal, 0, y + dh / 2 - 0.01, d / 2 + 0.005).rotateX(Math.PI / 2), 0, y + dh / 2 - 0.008, d / 2 + 0.01, 0.1, false, s));
   }
   return g;
 }
@@ -179,15 +235,18 @@ function drawers(w, d, h, c, s, rows) {
   const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s), dark = fm('dark', c, s);
   const legH = Math.min(0.08, h * 0.1), front = 0.018, gap = 0.008;
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    g.add(box(0.035, legH, 0.035, dark, sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04)));
+    const x = sx * (w / 2 - 0.04), z = sz * (d / 2 - 0.04);
+    g.add(leg(box(0.035, legH, 0.035, dark, x, 0, z), x, z, legH, 0.035, c, s));
   }
   g.add(box(w, h - legH, d - front, wood, 0, legH, -front / 2));
   const n = rows || Math.max(1, Math.round((h - legH) / 0.2));
   const fh = (h - legH - gap * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const y = legH + gap + i * (fh + gap);
-    g.add(box(w - 2 * gap, fh, front, fm('wood', c, s, 'facade'), 0, y, d / 2 - front / 2));
-    g.add(box(Math.min(0.16, w * 0.3), 0.015, 0.02, metal, 0, y + fh * 0.6, d / 2 + 0.01));
+    const face = fm('wood', c, s, 'facade'), hl = Math.min(0.16, w * 0.3);
+    g.add(box(w - 2 * gap, fh, front, face, 0, y, d / 2 - front / 2));
+    panel(g, w - 2 * gap, fh, 0, y, d / 2, face);
+    g.add(handle(box(hl, 0.015, 0.02, metal, 0, y + fh * 0.6, d / 2 + 0.01), 0, y + fh * 0.6, d / 2 + 0.01, hl, false, s));
   }
   return g;
 }
@@ -272,7 +331,9 @@ function kitchen(w, d, h, c, s) {
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + dw / 2 + i * dw;
     g.add(box(dw - 0.006, baseH - plinth - ct - 0.01, 0.018, front, x, plinth + 0.005, d / 2 - 0.029));
-    g.add(box(Math.min(0.2, dw * 0.5), 0.012, 0.02, metal, x, baseH - ct - 0.06, d / 2 - 0.01));
+    panel(g, dw - 0.006, baseH - plinth - ct - 0.01, x, plinth + 0.005, d / 2 - 0.02, front);
+    const hl = Math.min(0.2, dw * 0.5);
+    g.add(handle(box(hl, 0.012, 0.02, metal, x, baseH - ct - 0.06, d / 2 - 0.01), x, baseH - ct - 0.06, d / 2 - 0.01, hl, false, s));
   }
   g.add(box(Math.min(0.5, w * 0.25), 0.005, d * 0.6, metal, -w / 4, baseH, 0));   // sink
   g.add(box(Math.min(0.58, w * 0.25), 0.006, d * 0.85, dark, w / 4, baseH, 0));   // hob
@@ -281,7 +342,8 @@ function kitchen(w, d, h, c, s) {
     g.add(box(w, h - bottom, ud, body, 0, bottom, -d / 2 + ud / 2));
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + dw / 2 + i * dw;
-      g.add(box(Math.min(0.2, dw * 0.5), 0.012, 0.02, metal, x, bottom + 0.06, -d / 2 + ud + 0.01));
+      const hl = Math.min(0.2, dw * 0.5), z = -d / 2 + ud + 0.01;
+      g.add(handle(box(hl, 0.012, 0.02, metal, x, bottom + 0.06, z), x, bottom + 0.06, z, hl, false, s));
     }
   }
   return g;
@@ -312,8 +374,10 @@ function wallcabinet(w, d, h, c, s) {
   const dw = (w - gap * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + gap + dw / 2 + i * (dw + gap);
-    g.add(box(dw, h - 2 * gap, front, fm('wood', c, s, 'facade'), x, gap, d / 2 - front / 2));
-    g.add(box(Math.min(0.12, dw * 0.4), 0.012, 0.02, metal, x, gap + 0.03, d / 2 + 0.01));
+    const face = fm('wood', c, s, 'facade'), hl = Math.min(0.12, dw * 0.4);
+    g.add(box(dw, h - 2 * gap, front, face, x, gap, d / 2 - front / 2));
+    panel(g, dw, h - 2 * gap, x, gap, d / 2, face);
+    g.add(handle(box(hl, 0.012, 0.02, metal, x, gap + 0.03, d / 2 + 0.01), x, gap + 0.03, d / 2 + 0.01, hl, false, s));
   }
   return g;
 }
@@ -337,7 +401,9 @@ function tvpanel(w, d, h, c, s) {
   const n = Math.max(2, Math.round(w / 0.6));
   const dw = (w - 0.004 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
-    g.add(box(dw, h - 0.008, front, fm('wood', c, s, 'facade'), -w / 2 + 0.004 + dw / 2 + i * (dw + 0.004), 0.004, d / 2 - front / 2));
+    const x = -w / 2 + 0.004 + dw / 2 + i * (dw + 0.004), face = fm('wood', c, s, 'facade');
+    g.add(box(dw, h - 0.008, front, face, x, 0.004, d / 2 - front / 2));
+    panel(g, dw, h - 0.008, x, 0.004, d / 2, face);
   }
   g.add(box(w * 0.98, 0.006, 0.002, dark, 0, h * 0.5, d / 2 + 0.001));
   return g;
@@ -408,11 +474,13 @@ const BUILDERS = {
  * Build a furniture object placed in the room.
  * @param item plan item (cm); status 'ok' | 'bad' | 'found'
  */
-export function buildItem(item, status, materials = []) {
+export function buildItem(item, status, materials = [], roomStyle) {
   const make = BUILDERS[item.type] || generic;
   look = itemLook(item, materials);
+  sty = itemStyle(item, roomStyle);
   const obj = make(item.w / 100, item.d / 100, item.h / 100, item.color, status);
   look = { body: null, facade: null };
+  sty = 'modern';
   const r = rectOf(item);
   obj.position.set((r.x + r.w / 2) / 100, (item.elev || 0) / 100, (r.y + r.h / 2) / 100);
   // Same direction as the 2D front marker: 0° → +Z (south), clockwise on the plan.

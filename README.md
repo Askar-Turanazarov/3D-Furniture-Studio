@@ -10,7 +10,7 @@ A web app for custom furniture: the client enters the room size and the furnitur
 
 ### Features
 - **Room:** length, width, height (cm); the plan is rebuilt instantly.
-- **Furniture:** wardrobe, table, sofa, nightstand, bed, chair — width (X), depth (Y), height (Z).
+- **Furniture (15 types):** wardrobe, bed, sofa, armchair, table, desk, coffee table, chair, nightstand, dresser, TV stand, bookshelf, shoe cabinet, kitchen set, fridge — width (X), depth (Y), height (Z).
 - **2D plan (Canvas, top view):** auto scale, 10/50 cm grid, plinth inset (2 cm by default), distances to walls.
 - **Drag & drop** with snapping (5 cm) and magnet to walls/neighbours; rotation 0/90/180/270° (`R`) with a front-side marker.
 - **Validation:** an item turns **red** if it crosses a wall (incl. plinth), overlaps another item (AABB), is closer than the minimum gap (3 cm) or taller than the ceiling. The banner shows the exact reason.
@@ -19,12 +19,13 @@ A web app for custom furniture: the client enters the room size and the furnitur
   - **Overview** — orbit camera, near walls are cut away.
   - **Walk** — first person, collisions with walls and furniture.
   - **Simple / Photo** textures (procedural or CC0 photo textures).
+- **Photo textures panel:** apply the built-in CC0 set in one click, download it (per surface or the whole set as ZIP), or upload your own photo for the floor, walls, furniture wood or upholstery (reset back to built-in anytime).
   - Fullscreen mode, touch joystick on mobile.
 - **Order** — form (name, phone, comment) is saved to `order.json`.
 - **Languages:** EN / UZ / RU. The plan is kept in `localStorage`.
 
 ### Tech stack
-Node.js + Express (static files + 2 API routes), plain HTML/CSS/JS (ES modules, no build step), Canvas 2D, Three.js (npm + importmap).
+Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules, no build step), Canvas 2D, Three.js (npm + importmap).
 
 ### Getting started
 ```bash
@@ -46,14 +47,14 @@ Open http://localhost:3000 (Node.js 18+).
 
 ### Project structure
 ```
-server.js            Express: static, GET /api/catalog, POST /api/order
+server.js            Express: static, catalog, orders, textures (list / upload / reset / ZIP)
 catalog.json         furniture catalogue (types, default sizes, names in 3 languages)
 order.json           saved orders
 public/index.html    layout
 public/css/          styles
 public/js/           2D: state, geometry, validate, renderer, interaction, autoplace, ui, i18n, storage, order
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
-public/textures/     CC0 photo textures (ambientCG)
+public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
 ```
 
 ### Rules
@@ -72,7 +73,7 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 
 ### Imkoniyatlar
 - **Xona:** uzunlik, kenglik, balandlik (sm); reja darhol qayta chiziladi.
-- **Mebel:** shkaf, stol, divan, tumba, karavot, stul — kenglik (X), chuqurlik (Y), balandlik (Z).
+- **Mebel (15 tur):** shkaf, karavot, divan, kreslo, stol, yozuv stoli, jurnal stolchasi, stul, tumba, komod, TV tumba, kitob javoni, poyabzal javoni, oshxona garnituri, muzlatgich — kenglik (X), chuqurlik (Y), balandlik (Z).
 - **2D reja (Canvas, yuqoridan ko‘rinish):** avtomatik masshtab, 10/50 sm setka, plintus chekinishi (standart 2 sm), devorlargacha masofalar.
 - **Sudrab olib borish** setkaga (5 sm) bog‘lanish va devor/qo‘shni buyumlarga yopishish bilan; 0/90/180/270° burish (`R`), old tomon belgisi bilan.
 - **Tekshiruv:** buyum **qizil** rangga bo‘yaladi, agar u devordan (plintus bilan) chiqib ketsa, boshqa buyum bilan kesishsa (AABB), minimal oraliqdan (3 sm) yaqin bo‘lsa yoki shiftdan baland bo‘lsa. Banner aniq sababni ko‘rsatadi.
@@ -81,12 +82,13 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
   - **Ko‘rinish** — kamera xona atrofida aylanadi, yaqin devorlar yashiriladi.
   - **Sayr** — birinchi shaxsdan, devor va mebel bilan to‘qnashuvlar.
   - **Oddiy / Foto** teksturalar (protsedural yoki CC0 foto-teksturalar).
+- **Foto-teksturalar paneli:** tayyor CC0 to‘plamni bir bosishda qo‘llash, uni yuklab olish (har bir sirt alohida yoki butun to‘plam ZIP’da) yoki pol, devorlar, mebel yog‘ochi va qoplama uchun o‘z rasmingizni yuklash (istalgan vaqtda tayyoriga qaytarish mumkin).
   - To‘liq ekran rejimi, mobil qurilmalarda joystik.
 - **Buyurtma** — forma (ism, telefon, izoh) `order.json` fayliga saqlanadi.
 - **Tillar:** EN / UZ / RU. Reja `localStorage`da saqlanadi.
 
 ### Texnologiyalar
-Node.js + Express (statik fayllar + 2 ta API), oddiy HTML/CSS/JS (ES modullar, yig‘ishsiz), Canvas 2D, Three.js (npm + importmap).
+Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modullar, yig‘ishsiz), Canvas 2D, Three.js (npm + importmap).
 
 ### Ishga tushirish
 ```bash
@@ -108,14 +110,14 @@ http://localhost:3000 manzilini oching (Node.js 18+).
 
 ### Loyiha tuzilmasi
 ```
-server.js            Express: statik, GET /api/catalog, POST /api/order
+server.js            Express: statik, katalog, buyurtmalar, teksturalar (ro‘yxat / yuklash / tiklash / ZIP)
 catalog.json         mebel katalogi (turlar, standart o‘lchamlar, 3 tildagi nomlar)
 order.json           saqlangan buyurtmalar
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
 public/js/           2D: state, geometry, validate, renderer, interaction, autoplace, ui, i18n, storage, order
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
-public/textures/     CC0 foto-teksturalar (ambientCG)
+public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
 ```
 
 ### Qoidalar
@@ -134,7 +136,7 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 
 ### Возможности
 - **Комната:** длина, ширина, высота (см); план перестраивается мгновенно.
-- **Мебель:** шкаф, стол, диван, тумба, кровать, стул — ширина (X), глубина (Y), высота (Z).
+- **Мебель (15 видов):** шкаф, кровать, диван, кресло, стол, письменный стол, журнальный столик, стул, тумба, комод, ТВ-тумба, стеллаж, обувница, кухонный гарнитур, холодильник — ширина (X), глубина (Y), высота (Z).
 - **2D-план (Canvas, вид сверху):** автомасштаб, сетка 10/50 см, отступ плинтуса (по умолчанию 2 см), расстояния до стен.
 - **Drag & drop** с привязкой к сетке (5 см) и «магнитом» к стенам и соседям; поворот 0/90/180/270° (`R`) с маркером лицевой стороны.
 - **Валидация:** предмет подсвечивается **красным**, если выходит за стену (с учётом плинтуса), пересекается с другим предметом (AABB), стоит ближе минимального зазора (3 см) или выше потолка. Плашка показывает точную причину.
@@ -143,12 +145,13 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
   - **Обзор** — камера вокруг комнаты, ближние стены скрываются.
   - **Прогулка** — от первого лица, столкновения со стенами и мебелью.
   - Текстуры **Простые / Фото** (процедурные или фото-текстуры CC0).
+- **Панель «Фото-текстуры»:** готовый набор CC0 применяется в один клик, его можно скачать (по поверхностям или весь набор ZIP) или загрузить своё фото для пола, стен, дерева мебели или обивки (в любой момент можно вернуть готовую).
   - Полноэкранный режим, джойстик на мобильных.
 - **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json`.
 - **Языки:** EN / UZ / RU. План хранится в `localStorage`.
 
 ### Стек
-Node.js + Express (статика + 2 API-маршрута), чистый HTML/CSS/JS (ES-модули, без сборки), Canvas 2D, Three.js (npm + importmap).
+Node.js + Express (статика + небольшой JSON API), чистый HTML/CSS/JS (ES-модули, без сборки), Canvas 2D, Three.js (npm + importmap).
 
 ### Запуск
 ```bash
@@ -170,14 +173,14 @@ npm start
 
 ### Структура проекта
 ```
-server.js            Express: статика, GET /api/catalog, POST /api/order
+server.js            Express: статика, каталог, заявки, текстуры (список / загрузка / сброс / ZIP)
 catalog.json         каталог мебели (типы, размеры по умолчанию, названия на 3 языках)
 order.json           сохранённые заявки
 public/index.html    разметка
 public/css/          стили
 public/js/           2D: state, geometry, validate, renderer, interaction, autoplace, ui, i18n, storage, order
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
-public/textures/     фото-текстуры CC0 (ambientCG)
+public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
 ```
 
 ### Правила

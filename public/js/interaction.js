@@ -49,6 +49,7 @@ export function initInteraction(canvas) {
 
   window.addEventListener('keydown', e => {
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
+    if (!document.getElementById('view3d').hidden) return;   // keys belong to the 3D view
     const it = selected();
     if (!it) return;
     const step = state.settings.snap * (e.shiftKey ? 10 : 1);

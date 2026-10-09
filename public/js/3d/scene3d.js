@@ -108,6 +108,7 @@ export function show(el) {
 
 export function hide() {
   running = false;
+  if (renderer) controls.release();
 }
 
 export const getScene = () => scene;

@@ -26,6 +26,8 @@ A web app for custom furniture: the client enters the room size and the furnitur
 - **Plan editing:** undo / redo (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; a whole drag is one step), duplicate (`Ctrl+D`), multi-select (`Shift`/`Ctrl`+click, `Shift`+drag box, `Ctrl+A`) with group move and an **Align / distribute** panel.
 - **Zoom & pan:** wheel zooms around the cursor (50–800 %), − / 100 % / + buttons (100 % = fit); pan by dragging the empty floor, `Space`+drag or the middle button; pinch on touch screens. The view is not saved.
 - **Ruler** (📏 / `M`): click two points; points snap to walls, plinth and furniture edges, `Shift` keeps the line straight. Shows the length and Δx / Δy; ⌫ clears all measurements.
+- **Structure:** in the "Windows, doors & structure" panel add a column, duct (riser), ceiling duct, wall ledge, radiator (centred under a window) or a **niche** (two ledges on both sides of a wall part). They are hatched grey on the plan with the height label, dragged with snapping to walls, edited in the form and protected by the same 🔒 lock. Furniture must not overlap structure at its height (`err.obstacle`, plus the min gap); structure in a door swing or in front of a window gets a warning. In 3D structure is drawn in wall material, the radiator is sectional; it blocks the walk unless it is above the head.
+- **Wall-mounted furniture:** every item has "Above floor" (`elev`, cm). Collisions work on three axes: a shelf above a desk is fine, a wardrobe under a ceiling duct is checked against its bottom, a shelf in a door swing is an error only below the door top. On the plan wall items are drawn over the floor ones (translucent, dashed, "↑140"); a click picks the upper item, a second click on the same spot picks the one below. New catalogue types: wall cabinet, wall shelf, mezzanine, floating TV console, wall mirror.
 - **Projects and rooms:** a project holds several rooms shown as tabs above the plan (+ Room: name, purpose, size; ⋯ — rename, duplicate as a version "variant B", delete). Each room keeps its own undo history. 📁 **Projects** — cards with a plan preview: open, new, rename, duplicate, delete, **export / import** a `.fsp3d.json` file (backup or moving to another device). The old single-room plan is migrated automatically into "My project".
 - **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors).
 - **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
@@ -65,8 +67,8 @@ order.json           saved orders
 public/index.html    layout
 public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
+                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog
+public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
 test/                unit tests (node:test): npm test
 ```
@@ -103,6 +105,8 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **Rejani tahrirlash:** bekor qilish / qaytarish (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; butun sudrash — bitta qadam), nusxa olish (`Ctrl+D`), bir nechta tanlash (`Shift`/`Ctrl`+bosish, `Shift`+tortish — ramka, `Ctrl+A`), guruhni siljitish va **Tekislash / taqsimlash** paneli.
 - **Masshtab va siljitish:** g‘ildirak kursor atrofida yaqinlashtiradi (50–800 %), − / 100 % / + tugmalari (100 % = sig‘dirish); bo‘sh polni tortish, `Probel`+tortish yoki o‘rta tugma bilan siljitish; sensorli ekranda ikki barmoq. Ko‘rinish saqlanmaydi.
 - **Chizg‘ich** (📏 / `M`): ikki nuqtani bosing; nuqtalar devor, plintus va mebel chetlariga yopishadi, `Shift` chiziqni to‘g‘ri ushlaydi. Uzunlik va Δx / Δy ko‘rsatiladi; ⌫ — barcha o‘lchovlarni tozalash.
+- **Konstruktiv:** «Derazalar, eshiklar va konstruktiv» panelida ustun, quti (stoyak), shift ostidagi quti, devor bo‘rtig‘i, radiator (deraza ostida markazda) yoki **tokcha** (devor qismining ikki yonidagi bo‘rtiqlar) qo‘shiladi. Rejada ular kulrang shtrixlangan va balandligi yozilgan, devorlarga yopishib suriladi, formada tahrirlanadi va o‘sha 🔒 qulf bilan himoyalanadi. Mebel o‘z balandligidagi konstruktiv bilan kesishmasligi kerak (`err.obstacle` va minimal oraliq); eshik ochilish zonasidagi yoki deraza oldidagi konstruktiv uchun ogohlantirish chiqadi. 3D da konstruktiv devor materialida, radiator seksiyali; boshdan baland bo‘lmasa, yurishga to‘sqinlik qiladi.
+- **Osma mebel:** har bir buyumda «Poldan» (`elev`, sm) bor. To‘qnashuvlar uch o‘q bo‘yicha: stol ustidagi tokcha — xato emas, shift ostidagi quti ostidagi shkaf uning pastki qismi bo‘yicha tekshiriladi, eshik zonasidagi tokcha faqat eshik balandligidan past bo‘lsa xato. Rejada osma buyumlar pol buyumlari ustida chiziladi (shaffof, punktir, «↑140»); bosish yuqoridagini tanlaydi, xuddi shu joyga yana bosish — pastdagini. Katalogdagi yangi turlar: osma shkaf, devor tokchasi, antresol, osma TV konsol, devor oynasi.
 - **Loyihalar va xonalar:** loyihada bir nechta xona bor, ular reja ustida yorliqlar ko‘rinishida (+ Xona: nomi, vazifasi, o‘lchami; ⋯ — nomini o‘zgartirish, «variant B» versiyasi sifatida nusxalash, o‘chirish). Har bir xonaning o‘z bekor qilish tarixi bor. 📁 **Loyihalar** — reja rasmi bilan kartalar: ochish, yangi, nomini o‘zgartirish, nusxalash, o‘chirish, `.fsp3d.json` faylga **eksport / import** (zaxira yoki boshqa qurilmaga ko‘chirish). Eski bitta xonali reja avtomatik ravishda «Mening loyiham»ga ko‘chiriladi.
 - **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak).
 - **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
@@ -142,8 +146,8 @@ order.json           saqlangan buyurtmalar
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
+                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog
+public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
 test/                unit testlar (node:test): npm test
 ```
@@ -180,6 +184,8 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Правка плана:** отмена / повтор (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; всё перетаскивание — один шаг), дублирование (`Ctrl+D`), выделение нескольких (`Shift`/`Ctrl`+клик, `Shift`+протяжка — рамка, `Ctrl+A`), перемещение группы и панель **Выровнять / распределить**.
 - **Масштаб и сдвиг:** колесо приближает относительно курсора (50–800 %), кнопки − / 100 % / + (100 % = вписать); сдвиг — протяжкой по пустому полу, `Пробел`+протяжка или средней кнопкой; на тач-экране — щипок. Вид не сохраняется.
 - **Линейка** (📏 / `M`): клик по двум точкам; точки притягиваются к стенам, плинтусу и краям мебели, `Shift` держит линию ровной. Показывает длину и Δx / Δy; ⌫ — очистить все измерения.
+- **Конструктив:** в панели «Окна, двери и конструктив» добавляются колонна, короб (стояк), короб под потолком, выступ стены, батарея (по центру под окном) или **ниша** (два выступа по бокам участка стены). На плане они заштрихованы серым с подписью высоты, перетаскиваются с прилипанием к стенам, редактируются в форме и защищены тем же замком 🔒. Мебель не должна пересекаться с конструктивом на своей высоте (`err.obstacle`, плюс минимальный зазор); конструктив в зоне двери или перед окном даёт предупреждение. В 3D конструктив в материале стены, батарея секционная; в прогулке мешает, если не выше головы.
+- **Навесная мебель:** у каждого предмета есть «От пола» (`elev`, см). Коллизии по трём осям: полка над столом — не ошибка, шкаф под коробом под потолком проверяется по его низу, полка в зоне двери — ошибка, только если ниже верха двери. На плане навесные предметы рисуются поверх напольных (полупрозрачно, пунктир, «↑140»); клик выбирает верхний предмет, повторный клик в ту же точку — нижний. Новые типы каталога: навесной шкаф, настенная полка, антресоль, подвесная ТВ-консоль, настенное зеркало.
 - **Проекты и комнаты:** в проекте несколько комнат — вкладки над планом (+ Комната: название, назначение, размеры; ⋯ — переименовать, дублировать как версию «вариант Б», удалить). У каждой комнаты своя история отмены. 📁 **Проекты** — карточки с превью плана: открыть, новый, переименовать, дублировать, удалить, **экспорт / импорт** файла `.fsp3d.json` (резервная копия или перенос на другое устройство). Старый план одной комнаты автоматически переносится в «Мой проект».
 - **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок).
 - **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
@@ -219,8 +225,8 @@ order.json           сохранённые заявки
 public/index.html    разметка
 public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
+                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog
+public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
 test/                модульные тесты (node:test): npm test
 ```

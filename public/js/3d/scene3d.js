@@ -7,6 +7,7 @@ import { buildLights, setupEnvironment } from './lights3d.js';
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
+import { initTouch } from './touch3d.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
@@ -38,6 +39,7 @@ function init(el) {
   camera = new THREE.PerspectiveCamera(60, 1, 0.05, 100);
   clock = new THREE.Clock();
   controls.initControls(camera, renderer.domElement, el);
+  initTouch(el, renderer.domElement);
 
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });

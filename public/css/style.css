@@ -143,9 +143,28 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .items .flag { color: var(--danger); font-weight: 700; }
 .sel-name { font-weight: 700; margin-bottom: 8px; }
 
-/* ---------- canvas ---------- */
+/* ---------- canvas + notes column ---------- */
+/* The notes column has a fixed width, so messages never resize the canvas (stable plan scale). */
+.stage-body { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.stage-body:fullscreen { background: var(--bg); padding: 12px; }
+.notes {
+  width: 300px; flex: none; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.notes > .hint { margin: 4px 2px; }
+.notes-all { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; }
+.notes-all h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 0 0 6px; }
+.notes-all ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.notes-all li { padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.notes-all li:hover { background: #f5f6fa; }
+.notes-all li.selected { border-color: var(--primary); background: #edf2ff; }
+.notes-all li b { color: var(--danger); }
+.notes-all li span { display: block; color: var(--muted); font-size: 12px; }
+.notes-all .ok { color: #2b8a3e; font-weight: 600; cursor: default; }
+.stage.is3d .notes { display: none; }
+
 .canvas-wrap {
-  flex: 1; min-height: 300px;
+  flex: 1; min-width: 0; min-height: 300px;
   background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow);
   position: relative; overflow: hidden;
 }
@@ -190,7 +209,9 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
   .layout { flex-direction: column-reverse; overflow-y: auto; }
   .sidebar { width: 100%; overflow: visible; }
   .stage { padding: 12px 12px 0; }
+  .stage-body { flex-direction: column; }
   .canvas-wrap { min-height: 60vh; }
+  .notes { width: auto; height: 160px; }
   .legend .keys { display: none; }
   .brand h1 { font-size: 15px; }
 }
@@ -243,4 +264,6 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 }
 
 /* fullscreen: the canvas area fills the whole screen */
-.canvas-wrap:fullscreen { border-radius: 0; width: 100vw; height: 100vh; }
+.stage-body:fullscreen .canvas-wrap { border-radius: var(--radius); }
+.stage.is3d .stage-body:fullscreen { padding: 0; }
+.stage.is3d .stage-body:fullscreen .canvas-wrap { border-radius: 0; }

@@ -1,4 +1,4 @@
-// Sidebar forms, item list, selection panel, banner and toasts.
+// Sidebar forms, item list, selection panel, notes column and toasts.
 import { t, getLang } from './i18n.js';
 import { state, emit, addItem, removeItem, rotateItem, select, selected, getItem, itemName } from './state.js';
 
@@ -68,6 +68,10 @@ export function initUI({ autoPlace }) {
     }
   });
 
+  $('problemList').addEventListener('click', e => {
+    const li = e.target.closest('li[data-id]');
+    if (li) select(Number(li.dataset.id));
+  });
   $('itemList').addEventListener('click', e => {
     const li = e.target.closest('li');
     if (li) select(Number(li.dataset.id));
@@ -113,7 +117,7 @@ export function describe(err) {
 export function refresh() {
   renderList();
   renderSelPanel();
-  renderBanner();
+  renderNotes();
 }
 
 function renderList() {
@@ -143,7 +147,21 @@ function renderSelPanel() {
   }
 }
 
-// Banner above the canvas: reasons for the selected item, else first problem item.
+// Notes column right of the canvas: the selected item's status + every problem item.
+function renderNotes() {
+  renderBanner();
+  const bad = state.items.filter(i => (errors.get(i.id) || []).length);
+  $('notesEmpty').hidden = !!selected() || bad.length > 0;
+  $('notesAll').hidden = state.items.length === 0;
+  $('problemList').innerHTML = bad.length
+    ? bad.map(it => `<li data-id="${it.id}" class="${it.id === state.selectedId ? 'selected' : ''}">
+        <b>${escapeHtml(itemName(it))}</b>
+        ${errors.get(it.id).map(e => `<span>${escapeHtml(describe(e))}</span>`).join('')}
+      </li>`).join('')
+    : `<li class="ok">✓ ${escapeHtml(t('notes.allOk'))}</li>`;
+}
+
+// Banner: reasons for the selected item, else the first problem item.
 function renderBanner() {
   const banner = $('banner');
   const sel = selected();

@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'notes.empty': 'Выберите предмет на плане — здесь появятся проверки и подсказки', 'notes.all': 'Все проблемы на плане', 'notes.allOk': 'Ошибок размещения нет',
     'tex.title': 'Фото-текстуры (3D)', 'tex.apply': 'Применить готовые', 'tex.pack': 'Скачать набор (ZIP)',
     'tex.floor': 'Пол', 'tex.wall': 'Стены', 'tex.wood': 'Дерево мебели', 'tex.fabric': 'Обивка',
     'tex.builtin': 'готовая CC0', 'tex.custom': 'своя', 'tex.download': 'Скачать готовую текстуру',
@@ -52,6 +53,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'notes.empty': 'Rejada buyumni tanlang — tekshiruvlar va maslahatlar shu yerda chiqadi', 'notes.all': 'Rejadagi barcha muammolar', 'notes.allOk': 'Joylashtirish xatolari yo‘q',
     'tex.title': 'Foto-teksturalar (3D)', 'tex.apply': 'Tayyorlarini qo‘llash', 'tex.pack': 'To‘plamni yuklab olish (ZIP)',
     'tex.floor': 'Pol', 'tex.wall': 'Devorlar', 'tex.wood': 'Mebel yog‘ochi', 'tex.fabric': 'Qoplama',
     'tex.builtin': 'tayyor CC0', 'tex.custom': 'o‘zingizniki', 'tex.download': 'Tayyor teksturani yuklab olish',
@@ -103,6 +105,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'notes.empty': 'Select an item on the plan — checks and hints will appear here', 'notes.all': 'All problems on the plan', 'notes.allOk': 'No placement errors',
     'tex.title': 'Photo textures (3D)', 'tex.apply': 'Apply built-in', 'tex.pack': 'Download set (ZIP)',
     'tex.floor': 'Floor', 'tex.wall': 'Walls', 'tex.wood': 'Furniture wood', 'tex.fabric': 'Upholstery',
     'tex.builtin': 'built-in CC0', 'tex.custom': 'custom', 'tex.download': 'Download built-in texture',

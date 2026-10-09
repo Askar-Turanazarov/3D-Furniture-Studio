@@ -40,6 +40,7 @@ async function setView(mode) {
   document.getElementById('view2dBtn').classList.toggle('active', !is3d);
   document.getElementById('view3dBtn').classList.toggle('active', is3d);
   document.getElementById('view3d').hidden = !is3d;
+  document.querySelector('.stage').classList.toggle('is3d', is3d);
   if (is3d) {
     view3d ??= await import('./3d/scene3d.js');
     view3d.show(document.getElementById('view3d'));
@@ -50,7 +51,7 @@ async function setView(mode) {
 }
 
 function initViewSwitch() {
-  const wrap = document.getElementById('canvasWrap');
+  const wrap = document.getElementById('stageBody');
   document.getElementById('view2dBtn').addEventListener('click', () => setView('2d'));
   document.getElementById('view3dBtn').addEventListener('click', () => setView('3d'));
   document.getElementById('fullscreenBtn').addEventListener('click', () => {

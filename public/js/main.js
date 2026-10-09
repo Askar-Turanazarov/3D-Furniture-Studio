@@ -7,12 +7,12 @@ import { initProjects, persist } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
 import { initTextures } from './textures.js';
-import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
-import { validateAll, validateWarnings } from './validate.js';
+import { initRenderer, requestDraw, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings } from './renderer.js';
+import { validateAll, validateWarnings, obstacleWarnings } from './validate.js';
 import { clampOpening } from './openings.js';
 import { fitObstacleHeight } from './obstacles.js';
 import { initInteraction } from './interaction.js';
-import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings } from './ui.js';
+import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings, setObWarnings } from './ui.js';
 
 let lastH = null;   // full-height obstacles follow the ceiling
 
@@ -21,6 +21,9 @@ function update() {
   for (const o of state.obstacles) fitObstacleHeight(o, lastH ?? state.room.H, state.room);
   lastH = state.room.H;
   setWarnings(validateWarnings(state));
+  const obWarn = obstacleWarnings(state);
+  setObWarnings(obWarn);
+  setDrawObWarnings(obWarn);
   const errors = validateAll(state);
   setDrawErrors(errors);
   setUiErrors(errors);

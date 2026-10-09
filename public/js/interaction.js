@@ -417,9 +417,9 @@ function magnet(raw, size, axis, skip) {
   const max = axis === 'x' ? state.room.L : state.room.W;
   const gap = state.settings.gap;
   const cands = [p, max - p - size];
-  for (const o of state.items) {
-    if (skip.has(o)) continue;
-    const r = rectOf(o);
+  const rects = state.items.filter(o => !skip.has(o)).map(o => rectOf(o))
+    .concat((state.obstacles || []).map(obRect));
+  for (const r of rects) {
     const [s, len] = axis === 'x' ? [r.x, r.w] : [r.y, r.h];
     cands.push(s + len + gap, s - gap - size, s, s + len - size);
   }

@@ -1,6 +1,6 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
 import { state, itemName, isSelected } from './state.js';
-import { rectOf, rayGaps } from './geometry.js';
+import { rectOf, rayGaps, obstacleRects } from './geometry.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
 import { ruler, measure } from './ruler.js';
@@ -45,6 +45,8 @@ export function initRenderer(canvasEl, wrapEl) {
 }
 
 export function setErrors(map) { errors = map; }
+let obWarnings = new Map();
+export function setObWarnings(map) { obWarnings = map; }
 
 export function requestDraw() {
   if (pending) return;
@@ -203,8 +205,9 @@ function drawObstacles(high) {
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = sel ? COLORS.selected : '#495057';
-    ctx.lineWidth = sel ? 2.5 : 1.2;
+    const warn = obWarnings.has(o.id);
+    ctx.strokeStyle = sel ? COLORS.selected : warn ? '#f08c00' : '#495057';
+    ctx.lineWidth = sel || warn ? 2.5 : 1.2;
     if (high) ctx.setLineDash([5, 4]);
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
     const label = high ? `↑${o.elev}` : o.elev > 0 ? `${o.h} ↑${o.elev}` : `${o.h}`;
@@ -498,7 +501,7 @@ function fit(text, maxW) {
 
 // Distances (cm) from the selected item to the walls (inner faces) and to neighbours in between.
 function drawClearances(it) {
-  const others = state.items.filter(o => o !== it).map(o => rectOf(o));
+  const others = state.items.filter(o => o !== it).map(o => rectOf(o)).concat(obstacleRects(state.obstacles, it));
   const lines = rayGaps(rectOf(it), others, state.room);
   ctx.save();
   ctx.lineWidth = 1;

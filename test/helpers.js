@@ -8,5 +8,6 @@ export const state = (o = {}) => ({
   room: room(o.room),
   settings: { snap: 5, gap: 3, grid: 10, ...o.settings },
   items: o.items || [],
-  openings: o.openings || []
+  openings: o.openings || [],
+  obstacles: o.obstacles || []
 });

@@ -89,6 +89,8 @@ export function initUI({ autoPlace }) {
   $('problemList').addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
     if (li) select(Number(li.dataset.id));
+    const ob = e.target.closest('li[data-ob]');
+    if (ob) selectObstacle(Number(ob.dataset.ob));
   });
   $('itemList').addEventListener('click', e => {
     const li = e.target.closest('li');
@@ -131,6 +133,8 @@ export function syncForms() {
 
 export function setErrors(map) { errors = map; }
 export function setWarnings(map) { warnings = map; }
+let obWarnings = new Map();
+export function setObWarnings(map) { obWarnings = map; }
 
 // ---- windows / doors panel + lock ----
 function initOpenings() {
@@ -259,6 +263,7 @@ export function describe(err) {
   if (p.wall) p.wall = t('wall.' + p.wall);
   if (p.wallAlong) p.wall = t('wallAlong.' + p.wallAlong);
   if (p.otherId) { const o = getItem(p.otherId); p.name = o ? itemName(o) : '?'; }
+  if (p.kind) p.name = t('ob.' + p.kind);
   p.gap = state.settings.gap;
   return t(err.key, p);
 }
@@ -308,13 +313,17 @@ function renderNotes() {
   renderBanner();
   const errs = id => errors.get(id) || [], warns = id => warnings.get(id) || [];
   const bad = state.items.filter(i => errs(i.id).length || warns(i.id).length);
-  $('notesEmpty').hidden = !!selected() || bad.length > 0;
-  $('notesAll').hidden = state.items.length === 0;
-  $('problemList').innerHTML = bad.length
+  const obs = (state.obstacles || []).filter(o => obWarnings.has(o.id));
+  $('notesEmpty').hidden = !!selected() || bad.length > 0 || obs.length > 0;
+  $('notesAll').hidden = state.items.length === 0 && obs.length === 0;
+  $('problemList').innerHTML = bad.length || obs.length
     ? bad.map(it => `<li data-id="${it.id}" class="${it.id === state.selectedId ? 'selected' : ''}">
         <b>${escapeHtml(itemName(it))}</b>
         ${errs(it.id).map(e => `<span>${escapeHtml(describe(e))}</span>`).join('')}
         ${warns(it.id).map(e => `<i>⚠ ${escapeHtml(describe(e))}</i>`).join('')}
+      </li>`).join('') + obs.map(o => `<li data-ob="${o.id}" class="${o.id === state.selectedObstacle ? 'selected' : ''}">
+        <b>${escapeHtml(t('ob.' + o.kind))}</b>
+        ${obWarnings.get(o.id).map(e => `<i>⚠ ${escapeHtml(describe(e))}</i>`).join('')}
       </li>`).join('')
     : `<li class="ok">✓ ${escapeHtml(t('notes.allOk'))}</li>`;
 }

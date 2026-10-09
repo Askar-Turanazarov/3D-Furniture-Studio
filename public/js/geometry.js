@@ -15,6 +15,19 @@ export function overlaps(a, b) {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 }
 
+// Vertical range [bottom, top] of an item or obstacle (elev — height above the floor, 0 by default).
+export const zRange = o => [o.elev || 0, (o.elev || 0) + o.h];
+
+// Do two objects share some height? (a shelf over a desk does not)
+export function zOverlaps(a, b) {
+  const [a0, a1] = zRange(a), [b0, b1] = zRange(b);
+  return a0 < b1 && b0 < a1;
+}
+
+// Plan rects of the obstacles that stand at the item's height.
+export const obstacleRects = (obstacles, it) =>
+  (obstacles || []).filter(o => zOverlaps(o, it)).map(o => ({ x: o.x, y: o.y, w: o.w, h: o.d }));
+
 // Clearance between two non-overlapping AABBs (largest axis separation).
 export function clearance(a, b) {
   const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w));

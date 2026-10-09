@@ -5,6 +5,7 @@ import { rectOf, footprint } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
 import { toWorld, view } from './renderer.js';
 import { history } from './history.js';
+import { duplicate } from './ui.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
@@ -71,6 +72,8 @@ export function initInteraction(canvas) {
     if (selectedOpening()) return openingKey(e);
     const it = selected();
     if (!it) return;
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') { duplicate(it); e.preventDefault(); return; }
+    if (e.ctrlKey || e.metaKey) return;
     const step = state.settings.snap * (e.shiftKey ? 10 : 1);
     switch (e.key) {
       case 'r': case 'R': case 'к': case 'К': rotateItem(it); break;

@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'sel.duplicate': 'Дублировать', 'dup.done': 'Копия «{name}» добавлена', 'dup.shifted': 'Рядом нет места — копия сдвинута, найдите ей место',
     'hist.undo': 'Отменить (Ctrl+Z)', 'hist.redo': 'Повторить (Ctrl+Y)', 'hist.undone': 'Отменено', 'hist.redone': 'Повторено',
     'v3d.height': 'Рост', 'v3d.child': 'ребёнок', 'v3d.woman': 'женщина', 'v3d.man': 'мужчина',
     'v3d.distItem': 'До «{name}»: {m} м', 'v3d.distWall': 'До стены ({wall}): {m} м', 'wallShort.north': 'северная', 'wallShort.south': 'южная', 'wallShort.west': 'левая', 'wallShort.east': 'правая', 'v3d.distTouch': 'вплотную', 'v3d.fromFeet': 'от ног, по полу',
@@ -63,6 +64,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'sel.duplicate': 'Nusxalash', 'dup.done': '«{name}» nusxasi qo‘shildi', 'dup.shifted': 'Yonida joy yo‘q — nusxa surildi, unga joy toping',
     'hist.undo': 'Bekor qilish (Ctrl+Z)', 'hist.redo': 'Qaytarish (Ctrl+Y)', 'hist.undone': 'Bekor qilindi', 'hist.redone': 'Qaytarildi',
     'v3d.height': 'Bo‘y', 'v3d.child': 'bola', 'v3d.woman': 'ayol', 'v3d.man': 'erkak',
     'v3d.distItem': '«{name}»gacha: {m} m', 'v3d.distWall': 'Devorgacha ({wall}): {m} m', 'wallShort.north': 'shimoliy', 'wallShort.south': 'janubiy', 'wallShort.west': 'chap', 'wallShort.east': 'o‘ng', 'v3d.distTouch': 'yonma-yon', 'v3d.fromFeet': 'oyoqdan, pol bo‘ylab',
@@ -125,6 +127,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'sel.duplicate': 'Duplicate', 'dup.done': 'Copy of “{name}” added', 'dup.shifted': 'No room next to it — the copy was shifted, find it a spot',
     'hist.undo': 'Undo (Ctrl+Z)', 'hist.redo': 'Redo (Ctrl+Y)', 'hist.undone': 'Undone', 'hist.redone': 'Redone',
     'v3d.height': 'Height', 'v3d.child': 'child', 'v3d.woman': 'woman', 'v3d.man': 'man',
     'v3d.distItem': 'To “{name}”: {m} m', 'v3d.distWall': 'To the wall ({wall}): {m} m', 'wallShort.north': 'north', 'wallShort.south': 'south', 'wallShort.west': 'left', 'wallShort.east': 'right', 'v3d.distTouch': 'touching', 'v3d.fromFeet': 'from the feet, along the floor',

@@ -1,6 +1,6 @@
 // Sidebar forms, item list, selection panel, notes column and toasts.
 import { t, getLang } from './i18n.js';
-import { state, emit, addItem, removeItem, rotateItem, select, selected, getItem, itemName,
+import { state, emit, addItem, removeItem, rotateItem, duplicateItem, select, selected, getItem, itemName,
   selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked } from './state.js';
 
 const $ = id => document.getElementById(id);
@@ -50,6 +50,7 @@ export function initUI({ autoPlace }) {
   });
   $('rotateBtn').addEventListener('click', () => { const it = selected(); if (it) rotateItem(it); });
   $('deleteBtn').addEventListener('click', () => { const it = selected(); if (it) removeItem(it.id); });
+  $('dupBtn').addEventListener('click', () => { const it = selected(); if (it) duplicate(it); });
   $('autoBtn').addEventListener('click', () => { const it = selected(); if (it) onAutoPlace(it, false); });
 
   // Settings.
@@ -80,6 +81,11 @@ export function initUI({ autoPlace }) {
     const li = e.target.closest('li');
     if (li) select(Number(li.dataset.id));
   });
+}
+
+export function duplicate(it) {
+  const { item, placed } = duplicateItem(it);
+  toast(placed ? t('dup.done', { name: itemName(item) }) : t('dup.shifted'), !placed);
 }
 
 export function fillCatalog() {

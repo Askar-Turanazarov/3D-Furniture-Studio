@@ -1,7 +1,8 @@
 // Single app state + simple change notification.
-import { footprint } from './geometry.js';
+import { footprint, rectOf, insideRoom, blocked } from './geometry.js';
+import { findSpot } from './autoplace.js';
 import { getLang } from './i18n.js';
-import { newOpening, clampOpening } from './openings.js';
+import { newOpening, clampOpening, doorSwingRect } from './openings.js';
 
 export const state = {
   room: { L: 400, W: 300, H: 270, plinth: 2 },
@@ -71,6 +72,35 @@ export function removeItem(id) {
   state.items = state.items.filter(i => i.id !== id);
   if (state.selectedId === id) state.selectedId = null;
   emit();
+}
+
+// Copy next to the original (right, below, left, above), else the first free spot,
+// else shifted by 20 cm. → { item, placed }
+export function duplicateItem(item) {
+  const copy = { ...structuredClone(item), id: state.seq++ };
+  const { room, settings } = state;
+  const r = rectOf(item), g = settings.gap;
+  const others = state.items.map(i => rectOf(i))
+    .concat((state.openings || []).filter(o => o.kind === 'door').map(o => doorSwingRect(o, room)));
+  let placed = false;
+  for (const [dx, dy] of [[r.w + g, 0], [0, r.h + g], [-(r.w + g), 0], [0, -(r.h + g)]]) {
+    const c = rectOf(copy, item.x + dx, item.y + dy);
+    if (insideRoom(c, room) && !blocked(c, others, g)) {
+      Object.assign(copy, { x: c.x, y: c.y });
+      placed = true;
+      break;
+    }
+  }
+  if (!placed) {
+    const res = findSpot(copy, { ...state, items: [...state.items, copy] });
+    if (res.ok) Object.assign(copy, { x: res.x, y: res.y, rot: res.rot });
+    else Object.assign(copy, { x: item.x + 20, y: item.y + 20 });
+    placed = res.ok;
+  }
+  state.items.push(copy);
+  state.selectedId = copy.id;
+  emit();
+  return { item: copy, placed };
 }
 
 // Rotate 90° clockwise around the footprint centre.

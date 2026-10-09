@@ -15,7 +15,12 @@
     { "type": "bookshelf",   "name": { "ru": "Стеллаж",            "uz": "Kitob javoni",       "en": "Bookshelf" },      "w": 80,  "d": 35,  "h": 200, "color": "#d7ccc8" },
     { "type": "shoerack",    "name": { "ru": "Обувница",           "uz": "Poyabzal javoni",    "en": "Shoe cabinet" },   "w": 80,  "d": 30,  "h": 100, "color": "#efebe9" },
     { "type": "kitchen",     "name": { "ru": "Кухонный гарнитур",  "uz": "Oshxona garnituri",  "en": "Kitchen set" },    "w": 240, "d": 60,  "h": 220, "color": "#eceff1" },
-    { "type": "fridge",      "name": { "ru": "Холодильник",        "uz": "Muzlatgich",         "en": "Fridge" },         "w": 60,  "d": 65,  "h": 185, "color": "#f5f5f5" }
+    { "type": "fridge",      "name": { "ru": "Холодильник",        "uz": "Muzlatgich",         "en": "Fridge" },         "w": 60,  "d": 65,  "h": 185, "color": "#f5f5f5" },
+    { "type": "wallcabinet", "name": { "ru": "Навесной шкаф",      "uz": "Osma shkaf",         "en": "Wall cabinet" },   "w": 60,  "d": 35,  "h": 70,  "color": "#eceff1", "elev": 140, "mount": "wall" },
+    { "type": "wallshelf",   "name": { "ru": "Настенная полка",    "uz": "Devor tokchasi",     "en": "Wall shelf" },     "w": 80,  "d": 25,  "h": 4,   "color": "#a1887f", "elev": 150, "mount": "wall" },
+    { "type": "mezzanine",   "name": { "ru": "Антресоль",          "uz": "Antresol",           "en": "Mezzanine" },      "w": 120, "d": 60,  "h": 50,  "color": "#d7ccc8", "elev": 210, "mount": "wall" },
+    { "type": "tvpanel",     "name": { "ru": "Подвесная ТВ-консоль", "uz": "Osma TV konsol",   "en": "Floating TV console" }, "w": 160, "d": 35, "h": 40, "color": "#6d4c41", "elev": 40, "mount": "wall" },
+    { "type": "mirror",      "name": { "ru": "Настенное зеркало",  "uz": "Devor oynasi",       "en": "Wall mirror" },    "w": 60,  "d": 3,   "h": 90,  "color": "#212529", "elev": 100, "mount": "wall" }
   ],
   "materials": [],
   "pricing": {}

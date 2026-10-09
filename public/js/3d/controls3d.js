@@ -163,7 +163,8 @@ const eyeHeight = () => Math.min(personH * 0.93 / 100, room.size.H - 0.15);
 
 // Furniture and structure footprints in metres. Structure above the head (a ceiling duct) does not block.
 function obstacles() {
-  const out = state.items.map(it => {
+  // Wall-mounted furniture above the head does not block the walk either.
+  const out = state.items.filter(it => (it.elev || 0) < personH).map(it => {
     const r = rectOf(it);
     return { x: r.x / 100, z: r.y / 100, w: r.w / 100, d: r.h / 100 };
   });
@@ -275,6 +276,7 @@ function showDistance() {
   ]) if (d < best.d) best = { d, wall, item: null };
   // Furniture: ray vs AABB (slab method).
   state.items.forEach(it => {
+    if ((it.elev || 0) > FEET) return;   // a shelf does not catch the ray from the feet
     const r = rectOf(it);
     const d = rayBox(ox, oz, fwd.x, fwd.z, r.x / 100, r.y / 100, (r.x + r.w) / 100, (r.y + r.h) / 100);
     if (d !== null && d < best.d) best = { d, wall: null, item: it };

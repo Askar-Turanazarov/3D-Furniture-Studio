@@ -311,17 +311,30 @@ function hitTest(x, y) {
   const onFloor = x >= 0 && x <= L && y >= 0 && y <= W;
   const op = state.openingsLocked ? null : openingAt(x, y);
   if (op && !onFloor) return { opening: op };
-  const order = [...state.items].reverse();
-  const sel = selected();
-  if (sel) order.unshift(sel);
-  const item = order.find(it => {
-    const r = rectOf(it);
-    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-  }) || null;
+  const item = itemAt(x, y);
   if (item) return item;
   const ob = state.openingsLocked ? null : obstacleAt(x, y);
   if (ob) return { obstacle: ob };
   return op ? { opening: op } : null;
+}
+
+// Items under the point, top first: higher elevation, then the selected one, then the last drawn.
+// Clicking the same spot again picks the next item down (a desk under a shelf).
+let lastPick = null;
+function itemAt(x, y) {
+  const sel = selected();
+  const hits = [...state.items].reverse()
+    .filter(it => { const r = rectOf(it); return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; })
+    .sort((a, b) => ((b.elev || 0) - (a.elev || 0)) || ((b === sel) - (a === sel)));
+  if (!hits.length) { lastPick = null; return null; }
+  const tol = 4 / view.scale;
+  const again = lastPick && Math.abs(lastPick.x - x) < tol && Math.abs(lastPick.y - y) < tol;
+  let pick = hits[0];
+  if (again && hits.length > 1 && sel && hits.includes(sel) && hits.length) {
+    pick = hits[(hits.indexOf(sel) + 1) % hits.length];
+  }
+  lastPick = { x, y };
+  return pick;
 }
 
 function obstacleAt(x, y) {

@@ -1,6 +1,6 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
 import { state, itemName, isSelected } from './state.js';
-import { rectOf, rayGaps, obstacleRects } from './geometry.js';
+import { rectOf, rayGaps, obstacleRects, zOverlaps } from './geometry.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
 import { ruler, measure } from './ruler.js';
@@ -118,7 +118,8 @@ function draw() {
   drawObstacles(false);   // floor-standing structure under the furniture
   const now = performance.now();
   const sel = state.items.find(i => i.id === state.selectedId);
-  for (const it of state.items) if (it !== sel) drawItem(it, now);
+  for (const it of state.items) if (it !== sel && !(it.elev > 0)) drawItem(it, now);
+  for (const it of state.items) if (it !== sel && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
   if (sel) drawItem(sel, now);
   drawObstacles(true);    // ceiling ducts and other high structure over the furniture
   drawOpenings();   // over the furniture: a blocked door swing stays visible
@@ -350,11 +351,13 @@ function drawItem(it, now) {
   const isBad = (errors.get(it.id) || []).length > 0;
   const isFound = state.found && state.found.id === it.id && now < state.found.until;
 
+  const high = it.elev > 0;
   ctx.save();
-  ctx.globalAlpha = 0.9;
+  ctx.globalAlpha = high ? 0.55 : 0.9;
   ctx.fillStyle = it.color;
   ctx.fillRect(x, y, w, h);
   ctx.globalAlpha = 1;
+  if (high) ctx.setLineDash([6, 4]);
   if (isBad) { ctx.fillStyle = COLORS.badFill; ctx.fillRect(x, y, w, h); }
   else if (isFound) { ctx.fillStyle = COLORS.foundFill; ctx.fillRect(x, y, w, h); }
 
@@ -368,9 +371,26 @@ function drawItem(it, now) {
     ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
   }
 
+  ctx.setLineDash([]);
   drawFront(it, x, y, w, h);
   drawLabel(it, x, y, w, h);
+  if (high) drawElevTag(it, x, y, w, h);
   ctx.restore();
+}
+
+// "↑140" badge in the corner of a wall-mounted item.
+function drawElevTag(it, x, y, w, h) {
+  const text = `↑${it.elev}`;
+  ctx.font = '700 10px system-ui, sans-serif';
+  const tw = ctx.measureText(text).width + 6;
+  if (w < tw || h < 6) return;
+  const bh = Math.min(13, h);
+  ctx.fillStyle = 'rgba(33, 37, 41, .78)';
+  ctx.fillRect(x + 1, y + 1, tw, bh);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + 4, y + 1 + bh / 2);
 }
 
 const RULER = '#0b7285';
@@ -501,7 +521,9 @@ function fit(text, maxW) {
 
 // Distances (cm) from the selected item to the walls (inner faces) and to neighbours in between.
 function drawClearances(it) {
-  const others = state.items.filter(o => o !== it).map(o => rectOf(o)).concat(obstacleRects(state.obstacles, it));
+  // Only neighbours at the same height: a shelf above the desk does not "close" the desk.
+  const others = state.items.filter(o => o !== it && zOverlaps(o, it)).map(o => rectOf(o))
+    .concat(obstacleRects(state.obstacles, it));
   const lines = rayGaps(rectOf(it), others, state.room);
   ctx.save();
   ctx.lineWidth = 1;

@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'dim.elev': 'От пола',
     'err.obstacle': 'Пересечение с конструктивом «{name}»', 'warn.obDoor': 'Мешает открыванию двери', 'warn.obWindow': 'Закрывает окно',
     'ob.title': 'Конструктив', 'ob.column': 'Колонна', 'ob.duct': 'Короб', 'ob.ceilingDuct': 'Короб под потолком', 'ob.ledge': 'Выступ', 'ob.radiator': 'Батарея', 'ob.niche': 'Ниша', 'ob.elev': 'От пола', 'niche.offset': 'Начало', 'niche.width': 'Ширина ниши', 'niche.depth': 'Глубина', 'niche.create': 'Создать', 'niche.hint': 'Ниша — это два выступа стены по бокам свободного участка. Потом их можно двигать и менять по отдельности.',
     'order.allRooms': 'Отправить все комнаты проекта', 'order.summaryAll': 'Комнат: {r}, предметов всего: {n}', 'order.roomErrors': 'В комнате «{name}» есть ошибки размещения — исправьте их или отправьте только текущую комнату',
@@ -75,6 +76,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'dim.elev': 'Poldan',
     'err.obstacle': '«{name}» konstruktivi bilan kesishadi', 'warn.obDoor': 'Eshik ochilishiga xalaqit beradi', 'warn.obWindow': 'Derazani to‘sadi',
     'ob.title': 'Konstruktiv', 'ob.column': 'Ustun', 'ob.duct': 'Quti (stoyak)', 'ob.ceilingDuct': 'Shift ostidagi quti', 'ob.ledge': 'Devor bo‘rtig‘i', 'ob.radiator': 'Radiator', 'ob.niche': 'Tokcha', 'ob.elev': 'Poldan', 'niche.offset': 'Boshlanishi', 'niche.width': 'Tokcha kengligi', 'niche.depth': 'Chuqurligi', 'niche.create': 'Yaratish', 'niche.hint': 'Tokcha — bo‘sh qism yonlaridagi ikkita devor bo‘rtig‘i. Keyin ularni alohida surish va o‘zgartirish mumkin.',
     'order.allRooms': 'Loyihaning barcha xonalarini yuborish', 'order.summaryAll': 'Xonalar: {r}, jami buyumlar: {n}', 'order.roomErrors': '«{name}» xonasida joylashtirish xatolari bor — ularni tuzating yoki faqat joriy xonani yuboring',
@@ -149,6 +151,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'dim.elev': 'Above floor',
     'err.obstacle': 'Overlaps the structure “{name}”', 'warn.obDoor': 'Blocks the door swing', 'warn.obWindow': 'Covers the window',
     'ob.title': 'Structure', 'ob.column': 'Column', 'ob.duct': 'Duct', 'ob.ceilingDuct': 'Ceiling duct', 'ob.ledge': 'Ledge', 'ob.radiator': 'Radiator', 'ob.niche': 'Niche', 'ob.elev': 'Above floor', 'niche.offset': 'Start', 'niche.width': 'Niche width', 'niche.depth': 'Depth', 'niche.create': 'Create', 'niche.hint': 'A niche is two wall ledges on both sides of the free part. You can move and resize them separately afterwards.',
     'order.allRooms': 'Send all rooms of the project', 'order.summaryAll': 'Rooms: {r}, items in total: {n}', 'order.roomErrors': 'The room “{name}” has placement errors — fix them or send only the current room',

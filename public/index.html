@@ -116,11 +116,13 @@
             <select name="type" id="typeSelect"></select></label>
           <div class="grid3">
             <label><span data-i18n="dim.w">Ширина (X)</span>
-              <input type="number" name="w" min="10" max="1000" required></label>
+              <input type="number" name="w" min="1" max="1000" required></label>
             <label><span data-i18n="dim.d">Глубина (Y)</span>
-              <input type="number" name="d" min="10" max="1000" required></label>
+              <input type="number" name="d" min="1" max="1000" required></label>
             <label><span data-i18n="dim.h">Высота (Z)</span>
-              <input type="number" name="h" min="10" max="600" required></label>
+              <input type="number" name="h" min="1" max="600" required></label>
+            <label><span data-i18n="dim.elev">От пола</span>
+              <input type="number" name="elev" min="0" max="600"></label>
           </div>
           <button type="submit" class="btn primary" data-i18n="add.btn">Добавить</button>
         </form>
@@ -131,11 +133,13 @@
         <div class="sel-name" id="selName"></div>
         <form id="selForm" class="grid3">
           <label><span data-i18n="dim.w">Ширина (X)</span>
-            <input type="number" name="w" min="10" max="1000"></label>
+            <input type="number" name="w" min="1" max="1000"></label>
           <label><span data-i18n="dim.d">Глубина (Y)</span>
-            <input type="number" name="d" min="10" max="1000"></label>
+            <input type="number" name="d" min="1" max="1000"></label>
           <label><span data-i18n="dim.h">Высота (Z)</span>
-            <input type="number" name="h" min="10" max="600"></label>
+            <input type="number" name="h" min="1" max="600"></label>
+          <label><span data-i18n="dim.elev">От пола</span>
+            <input type="number" name="elev" min="0" max="600"></label>
         </form>
         <div class="btn-row">
           <button class="btn" id="rotateBtn" title="R">⟳ <span data-i18n="sel.rotate">Повернуть</span></button>

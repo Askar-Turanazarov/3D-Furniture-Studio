@@ -93,7 +93,7 @@ export function snapValue(v) {
   return p + Math.round((v - p) / snap) * snap;
 }
 
-export function addItem({ type, w, d, h }) {
+export function addItem({ type, w, d, h, elev }) {
   const c = state.catalog.find(c => c.type === type);
   const p = state.room.plinth;
   const item = {
@@ -101,6 +101,8 @@ export function addItem({ type, w, d, h }) {
     x: p, y: p, rot: 0,
     color: c ? c.color : '#90a4ae'
   };
+  const e = elev ?? c?.elev ?? 0;
+  if (e > 0) item.elev = e;
   state.items.push(item);
   state.selectedId = item.id;
   emit();

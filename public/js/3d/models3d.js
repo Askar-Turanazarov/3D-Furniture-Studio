@@ -288,9 +288,65 @@ function fridge(w, d, h, c, s) {
   return g;
 }
 
+// ---- wall-mounted: built from the bottom (the item is lifted by elev in buildItem) ----
+
+// Wall cabinet / mezzanine: carcass with 1–3 hinged doors and handles at the bottom edge.
+function wallcabinet(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s), metal = furnitureMat('metal', c, s);
+  const front = 0.018, gap = 0.004;
+  g.add(box(w, h, d - front, wood, 0, 0, -front / 2));
+  const n = Math.max(1, Math.min(3, Math.round(w / 0.45)));
+  const dw = (w - gap * (n + 1)) / n;
+  for (let i = 0; i < n; i++) {
+    const x = -w / 2 + gap + dw / 2 + i * (dw + gap);
+    g.add(box(dw, h - 2 * gap, front, wood, x, gap, d / 2 - front / 2));
+    g.add(box(Math.min(0.12, dw * 0.4), 0.012, 0.02, metal, x, gap + 0.03, d / 2 + 0.01));
+  }
+  return g;
+}
+const mezzanine = wallcabinet;
+
+// Floating shelf: a board with two hidden brackets.
+function wallshelf(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s), metal = furnitureMat('metal', c, s);
+  g.add(box(w, h, d, wood));
+  for (const sx of [-1, 1]) g.add(box(0.02, 0.02, d * 0.8, metal, sx * w * 0.35, -0.02, -d * 0.1));
+  return g;
+}
+
+// Floating TV console: long box with flap fronts and a dark gap line.
+function tvpanel(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s), dark = furnitureMat('dark', c, s);
+  const front = 0.018;
+  g.add(box(w, h, d - front, wood, 0, 0, -front / 2));
+  const n = Math.max(2, Math.round(w / 0.6));
+  const dw = (w - 0.004 * (n + 1)) / n;
+  for (let i = 0; i < n; i++) {
+    g.add(box(dw, h - 0.008, front, wood, -w / 2 + 0.004 + dw / 2 + i * (dw + 0.004), 0.004, d / 2 - front / 2));
+  }
+  g.add(box(w * 0.98, 0.006, 0.002, dark, 0, h * 0.5, d / 2 + 0.001));
+  return g;
+}
+
+// Wall mirror: thin frame with a reflective glass.
+function mirror(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const frame = furnitureMat('plain', c, s);
+  const glass = new THREE.MeshStandardMaterial({ color: '#dfe7ef', roughness: 0.02, metalness: 1 });
+  const f = Math.min(0.03, w * 0.08, h * 0.08);
+  g.add(box(w, h, d * 0.6, frame, 0, 0, -d * 0.2));
+  const m = box(w - 2 * f, h - 2 * f, 0.004, glass, 0, f, d * 0.1 + 0.002);
+  g.add(m);
+  return g;
+}
+
 const BUILDERS = {
   wardrobe, table, sofa, nightstand, bed, chair,
-  armchair, dresser, shoerack, tvstand, bookshelf, coffeetable, desk, kitchen, fridge
+  armchair, dresser, shoerack, tvstand, bookshelf, coffeetable, desk, kitchen, fridge,
+  wallcabinet, mezzanine, wallshelf, tvpanel, mirror
 };
 
 /**
@@ -301,7 +357,7 @@ export function buildItem(item, status) {
   const make = BUILDERS[item.type] || generic;
   const obj = make(item.w / 100, item.d / 100, item.h / 100, item.color, status);
   const r = rectOf(item);
-  obj.position.set((r.x + r.w / 2) / 100, 0, (r.y + r.h / 2) / 100);
+  obj.position.set((r.x + r.w / 2) / 100, (item.elev || 0) / 100, (r.y + r.h / 2) / 100);
   // Same direction as the 2D front marker: 0° → +Z (south), clockwise on the plan.
   obj.rotation.y = -item.rot * Math.PI / 180;
   obj.userData.itemId = item.id;

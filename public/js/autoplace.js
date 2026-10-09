@@ -1,6 +1,6 @@
 // "Find a spot": scan (x, y) with the snap step over 4 rotations.
 // Wall-adjacent positions are tried first, then the whole room.
-import { footprint, rectOf, blocked, insideRoom, obstacleRects } from './geometry.js';
+import { footprint, rectOf, blocked, insideRoom, obstacleRects, zOverlaps } from './geometry.js';
 import { doorSwingRect } from './openings.js';
 
 const ROTS = [0, 90, 180, 270];
@@ -13,11 +13,12 @@ export function findSpot(item, state) {
   const Lu = room.L - 2 * p, Wu = room.W - 2 * p;
   const gap = settings.gap;
   // Door swing areas count as obstacles, so nothing is auto-placed in front of a door.
-  const others = state.items.filter(i => i.id !== item.id).map(i => rectOf(i))
-    .concat((state.openings || []).filter(o => o.kind === 'door').map(o => doorSwingRect(o, room)))
+  const elev = item.elev || 0;
+  const others = state.items.filter(i => i.id !== item.id && zOverlaps(i, item)).map(i => rectOf(i))
+    .concat((state.openings || []).filter(o => o.kind === 'door' && elev < o.height).map(o => doorSwingRect(o, room)))
     .concat(obstacleRects(state.obstacles, item));
 
-  if (item.h > room.H) return { ok: false, key: 'auto.tooTall', params: { n: item.h - room.H } };
+  if (elev + item.h > room.H) return { ok: false, key: 'auto.tooTall', params: { n: elev + item.h - room.H } };
 
   // Doesn't fit even into an empty room → report the shortfall per axis.
   const shortA = { L: Math.max(0, item.w - Lu), W: Math.max(0, item.d - Wu) };

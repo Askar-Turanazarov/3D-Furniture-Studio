@@ -37,7 +37,8 @@ export function initUI({ autoPlace }) {
     const f = addForm.elements;
     const item = addItem({
       type: f.type.value,
-      w: num(f.w.value, 10, 1000), d: num(f.d.value, 10, 1000), h: num(f.h.value, 10, 600)
+      w: num(f.w.value, 1, 1000), d: num(f.d.value, 1, 1000), h: num(f.h.value, 1, 600),
+      elev: f.elev.value === '' ? undefined : num(f.elev.value, 0, 600)
     });
     onAutoPlace(item, true);
   });
@@ -49,7 +50,11 @@ export function initUI({ autoPlace }) {
     const f = $('selForm').elements;
     for (const k of ['w', 'd', 'h']) {
       const v = Number(f[k].value);
-      if (v >= 10) it[k] = num(v, 10, k === 'h' ? 600 : 1000);
+      if (v >= 1) it[k] = num(v, 1, k === 'h' ? 600 : 1000);
+    }
+    if (f.elev.value !== '') {
+      const e = num(f.elev.value, 0, 600);
+      if (e > 0) it.elev = e; else delete it.elev;
     }
     emit();
   });
@@ -119,7 +124,7 @@ function fillDefaults() {
   const c = state.catalog.find(c => c.type === $('typeSelect').value);
   if (!c) return;
   const f = $('addForm').elements;
-  f.w.value = c.w; f.d.value = c.d; f.h.value = c.h;
+  f.w.value = c.w; f.d.value = c.d; f.h.value = c.h; f.elev.value = c.elev || 0;
 }
 
 // Sync all form values from state (after load from storage).
@@ -286,7 +291,7 @@ function renderList() {
     return `<li data-id="${it.id}" class="${cls}">
       <i class="dot" style="background:${it.color}"></i>
       <span class="name">${escapeHtml(itemName(it))}</span>
-      <span class="dims">${it.w}×${it.d}×${it.h} · ${it.rot}°</span>
+      <span class="dims">${it.w}×${it.d}×${it.h}${it.elev ? ' ↑' + it.elev : ''} · ${it.rot}°</span>
       ${bad ? '<span class="flag">!</span>' : ''}
     </li>`;
   }).join('');
@@ -306,6 +311,7 @@ function renderSelPanel() {
   for (const k of ['w', 'd', 'h']) {
     if (document.activeElement !== f[k]) f[k].value = it[k];
   }
+  if (document.activeElement !== f.elev) f.elev.value = it.elev || 0;
 }
 
 // Notes column right of the canvas: the selected item's status + every problem item.

@@ -139,3 +139,8 @@ test('export → import round trip, bad files are rejected', () => {
   bad2.project.rooms[0].items[0].x = null;
   assert.throws(() => importProject(bad2));
 });
+
+test('normalizeDoc keeps lighting and fills its defaults', () => {
+  assert.deepEqual(normalizeDoc({}).lighting, { scene: 'day', ceiling: 'chandelier' });
+  assert.deepEqual(normalizeDoc({ lighting: { scene: 'night' } }).lighting, { scene: 'night', ceiling: 'chandelier' });
+});

@@ -355,10 +355,53 @@ function mirror(w, d, h, c, s) {
   return g;
 }
 
+// Glowing lamp shade: a cone open at both ends + a bulb light (power is set per scene by applyFixtures).
+function lampHead(rTop, rBottom, hh, c, s, power) {
+  const g = new THREE.Group();
+  const shadeMat = furnitureMat('soft', c, s).clone();
+  shadeMat.side = THREE.DoubleSide;
+  shadeMat.emissive = new THREE.Color('#ffd9a0');
+  shadeMat.emissiveIntensity = 0.35;
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, hh, 24, 1, true), shadeMat);
+  shade.position.y = hh / 2;
+  const light = new THREE.PointLight('#ffd9a8', power, 0, 2);
+  light.position.y = hh * 0.4;
+  light.userData.lampPower = power;
+  g.add(shade, light);
+  return g;
+}
+
+function floorlamp(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const metal = furnitureMat('metal', c, s);
+  const r = Math.min(w, d) / 2;
+  g.add(cyl(r * 0.6, 0.02, metal, 0, 0, 0));
+  const hh = Math.min(0.32, h * 0.25);
+  g.add(cyl(0.012, h - hh * 0.6, metal, 0, 0.02, 0));
+  const head = lampHead(r * 0.55, r * 0.95, hh, c, s, 4);
+  head.position.y = h - hh;
+  g.add(head);
+  return g;
+}
+
+function sconce(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const metal = furnitureMat('metal', c, s);
+  // Back plate on the wall (-Z), arm forward, shade at the front.
+  g.add(box(Math.min(0.1, w), Math.min(0.14, h), 0.02, metal, 0, h * 0.2, -d / 2 + 0.01));
+  g.add(box(0.02, 0.02, d * 0.6, metal, 0, h * 0.35, -d / 2 + d * 0.3));
+  const hh = h * 0.6;
+  const rb = Math.min(w, d) * 0.45;   // the shade stays inside the footprint
+  const head = lampHead(rb * 0.6, rb, hh, c, s, 2.5);
+  head.position.set(0, h - hh, 0);
+  g.add(head);
+  return g;
+}
+
 const BUILDERS = {
   wardrobe, table, sofa, nightstand, bed, chair,
   armchair, dresser, shoerack, tvstand, bookshelf, coffeetable, desk, kitchen, fridge,
-  wallcabinet, mezzanine, wallshelf, tvpanel, mirror
+  wallcabinet, mezzanine, wallshelf, tvpanel, mirror, floorlamp, sconce
 };
 
 /**

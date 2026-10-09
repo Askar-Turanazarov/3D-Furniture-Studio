@@ -19,11 +19,14 @@ export const state = {
   obstacles: [],      // columns, ducts, ledges, radiators — see obstacles.js
   obSeq: 1,
   selectedObstacle: null,
+  lighting: { scene: 'day', ceiling: 'chandelier' },   // 3D light: see 3d/lights3d.js
   catalog: [],        // furniture types (catalog.json → items)
   materials: [],      // catalog.json → materials (phase 6)
   pricing: {},        // catalog.json → pricing (phase 7)
   found: null         // { id, until } — green highlight after auto-place
 };
+
+const DEFAULT_LIGHTING = { scene: 'day', ceiling: 'chandelier' };
 
 const listeners = new Set();
 export function onChange(fn) { listeners.add(fn); }
@@ -31,8 +34,8 @@ export function emit() { listeners.forEach(fn => fn(state)); }
 
 // The room document: everything that is saved and undone (not selection or highlights).
 export function docFromState() {
-  const { room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq } = state;
-  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq });
+  const { room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting } = state;
+  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting });
 }
 
 export function applyDoc(doc) {
@@ -40,7 +43,8 @@ export function applyDoc(doc) {
   Object.assign(state, {
     room: d.room, settings: d.settings, items: d.items, seq: d.seq,
     openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq,
-    obstacles: d.obstacles || [], obSeq: d.obSeq || 1
+    obstacles: d.obstacles || [], obSeq: d.obSeq || 1,
+    lighting: { ...DEFAULT_LIGHTING, ...d.lighting }
   });
   if (!getObstacle(state.selectedObstacle)) state.selectedObstacle = null;
   if (!getItem(state.selectedId)) state.selectedId = null;

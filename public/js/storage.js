@@ -3,7 +3,7 @@
 //   fsp3d.project.<id>     — the whole project: { id, name, createdAt, updatedAt, activeRoomId, rooms: [roomDoc] }
 //   fsp3d.lastProject      — id of the project opened last
 //   fsp3d.plan.v1          — old single-room plan; migrated once and kept as a spare copy
-// roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq }
+// roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting }
 const V1 = 'fsp3d.plan.v1';
 const INDEX = 'fsp3d.projects.v2';
 const LAST = 'fsp3d.lastProject';
@@ -11,6 +11,7 @@ const projectKey = id => 'fsp3d.project.' + id;
 
 const DEFAULT_ROOM = { L: 400, W: 300, H: 270, plinth: 2 };
 const DEFAULT_SETTINGS = { snap: 5, gap: 3, grid: 10, showZones: 'selected', minPassage: 60, showPassages: true };
+const DEFAULT_LIGHTING = { scene: 'day', ceiling: 'chandelier' };
 
 let timer = null, pending = null;
 let onError = () => {};
@@ -41,7 +42,8 @@ export function normalizeDoc(d = {}) {
     openingsLocked: !!d.openingsLocked,
     opSeq: Math.max(d.opSeq || 1, ...(openings || []).map(o => o.id + 1)),
     obstacles,
-    obSeq: Math.max(d.obSeq || 1, ...obstacles.map(o => o.id + 1))
+    obSeq: Math.max(d.obSeq || 1, ...obstacles.map(o => o.id + 1)),
+    lighting: { ...DEFAULT_LIGHTING, ...d.lighting }
   };
 }
 

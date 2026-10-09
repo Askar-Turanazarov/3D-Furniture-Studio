@@ -20,7 +20,9 @@
     { "type": "wallshelf",   "name": { "ru": "Настенная полка",    "uz": "Devor tokchasi",     "en": "Wall shelf" },     "w": 80,  "d": 25,  "h": 4,   "color": "#a1887f", "elev": 150, "mount": "wall" },
     { "type": "mezzanine",   "name": { "ru": "Антресоль",          "uz": "Antresol",           "en": "Mezzanine" },      "w": 120, "d": 60,  "h": 50,  "color": "#d7ccc8", "elev": 210, "mount": "wall", "open": { "kind": "swing" }, "facade": true },
     { "type": "tvpanel",     "name": { "ru": "Подвесная ТВ-консоль", "uz": "Osma TV konsol",   "en": "Floating TV console" }, "w": 160, "d": 35, "h": 40, "color": "#6d4c41", "elev": 40, "mount": "wall", "open": { "kind": "swing", "depth": 35 }, "facade": true },
-    { "type": "mirror",      "name": { "ru": "Настенное зеркало",  "uz": "Devor oynasi",       "en": "Wall mirror" },    "w": 60,  "d": 3,   "h": 90,  "color": "#212529", "elev": 100, "mount": "wall" }
+    { "type": "mirror",      "name": { "ru": "Настенное зеркало",  "uz": "Devor oynasi",       "en": "Wall mirror" },    "w": 60,  "d": 3,   "h": 90,  "color": "#212529", "elev": 100, "mount": "wall" },
+    { "type": "floorlamp",   "name": { "ru": "Торшер",             "uz": "Torsher",            "en": "Floor lamp" },     "w": 40,  "d": 40,  "h": 160, "color": "#efe6d2" },
+    { "type": "sconce",      "name": { "ru": "Бра",                "uz": "Devor chirog‘i",     "en": "Wall sconce" },    "w": 20,  "d": 15,  "h": 25,  "color": "#efe6d2", "elev": 150, "mount": "wall" }
   ],
   "materials": [
     { "id": "oak-sonoma", "name": { "ru": "Дуб сонома", "uz": "Sonoma eman", "en": "Sonoma oak" }, "kind": "wood", "color": "#c8a67a", "priceRate": 180000 },

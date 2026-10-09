@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'light.day': 'День', 'light.evening': 'Вечер', 'light.night': 'Ночь', 'light.ceiling': 'Свет', 'light.chandelier': 'Люстра', 'light.spots': 'Точечные', 'light.panel': 'Панель', 'light.none': 'Без потолочного',
     'mat.body': 'Корпус', 'mat.facade': 'Фасад', 'mat.material': 'Материал', 'mat.own': 'Свой цвет', 'mat.asBody': 'Как корпус',
     'snap.btn': 'Снимок', 'snap.title': 'Сохранить снимок 3D со сводкой (PNG)', 'snap.share': 'Поделиться', 'snap.plan': 'Сохранить снимок плана (PNG)', 'snap.items': 'Предметов: {n}', 'snap.brand': 'Мебель на заказ', 'snap.saved': 'Снимок сохранён: {name}', 'snap.fail': 'Не удалось сделать снимок',
     'tpl.empty': 'Пустая', 'tpl.fromTemplate': 'Из шаблона', 'tpl.pick': 'Выберите шаблон комнаты', 'tpl.loadError': 'Не удалось загрузить шаблоны', 'tpl.hint': 'После создания размеры и мебель можно менять.', 'tpl.aptTitle': 'Новый проект из шаблона квартиры:', 'tpl.aptDone': 'Создан проект «{name}» из шаблона', 'unit.m': 'м',
@@ -81,6 +82,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'light.day': 'Kunduz', 'light.evening': 'Kechqurun', 'light.night': 'Tun', 'light.ceiling': 'Yorug‘lik', 'light.chandelier': 'Qandil', 'light.spots': 'Nuqtali', 'light.panel': 'Panel', 'light.none': 'Shiftsiz',
     'mat.body': 'Korpus', 'mat.facade': 'Fasad', 'mat.material': 'Material', 'mat.own': 'O‘z rangi', 'mat.asBody': 'Korpus kabi',
     'snap.btn': 'Surat', 'snap.title': '3D suratni xulosa bilan saqlash (PNG)', 'snap.share': 'Ulashish', 'snap.plan': 'Reja suratini saqlash (PNG)', 'snap.items': 'Buyumlar: {n}', 'snap.brand': 'Buyurtma asosida mebel', 'snap.saved': 'Surat saqlandi: {name}', 'snap.fail': 'Suratga olib bo‘lmadi',
     'tpl.empty': 'Bo‘sh', 'tpl.fromTemplate': 'Shablondan', 'tpl.pick': 'Xona shablonini tanlang', 'tpl.loadError': 'Shablonlarni yuklab bo‘lmadi', 'tpl.hint': 'Yaratilgandan keyin o‘lchamlar va mebelni o‘zgartirish mumkin.', 'tpl.aptTitle': 'Kvartira shablonidan yangi loyiha:', 'tpl.aptDone': 'Shablondan «{name}» loyihasi yaratildi', 'unit.m': 'm',
@@ -161,6 +163,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'light.day': 'Day', 'light.evening': 'Evening', 'light.night': 'Night', 'light.ceiling': 'Light', 'light.chandelier': 'Chandelier', 'light.spots': 'Spots', 'light.panel': 'Panel', 'light.none': 'No ceiling light',
     'mat.body': 'Body', 'mat.facade': 'Facade', 'mat.material': 'Material', 'mat.own': 'Own colour', 'mat.asBody': 'Same as body',
     'snap.btn': 'Snapshot', 'snap.title': 'Save a 3D snapshot with a summary (PNG)', 'snap.share': 'Share', 'snap.plan': 'Save a plan snapshot (PNG)', 'snap.items': 'Items: {n}', 'snap.brand': 'Custom-made furniture', 'snap.saved': 'Snapshot saved: {name}', 'snap.fail': 'Could not take a snapshot',
     'tpl.empty': 'Empty', 'tpl.fromTemplate': 'From a template', 'tpl.pick': 'Pick a room template', 'tpl.loadError': 'Could not load the templates', 'tpl.hint': 'Sizes and furniture can be changed after it is created.', 'tpl.aptTitle': 'New project from an apartment template:', 'tpl.aptDone': 'Project “{name}” created from a template', 'unit.m': 'm',

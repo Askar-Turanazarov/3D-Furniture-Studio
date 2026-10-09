@@ -1,0 +1,2007 @@
+{
+ "version": 1,
+ "sets": [
+  {
+   "id": "soviet",
+   "name": {
+    "ru": "Советский дом",
+    "uz": "Sovet davri uyi",
+    "en": "Soviet-era building"
+   },
+   "note": {
+    "ru": "Панель/кирпич 1960–90-х, потолок ≈ 2,8 м",
+    "uz": "Panel/g‘isht 1960–90-yillar, shift ≈ 2,8 m",
+    "en": "Panel/brick 1960–90s, ceiling ≈ 2.8 m"
+   }
+  },
+  {
+   "id": "newbuild",
+   "name": {
+    "ru": "Новостройка",
+    "uz": "Yangi bino",
+    "en": "New build"
+   },
+   "note": {
+    "ru": "Монолит/каркас 2015+, потолок ≈ 3,0 м",
+    "uz": "Monolit/karkas 2015+, shift ≈ 3,0 m",
+    "en": "Monolithic frame 2015+, ceiling ≈ 3.0 m"
+   }
+  }
+ ],
+ "apartments": [
+  {
+   "id": "sov-2room",
+   "set": "soviet",
+   "name": {
+    "ru": "2-комнатная (сов.)",
+    "uz": "2 xonali (sovet)",
+    "en": "2-room (Soviet)"
+   },
+   "rooms": [
+    "sov-living",
+    "sov-bedroom",
+    "sov-kitchen"
+   ]
+  },
+  {
+   "id": "nb-3room",
+   "set": "newbuild",
+   "name": {
+    "ru": "3-комнатная (новостройка)",
+    "uz": "3 xonali (yangi bino)",
+    "en": "3-room (new build)"
+   },
+   "rooms": [
+    "nb-kitchen-living",
+    "nb-master",
+    "nb-kids"
+   ]
+  }
+ ],
+ "templates": [
+  {
+   "id": "sov-bedroom",
+   "set": "soviet",
+   "purpose": "bedroom",
+   "name": {
+    "ru": "Спальня",
+    "uz": "Yotoqxona",
+    "en": "Bedroom"
+   },
+   "room": {
+    "L": 400,
+    "W": 300,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 128,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 10,
+     "width": 80,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 161,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 160,
+     "d": 200,
+     "h": 50,
+     "x": 198,
+     "y": 70,
+     "rot": 90,
+     "color": "#7986cb"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 358,
+     "y": 15,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 358,
+     "y": 235,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "wardrobe",
+     "w": 120,
+     "d": 60,
+     "h": 220,
+     "x": 2,
+     "y": 90,
+     "rot": 270,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "dresser",
+     "w": 100,
+     "d": 45,
+     "h": 90,
+     "x": 95,
+     "y": 253,
+     "rot": 180,
+     "color": "#a1887f"
+    }
+   ]
+  },
+  {
+   "id": "sov-kids",
+   "set": "soviet",
+   "purpose": "kids",
+   "name": {
+    "ru": "Детская",
+    "uz": "Bolalar xonasi",
+    "en": "Kids room"
+   },
+   "room": {
+    "L": 360,
+    "W": 270,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 110,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 268,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 143,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 90,
+     "d": 200,
+     "h": 45,
+     "x": 2,
+     "y": 66,
+     "rot": 0,
+     "color": "#7986cb"
+    },
+    {
+     "type": "desk",
+     "w": 120,
+     "d": 60,
+     "h": 75,
+     "x": 128,
+     "y": 13,
+     "rot": 0,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 200,
+     "y": 76,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "wardrobe",
+     "w": 100,
+     "d": 60,
+     "h": 220,
+     "x": 298,
+     "y": 20,
+     "rot": 90,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 95,
+     "y": 233,
+     "rot": 180,
+     "color": "#d7ccc8"
+    }
+   ]
+  },
+  {
+   "id": "sov-kitchen-living",
+   "set": "soviet",
+   "purpose": "kitchenLiving",
+   "name": {
+    "ru": "Кухня-гостиная",
+    "uz": "Oshxona-mehmonxona",
+    "en": "Kitchen-living room"
+   },
+   "room": {
+    "L": 550,
+    "W": 400,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 60,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 340,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "east",
+     "offset": 120,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 93,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "radiator",
+     "x": 373,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "duct",
+     "x": 0,
+     "y": 0,
+     "w": 30,
+     "d": 30,
+     "h": 280,
+     "elev": 0
+    }
+   ],
+   "items": [
+    {
+     "type": "kitchen",
+     "w": 240,
+     "d": 60,
+     "h": 90,
+     "x": 2,
+     "y": 33,
+     "rot": 270,
+     "color": "#eceff1"
+    },
+    {
+     "type": "fridge",
+     "w": 60,
+     "d": 65,
+     "h": 185,
+     "x": 2,
+     "y": 276,
+     "rot": 270,
+     "color": "#f5f5f5"
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 33,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 96,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 159,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "table",
+     "w": 120,
+     "d": 70,
+     "h": 75,
+     "x": 175,
+     "y": 170,
+     "rot": 0,
+     "color": "#a1887f"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 187,
+     "y": 117,
+     "rot": 0,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 238,
+     "y": 117,
+     "rot": 0,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 187,
+     "y": 243,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 238,
+     "y": 243,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "sofa",
+     "w": 200,
+     "d": 90,
+     "h": 85,
+     "x": 340,
+     "y": 308,
+     "rot": 180,
+     "color": "#5c6bc0"
+    },
+    {
+     "type": "coffeetable",
+     "w": 90,
+     "d": 50,
+     "h": 45,
+     "x": 395,
+     "y": 240,
+     "rot": 0,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "tvstand",
+     "w": 160,
+     "d": 40,
+     "h": 50,
+     "x": 385,
+     "y": 13,
+     "rot": 0,
+     "color": "#6d4c41"
+    }
+   ]
+  },
+  {
+   "id": "sov-master",
+   "set": "soviet",
+   "purpose": "bedroom",
+   "name": {
+    "ru": "Мастер-спальня",
+    "uz": "Asosiy yotoqxona",
+    "en": "Master bedroom"
+   },
+   "room": {
+    "L": 450,
+    "W": 350,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 152,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 10,
+     "width": 80,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 185,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 180,
+     "d": 200,
+     "h": 50,
+     "x": 248,
+     "y": 55,
+     "rot": 90,
+     "color": "#7986cb"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 408,
+     "y": 2,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 408,
+     "y": 238,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "wardrobe",
+     "w": 180,
+     "d": 60,
+     "h": 220,
+     "x": 2,
+     "y": 64,
+     "rot": 270,
+     "color": "#8d6e63",
+     "open": {
+      "kind": "slide"
+     }
+    },
+    {
+     "type": "dresser",
+     "w": 100,
+     "d": 45,
+     "h": 90,
+     "x": 110,
+     "y": 303,
+     "rot": 180,
+     "color": "#a1887f"
+    },
+    {
+     "type": "armchair",
+     "w": 85,
+     "d": 85,
+     "h": 85,
+     "x": 65,
+     "y": 2,
+     "rot": 0,
+     "color": "#26a69a"
+    }
+   ]
+  },
+  {
+   "id": "sov-living",
+   "set": "soviet",
+   "purpose": "living",
+   "name": {
+    "ru": "Общий зал (проходной)",
+    "uz": "Umumiy zal (o‘tish)",
+    "en": "Living room (walk-through)"
+   },
+   "room": {
+    "L": 520,
+    "W": 340,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 188,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 30,
+     "width": 80,
+     "height": 200,
+     "hinge": "start"
+    },
+    {
+     "kind": "door",
+     "wall": "east",
+     "offset": 240,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 221,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "ledge",
+     "x": 0,
+     "y": 140,
+     "w": 25,
+     "d": 60,
+     "h": 280,
+     "elev": 0
+    }
+   ],
+   "items": [
+    {
+     "type": "sofa",
+     "w": 220,
+     "d": 90,
+     "h": 85,
+     "x": 160,
+     "y": 248,
+     "rot": 180,
+     "color": "#5c6bc0"
+    },
+    {
+     "type": "armchair",
+     "w": 85,
+     "d": 85,
+     "h": 85,
+     "x": 28,
+     "y": 130,
+     "rot": 270,
+     "color": "#26a69a"
+    },
+    {
+     "type": "armchair",
+     "w": 85,
+     "d": 85,
+     "h": 85,
+     "x": 430,
+     "y": 85,
+     "rot": 90,
+     "color": "#26a69a"
+    },
+    {
+     "type": "coffeetable",
+     "w": 90,
+     "d": 50,
+     "h": 45,
+     "x": 225,
+     "y": 180,
+     "rot": 0,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "tvstand",
+     "w": 160,
+     "d": 40,
+     "h": 50,
+     "x": 190,
+     "y": 13,
+     "rot": 0,
+     "color": "#6d4c41"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 483,
+     "y": 2,
+     "rot": 90,
+     "color": "#d7ccc8"
+    }
+   ]
+  },
+  {
+   "id": "sov-big-bedroom",
+   "set": "soviet",
+   "purpose": "bedroom",
+   "name": {
+    "ru": "Большая спальня",
+    "uz": "Katta yotoqxona",
+    "en": "Large bedroom"
+   },
+   "room": {
+    "L": 450,
+    "W": 330,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 230,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 360,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 263,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 160,
+     "d": 200,
+     "h": 50,
+     "x": 2,
+     "y": 55,
+     "rot": 270,
+     "color": "#7986cb"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 2,
+     "y": 218,
+     "rot": 270,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "wardrobe",
+     "w": 200,
+     "d": 60,
+     "h": 220,
+     "x": 388,
+     "y": 13,
+     "rot": 90,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "desk",
+     "w": 120,
+     "d": 60,
+     "h": 75,
+     "x": 180,
+     "y": 268,
+     "rot": 180,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 218,
+     "y": 215,
+     "rot": 0,
+     "color": "#90a4ae"
+    }
+   ]
+  },
+  {
+   "id": "sov-study",
+   "set": "soviet",
+   "purpose": "study",
+   "name": {
+    "ru": "Кабинет",
+    "uz": "Ish xonasi",
+    "en": "Study"
+   },
+   "room": {
+    "L": 300,
+    "W": 240,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 78,
+     "width": 145,
+     "height": 150,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 210,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 111,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "desk",
+     "w": 120,
+     "d": 60,
+     "h": 75,
+     "x": 40,
+     "y": 13,
+     "rot": 0,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 40,
+     "y": 76,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#d7ccc8"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 2,
+     "y": 85,
+     "rot": 270,
+     "color": "#d7ccc8"
+    },
+    {
+     "type": "wardrobe",
+     "w": 80,
+     "d": 60,
+     "h": 220,
+     "x": 238,
+     "y": 76,
+     "rot": 90,
+     "color": "#8d6e63"
+    }
+   ]
+  },
+  {
+   "id": "sov-kitchen",
+   "set": "soviet",
+   "purpose": "kitchen",
+   "name": {
+    "ru": "Кухня",
+    "uz": "Oshxona",
+    "en": "Kitchen"
+   },
+   "room": {
+    "L": 300,
+    "W": 240,
+    "H": 280
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 90,
+     "width": 128,
+     "height": 134,
+     "sill": 85
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 10,
+     "width": 70,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 114,
+     "y": 0,
+     "w": 80,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "duct",
+     "x": 270,
+     "y": 0,
+     "w": 30,
+     "d": 30,
+     "h": 280,
+     "elev": 0
+    }
+   ],
+   "items": [
+    {
+     "type": "kitchen",
+     "w": 160,
+     "d": 60,
+     "h": 90,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#eceff1"
+    },
+    {
+     "type": "fridge",
+     "w": 60,
+     "d": 65,
+     "h": 185,
+     "x": 233,
+     "y": 33,
+     "rot": 90,
+     "color": "#f5f5f5"
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 65,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "table",
+     "w": 90,
+     "d": 70,
+     "h": 75,
+     "x": 200,
+     "y": 155,
+     "rot": 0,
+     "color": "#a1887f"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 201,
+     "y": 102,
+     "rot": 0,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 250,
+     "y": 102,
+     "rot": 0,
+     "color": "#90a4ae"
+    }
+   ]
+  },
+  {
+   "id": "nb-bedroom",
+   "set": "newbuild",
+   "purpose": "bedroom",
+   "name": {
+    "ru": "Спальня",
+    "uz": "Yotoqxona",
+    "en": "Bedroom"
+   },
+   "room": {
+    "L": 400,
+    "W": 330,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 60,
+     "width": 160,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 10,
+     "width": 80,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 80,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 160,
+     "d": 200,
+     "h": 50,
+     "x": 198,
+     "y": 55,
+     "rot": 90,
+     "color": "#7986cb"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 358,
+     "y": 2,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 358,
+     "y": 218,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "wardrobe",
+     "w": 120,
+     "d": 60,
+     "h": 220,
+     "x": 2,
+     "y": 90,
+     "rot": 270,
+     "color": "#8d6e63",
+     "open": {
+      "kind": "slide"
+     }
+    },
+    {
+     "type": "dresser",
+     "w": 100,
+     "d": 45,
+     "h": 90,
+     "x": 95,
+     "y": 283,
+     "rot": 180,
+     "color": "#a1887f"
+    }
+   ]
+  },
+  {
+   "id": "nb-kids",
+   "set": "newbuild",
+   "purpose": "kids",
+   "name": {
+    "ru": "Детская",
+    "uz": "Bolalar xonasi",
+    "en": "Kids room"
+   },
+   "room": {
+    "L": 350,
+    "W": 300,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 95,
+     "width": 160,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 258,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 115,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 90,
+     "d": 200,
+     "h": 45,
+     "x": 2,
+     "y": 96,
+     "rot": 0,
+     "color": "#7986cb"
+    },
+    {
+     "type": "desk",
+     "w": 120,
+     "d": 60,
+     "h": 75,
+     "x": 115,
+     "y": 13,
+     "rot": 0,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 153,
+     "y": 76,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "wardrobe",
+     "w": 100,
+     "d": 60,
+     "h": 220,
+     "x": 288,
+     "y": 2,
+     "rot": 90,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 95,
+     "y": 263,
+     "rot": 180,
+     "color": "#d7ccc8"
+    }
+   ]
+  },
+  {
+   "id": "nb-kitchen-living",
+   "set": "newbuild",
+   "purpose": "kitchenLiving",
+   "name": {
+    "ru": "Кухня-гостиная",
+    "uz": "Oshxona-mehmonxona",
+    "en": "Kitchen-living room"
+   },
+   "room": {
+    "L": 620,
+    "W": 420,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 70,
+     "width": 180,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 380,
+     "width": 180,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 520,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 100,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "radiator",
+     "x": 410,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "column",
+     "x": 295,
+     "y": 0,
+     "w": 40,
+     "d": 40,
+     "h": 300,
+     "elev": 0
+    }
+   ],
+   "items": [
+    {
+     "type": "kitchen",
+     "w": 340,
+     "d": 60,
+     "h": 90,
+     "x": 2,
+     "y": 13,
+     "rot": 270,
+     "color": "#eceff1"
+    },
+    {
+     "type": "fridge",
+     "w": 60,
+     "d": 65,
+     "h": 185,
+     "x": 2,
+     "y": 356,
+     "rot": 270,
+     "color": "#f5f5f5"
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 13,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 76,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 139,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 202,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "table",
+     "w": 140,
+     "d": 80,
+     "h": 75,
+     "x": 175,
+     "y": 150,
+     "rot": 90,
+     "color": "#a1887f"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 122,
+     "y": 168,
+     "rot": 270,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 122,
+     "y": 225,
+     "rot": 270,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 258,
+     "y": 168,
+     "rot": 90,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 258,
+     "y": 225,
+     "rot": 90,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "sofa",
+     "w": 220,
+     "d": 90,
+     "h": 85,
+     "x": 296,
+     "y": 328,
+     "rot": 180,
+     "color": "#5c6bc0"
+    },
+    {
+     "type": "coffeetable",
+     "w": 90,
+     "d": 50,
+     "h": 45,
+     "x": 361,
+     "y": 260,
+     "rot": 0,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "tvstand",
+     "w": 160,
+     "d": 40,
+     "h": 50,
+     "x": 338,
+     "y": 13,
+     "rot": 0,
+     "color": "#6d4c41"
+    }
+   ]
+  },
+  {
+   "id": "nb-master",
+   "set": "newbuild",
+   "purpose": "bedroom",
+   "name": {
+    "ru": "Мастер-спальня",
+    "uz": "Asosiy yotoqxona",
+    "en": "Master bedroom"
+   },
+   "room": {
+    "L": 480,
+    "W": 380,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 150,
+     "width": 180,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 10,
+     "width": 80,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 180,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 180,
+     "d": 200,
+     "h": 50,
+     "x": 278,
+     "y": 55,
+     "rot": 90,
+     "color": "#7986cb"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 438,
+     "y": 2,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 438,
+     "y": 238,
+     "rot": 90,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "wardrobe",
+     "w": 240,
+     "d": 60,
+     "h": 220,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#8d6e63",
+     "open": {
+      "kind": "slide"
+     }
+    },
+    {
+     "type": "dresser",
+     "w": 100,
+     "d": 45,
+     "h": 90,
+     "x": 120,
+     "y": 333,
+     "rot": 180,
+     "color": "#a1887f"
+    },
+    {
+     "type": "armchair",
+     "w": 85,
+     "d": 85,
+     "h": 85,
+     "x": 65,
+     "y": 2,
+     "rot": 0,
+     "color": "#26a69a"
+    }
+   ]
+  },
+  {
+   "id": "nb-living",
+   "set": "newbuild",
+   "purpose": "living",
+   "name": {
+    "ru": "Гостиная",
+    "uz": "Mehmonxona",
+    "en": "Living room"
+   },
+   "room": {
+    "L": 550,
+    "W": 400,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 185,
+     "width": 180,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 30,
+     "width": 120,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 215,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "sofa",
+     "w": 220,
+     "d": 90,
+     "h": 85,
+     "x": 165,
+     "y": 308,
+     "rot": 180,
+     "color": "#5c6bc0"
+    },
+    {
+     "type": "armchair",
+     "w": 85,
+     "d": 85,
+     "h": 85,
+     "x": 70,
+     "y": 170,
+     "rot": 270,
+     "color": "#26a69a"
+    },
+    {
+     "type": "armchair",
+     "w": 85,
+     "d": 85,
+     "h": 85,
+     "x": 395,
+     "y": 170,
+     "rot": 90,
+     "color": "#26a69a"
+    },
+    {
+     "type": "coffeetable",
+     "w": 90,
+     "d": 50,
+     "h": 45,
+     "x": 230,
+     "y": 240,
+     "rot": 0,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "tvstand",
+     "w": 160,
+     "d": 40,
+     "h": 50,
+     "x": 195,
+     "y": 13,
+     "rot": 0,
+     "color": "#6d4c41"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 513,
+     "y": 300,
+     "rot": 90,
+     "color": "#d7ccc8"
+    }
+   ]
+  },
+  {
+   "id": "nb-big-bedroom",
+   "set": "newbuild",
+   "purpose": "bedroom",
+   "name": {
+    "ru": "Большая спальня",
+    "uz": "Katta yotoqxona",
+    "en": "Large bedroom"
+   },
+   "room": {
+    "L": 450,
+    "W": 360,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 200,
+     "width": 180,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 360,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 230,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "bed",
+     "w": 160,
+     "d": 200,
+     "h": 50,
+     "x": 2,
+     "y": 55,
+     "rot": 270,
+     "color": "#7986cb"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "nightstand",
+     "w": 50,
+     "d": 40,
+     "h": 55,
+     "x": 2,
+     "y": 218,
+     "rot": 270,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "wardrobe",
+     "w": 200,
+     "d": 60,
+     "h": 220,
+     "x": 388,
+     "y": 13,
+     "rot": 90,
+     "color": "#8d6e63"
+    },
+    {
+     "type": "desk",
+     "w": 120,
+     "d": 60,
+     "h": 75,
+     "x": 180,
+     "y": 298,
+     "rot": 180,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 218,
+     "y": 245,
+     "rot": 0,
+     "color": "#90a4ae"
+    }
+   ]
+  },
+  {
+   "id": "nb-study",
+   "set": "newbuild",
+   "purpose": "study",
+   "name": {
+    "ru": "Кабинет",
+    "uz": "Ish xonasi",
+    "en": "Study"
+   },
+   "room": {
+    "L": 330,
+    "W": 270,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 85,
+     "width": 160,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 240,
+     "width": 80,
+     "height": 200,
+     "hinge": "end"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 105,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    }
+   ],
+   "items": [
+    {
+     "type": "desk",
+     "w": 120,
+     "d": 60,
+     "h": 75,
+     "x": 40,
+     "y": 13,
+     "rot": 0,
+     "color": "#bcaaa4"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 40,
+     "y": 76,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 2,
+     "y": 2,
+     "rot": 270,
+     "color": "#d7ccc8"
+    },
+    {
+     "type": "bookshelf",
+     "w": 80,
+     "d": 35,
+     "h": 200,
+     "x": 2,
+     "y": 85,
+     "rot": 270,
+     "color": "#d7ccc8"
+    },
+    {
+     "type": "wardrobe",
+     "w": 80,
+     "d": 60,
+     "h": 220,
+     "x": 268,
+     "y": 76,
+     "rot": 90,
+     "color": "#8d6e63"
+    }
+   ]
+  },
+  {
+   "id": "nb-kitchen",
+   "set": "newbuild",
+   "purpose": "kitchen",
+   "name": {
+    "ru": "Кухня",
+    "uz": "Oshxona",
+    "en": "Kitchen"
+   },
+   "room": {
+    "L": 400,
+    "W": 300,
+    "H": 300
+   },
+   "openings": [
+    {
+     "kind": "window",
+     "wall": "north",
+     "offset": 200,
+     "width": 160,
+     "height": 170,
+     "sill": 70
+    },
+    {
+     "kind": "door",
+     "wall": "south",
+     "offset": 10,
+     "width": 80,
+     "height": 200,
+     "hinge": "start"
+    }
+   ],
+   "obstacles": [
+    {
+     "kind": "radiator",
+     "x": 220,
+     "y": 0,
+     "w": 120,
+     "d": 10,
+     "h": 55,
+     "elev": 15
+    },
+    {
+     "kind": "duct",
+     "x": 0,
+     "y": 0,
+     "w": 30,
+     "d": 30,
+     "h": 300,
+     "elev": 0
+    }
+   ],
+   "items": [
+    {
+     "type": "kitchen",
+     "w": 180,
+     "d": 60,
+     "h": 90,
+     "x": 2,
+     "y": 33,
+     "rot": 270,
+     "color": "#eceff1"
+    },
+    {
+     "type": "fridge",
+     "w": 60,
+     "d": 65,
+     "h": 185,
+     "x": 333,
+     "y": 13,
+     "rot": 90,
+     "color": "#f5f5f5"
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 33,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 96,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "wallcabinet",
+     "w": 60,
+     "d": 35,
+     "h": 70,
+     "x": 2,
+     "y": 159,
+     "rot": 270,
+     "color": "#eceff1",
+     "elev": 140
+    },
+    {
+     "type": "table",
+     "w": 120,
+     "d": 70,
+     "h": 75,
+     "x": 175,
+     "y": 175,
+     "rot": 0,
+     "color": "#a1887f"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 187,
+     "y": 122,
+     "rot": 0,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 238,
+     "y": 122,
+     "rot": 0,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 187,
+     "y": 248,
+     "rot": 180,
+     "color": "#90a4ae"
+    },
+    {
+     "type": "chair",
+     "w": 45,
+     "d": 50,
+     "h": 90,
+     "x": 238,
+     "y": 248,
+     "rot": 180,
+     "color": "#90a4ae"
+    }
+   ]
+  }
+ ]
+}

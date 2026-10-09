@@ -6,6 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const CATALOG = path.join(__dirname, 'catalog.json');
 const ORDERS = path.join(__dirname, 'order.json');
+const TEMPLATES = path.join(__dirname, 'templates.json');
 
 app.use(express.json({ limit: '200kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -16,6 +17,14 @@ app.get('/api/catalog', async (req, res) => {
     res.type('json').send(await fs.readFile(CATALOG, 'utf8'));
   } catch (e) {
     res.status(500).json({ error: 'catalog_unavailable' });
+  }
+});
+
+app.get('/api/templates', async (req, res) => {
+  try {
+    res.type('json').send(await fs.readFile(TEMPLATES, 'utf8'));
+  } catch (e) {
+    res.status(500).json({ error: 'templates_unavailable' });
   }
 });
 

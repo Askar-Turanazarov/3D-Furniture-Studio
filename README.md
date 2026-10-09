@@ -32,6 +32,8 @@ A web app for custom furniture: the client enters the room size and the furnitur
 - **Passages:** gaps between furniture, structure and walls narrower than the norm (setting "Passage from", 60 cm by default; gaps under 20 cm are slits, not passages) are warned: "Narrow passage 48 cm (should be 60+)". **↔ Passages** (key `P`) shows / hides the yellow bands on the plan, the badge shows how many there are; the notes column has a collapsible "Passages (N)" group, a click flashes the passage on the plan.
 - **Projects and rooms:** a project holds several rooms shown as tabs above the plan (+ Room: name, purpose, size; ⋯ — rename, duplicate as a version "variant B", delete). Each room keeps its own undo history. 📁 **Projects** — cards with a plan preview: open, new, rename, duplicate, delete, **export / import** a `.fsp3d.json` file (backup or moving to another device). The old single-room plan is migrated automatically into "My project".
 - **Room templates:** + Room → **From a template**: a *Soviet-era building* set (panel / brick 1960–90s, ceiling ≈ 2.8 m) or a *New build* set (monolithic frame 2015+, ceiling ≈ 3.0 m) — bedroom, kids room, kitchen-living room, master bedroom, living room (the Soviet one is walk-through with two doors), large bedroom, study, kitchen. Each card shows a mini plan and "12 m² · 4×3 m". A template brings windows with radiators under them, doors, structure (risers, a ledge, a column) and furniture placed without errors; afterwards everything can be changed. 📁 Projects → **New project from an apartment template**: "2-room (Soviet)" = living room + bedroom + kitchen, "3-room (new build)" = kitchen-living room + master bedroom + kids room, one tab per room. Sizes are typical for Tashkent housing; templates live in `templates.json` (`GET /api/templates`).
+- **3D look:** 📷 *Snapshot* saves a PNG (2× resolution) with a summary plate — project, room, purpose, size and area, item count, date; ⤴ *Share* on phones; 📷 next to the ruler saves the plan. Each item gets a **material** from the catalogue (oak, walnut, white ash, matte white, graphite, sage, gloss, fabrics, velour) — for wardrobes, dressers, kitchens etc. separately for the **body and the facade** — or its own colour. **Light:** ☀ day / 🌇 evening (low warm sun, lamps on) / 🌙 night (dark window, only lamps) and the ceiling light: chandelier, spots, LED panel or none; the catalogue has a floor lamp and a wall sconce with their own light. **Finish** (Room → *Finish and style*): walls — paint, wallpaper, brick, panels + colour, an accent wall in its own colour, floor — parquet, laminate, tile, carpet; **furniture style** modern / classic (brass knobs, turned legs, moulded fronts) / loft (black steel) for the room or a single item — sizes and collisions do not change. Lighting and finish are saved with the room and can be undone.
+- **Opening in 3D:** click a wardrobe, dresser, kitchen, fridge or a room door (or `E` while walking) — doors swing, drawers slide out, flaps fall open; 🚪 *Open all* / *Close all*. Every frame the moving part is checked against other furniture, structure and walls: on contact it turns red, stops and the HUD says "The door hits «Bed» at 64°".
 - **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors).
 - **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
 
@@ -60,6 +62,7 @@ Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 | 3D Walk | Move | `W A S D` / arrows, `Shift` — faster |
 | 3D Walk | Look | mouse (after click), or drag with the mouse if pointer lock is unavailable |
 | 3D Walk | Exit | `Esc` |
+| 3D | Open / close a door, drawer | click, `E` while walking; 🚪 — all |
 | Mobile | Move / look | joystick / swipe |
 
 ### Project structure
@@ -71,8 +74,9 @@ order.json           saved orders
 public/index.html    layout
 public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages, templates
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
+                     history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages, templates,
+                     snapshot, materials, matPanel, style, stylePanel
+public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
 test/                unit tests (node:test): npm test
 ```
@@ -115,6 +119,8 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **O‘tish joylari:** mebel, konstruktiv va devorlar orasidagi me’yordan tor oraliqlar («O‘tish joyi» sozlamasi, standart 60 sm; 20 sm dan kichigi — tirqish) ogohlantiriladi: «Tor o‘tish joyi 48 sm (me’yor 60 dan)». **↔ O‘tishlar** (`P` tugmasi) rejadagi sariq chiziqlarni ko‘rsatadi / yashiradi, nishonda soni; xabarlar ustunida yig‘iladigan «O‘tish joylari (N)» guruhi, bosilganda o‘tish joyi rejada yonadi.
 - **Loyihalar va xonalar:** loyihada bir nechta xona bor, ular reja ustida yorliqlar ko‘rinishida (+ Xona: nomi, vazifasi, o‘lchami; ⋯ — nomini o‘zgartirish, «variant B» versiyasi sifatida nusxalash, o‘chirish). Har bir xonaning o‘z bekor qilish tarixi bor. 📁 **Loyihalar** — reja rasmi bilan kartalar: ochish, yangi, nomini o‘zgartirish, nusxalash, o‘chirish, `.fsp3d.json` faylga **eksport / import** (zaxira yoki boshqa qurilmaga ko‘chirish). Eski bitta xonali reja avtomatik ravishda «Mening loyiham»ga ko‘chiriladi.
 - **Xona shablonlari:** + Xona → **Shablondan**: *Sovet davri uyi* to‘plami (panel / g‘isht 1960–90-yillar, shift ≈ 2,8 m) yoki *Yangi bino* (monolit/karkas 2015+, shift ≈ 3,0 m) — yotoqxona, bolalar xonasi, oshxona-mehmonxona, asosiy yotoqxona, zal (sovet uyida ikki eshikli o‘tish xona), katta yotoqxona, ish xonasi, oshxona. Har bir kartada kichik reja va «12 m² · 4×3 m». Shablonda derazalar (tagida radiator), eshiklar, konstruktiv (stoyak, devor chiqig‘i, kolonna) va xatosiz joylashtirilgan mebel bor; keyin hammasini o‘zgartirish mumkin. 📁 Loyihalar → **Kvartira shablonidan yangi loyiha**: «2 xonali (sovet)» = zal + yotoqxona + oshxona, «3 xonali (yangi bino)» = oshxona-mehmonxona + asosiy yotoqxona + bolalar xonasi, har bir xona alohida yorliqda. O‘lchamlar Toshkent uylari uchun odatiy; shablonlar `templates.json` da (`GET /api/templates`).
+- **3D ko‘rinish:** 📷 *Surat* PNG (2× aniqlik) ni xulosa plashkasi bilan saqlaydi — loyiha, xona, vazifasi, o‘lcham va maydon, buyumlar soni, sana; telefonda ⤴ *Ulashish*; chizg‘ich yonidagi 📷 rejani saqlaydi. Har bir buyumga katalogdan **material** (eman, yong‘oq, oq shumtol, oq mat, grafit, shalfey, yaltiroq, matolar, velyur) — shkaf, komod, oshxona va h.k. uchun **korpus va fasad** alohida — yoki o‘z rangi. **Yorug‘lik:** ☀ kunduz / 🌇 kechqurun (past iliq quyosh, chiroqlar yoniq) / 🌙 tun (qorong‘i deraza, faqat chiroqlar) va shift chirog‘i: qandil, nuqtali, LED panel yoki yo‘q; katalogda o‘z yorug‘ligi bor torsher va devor chirog‘i. **Pardoz** (Xona → *Pardoz va uslub*): devorlar — bo‘yoq, gulqog‘oz, g‘isht, panellar + rang, alohida rangdagi urg‘u devori, pol — parket, laminat, kafel, gilam qoplama; **mebel uslubi** modern / klassika (latun tutqichlar, yo‘nilgan oyoqlar, naqshli fasadlar) / loft (qora po‘lat) butun xona yoki bitta buyum uchun — o‘lchamlar va to‘qnashuvlar o‘zgarmaydi. Yorug‘lik va pardoz xona bilan saqlanadi va bekor qilinadi.
+- **3D da ochish:** shkaf, komod, oshxona, muzlatgich yoki xona eshigini bosing (yurishda `E`) — eshikchalar ochiladi, tortmalar chiqadi, qopqoqlar tushadi; 🚪 *Hammasini ochish* / *yopish*. Har kadrda harakatlanuvchi qism boshqa mebel, konstruktiv va devorlar bilan tekshiriladi: tegsa qizaradi, to‘xtaydi va HUD «Eshikcha «Karavot»ga tegadi: 64°» deb yozadi.
 - **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak).
 - **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
 
@@ -143,6 +149,7 @@ http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 | 3D Sayr | Yurish | `W A S D` / strelkalar, `Shift` — tezroq |
 | 3D Sayr | Qarash | sichqoncha (bosgandan keyin) yoki kursor qulflanmasa — sichqonchani bosib surish |
 | 3D Sayr | Chiqish | `Esc` |
+| 3D | Eshik, tortmani ochish / yopish | bosish, yurishda `E`; 🚪 — hammasi |
 | Mobil | Yurish / qarash | joystik / ekranni surish |
 
 ### Loyiha tuzilmasi
@@ -154,8 +161,9 @@ order.json           saqlangan buyurtmalar
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages, templates
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
+                     history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages, templates,
+                     snapshot, materials, matPanel, style, stylePanel
+public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
 test/                unit testlar (node:test): npm test
 ```
@@ -198,6 +206,8 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Проходы:** промежутки между мебелью, конструктивом и стенами уже нормы (настройка «Проход от», 60 см по умолчанию; меньше 20 см — щель, а не проход) дают предупреждение: «Узкий проход 48 см (норма от 60)». **↔ Проходы** (клавиша `P`) показывает / скрывает жёлтые полосы на плане, бейдж — их число; в колонке уведомлений сворачиваемая группа «Проходы (N)», клик подсвечивает проход на плане.
 - **Проекты и комнаты:** в проекте несколько комнат — вкладки над планом (+ Комната: название, назначение, размеры; ⋯ — переименовать, дублировать как версию «вариант Б», удалить). У каждой комнаты своя история отмены. 📁 **Проекты** — карточки с превью плана: открыть, новый, переименовать, дублировать, удалить, **экспорт / импорт** файла `.fsp3d.json` (резервная копия или перенос на другое устройство). Старый план одной комнаты автоматически переносится в «Мой проект».
 - **Шаблоны комнат:** + Комната → **Из шаблона**: набор *Советский дом* (панель / кирпич 1960–90-х, потолок ≈ 2,8 м) или *Новостройка* (монолит/каркас 2015+, потолок ≈ 3,0 м) — спальня, детская, кухня-гостиная, мастер-спальня, зал (в советском — проходной с двумя дверями), большая спальня, кабинет, кухня. На карточке мини-план и «12 м² · 4×3 м». В шаблоне окна с батареями под ними, двери, конструктив (стояки, выступ, колонна) и мебель, расставленная без ошибок; дальше всё можно менять. 📁 Проекты → **Новый проект из шаблона квартиры**: «2-комнатная (сов.)» = зал + спальня + кухня, «3-комнатная (новостройка)» = кухня-гостиная + мастер-спальня + детская, каждая комната — своей вкладкой. Размеры типичные для жилья Ташкента; шаблоны лежат в `templates.json` (`GET /api/templates`).
+- **Вид в 3D:** 📷 *Снимок* сохраняет PNG (2× разрешение) с плашкой-сводкой — проект, комната, назначение, размеры и площадь, число предметов, дата; на телефоне ⤴ *Поделиться*; 📷 рядом с линейкой сохраняет план. У каждого предмета **материал** из каталога (дуб, орех, ясень, белый матовый, графит, шалфей, глянец, ткани, велюр) — у шкафов, комодов, кухни и т. п. отдельно **корпус и фасад** — или свой цвет. **Свет:** ☀ день / 🌇 вечер (низкое тёплое солнце, лампы включены) / 🌙 ночь (тёмное окно, только светильники) и потолочный свет: люстра, точечные, LED-панель или без него; в каталоге торшер и бра со своим светом. **Отделка** (Комната → *Отделка и стиль*): стены — покраска, обои, кирпич, панели + цвет, акцентная стена своим цветом, пол — паркет, ламинат, плитка, ковролин; **стиль мебели** модерн / классика (латунные ручки, точёные ножки, фасады с филёнкой) / лофт (чёрная сталь) для всей комнаты или одного предмета — габариты и коллизии не меняются. Свет и отделка сохраняются с комнатой и отменяются.
+- **Открывание в 3D:** клик по шкафу, комоду, кухне, холодильнику или двери комнаты (в прогулке — `E`) — дверцы распахиваются, ящики выдвигаются, откидные створки опускаются; 🚪 *Открыть всё* / *Закрыть всё*. В каждом кадре движущаяся часть проверяется по другой мебели, конструктиву и стенам: при касании краснеет, останавливается, а HUD пишет «Дверца упирается в «Кровать» на 64°».
 - **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок).
 - **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
 
@@ -226,6 +236,7 @@ npm start
 | 3D Прогулка | Ходьба | `W A S D` / стрелки, `Shift` — быстрее |
 | 3D Прогулка | Взгляд | мышь (после клика) или, если захват курсора недоступен, зажать кнопку мыши и вести |
 | 3D Прогулка | Выход | `Esc` |
+| 3D | Открыть / закрыть дверцу, ящик | клик, в прогулке `E`; 🚪 — всё |
 | Мобильные | Ходьба / взгляд | джойстик / свайп |
 
 ### Структура проекта
@@ -237,8 +248,9 @@ order.json           сохранённые заявки
 public/index.html    разметка
 public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
-                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages, templates
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d
+                     history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages, templates,
+                     snapshot, materials, matPanel, style, stylePanel
+public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
 test/                модульные тесты (node:test): npm test
 ```

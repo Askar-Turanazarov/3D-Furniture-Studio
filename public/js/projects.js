@@ -3,12 +3,13 @@
 import { state, emit, applyDoc, docFromState } from './state.js';
 import { history } from './history.js';
 import {
-  onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom, activeRoom, normalizeDoc
+  onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom, activeRoom, normalizeDoc,
+  makeVersion, versionGroup
 } from './storage.js';
 import { defaultOpenings } from './openings.js';
 import { resetView } from './renderer.js';
 import { resetRuler } from './interaction.js';
-import { t, onLangChange } from './i18n.js';
+import { t, getLang, onLangChange } from './i18n.js';
 import { toast, syncForms } from './ui.js';
 
 export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'other'];
@@ -81,6 +82,16 @@ function addRoom({ name, purpose, L, W, H }) {
   switchRoom(r.id);
 }
 
+const LETTERS = { ru: 'АБВГДЕЖЗИКЛМН', uz: 'ABCDEFGHIJKLM', en: 'ABCDEFGHIJKLM' };
+const letter = n => (LETTERS[getLang()] || LETTERS.en)[n - 1] || String(n);
+
+function duplicateAsVersion(id) {
+  persist();
+  const copy = makeVersion(project, id, (name, n) => `${name} — ${t('room.variant', { v: letter(n) })}`);
+  switchRoom(copy.id);
+  toast(t('room.versionDone', { name: copy.name }));
+}
+
 function deleteRoom(id) {
   if (project.rooms.length < 2) return toast(t('room.lastOne'), true);
   const i = project.rooms.findIndex(r => r.id === id);
@@ -114,6 +125,7 @@ function initTabs() {
     const id = $('roomMenu').dataset.room;
     closeMenu();
     if (b.dataset.act === 'edit') openRoomDialog(id);
+    if (b.dataset.act === 'version') duplicateAsVersion(id);
     if (b.dataset.act === 'delete') deleteRoom(id);
   });
   document.addEventListener('pointerdown', e => {
@@ -144,7 +156,14 @@ export function renderTabs() {
     more.dataset.more = r.id;
     more.title = t('room.menu');
     more.textContent = '⋯';
-    tab.append(name, more);
+    tab.append(name);
+    if (r.variant && versionGroup(project, r).length > 1) {
+      const v = document.createElement('small');
+      v.className = 'room-tab-ver';
+      v.textContent = t('room.variantShort', { v: letter(r.variant) });
+      tab.append(v);
+    }
+    tab.append(more);
     return tab;
   }));
   list.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });

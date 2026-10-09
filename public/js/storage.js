@@ -59,7 +59,10 @@ export function listProjects() {
 export function loadProject(id) {
   const p = read(projectKey(id));
   if (!p || !Array.isArray(p.rooms) || !p.rooms.length) return null;
-  p.rooms = p.rooms.map(r => ({ id: r.id || newId(), name: r.name || '', purpose: r.purpose || '', versionOf: r.versionOf ?? null, ...normalizeDoc(r) }));
+  p.rooms = p.rooms.map(r => ({
+    id: r.id || newId(), name: r.name || '', purpose: r.purpose || '',
+    versionOf: r.versionOf ?? null, ...(r.variant ? { variant: r.variant } : {}), ...normalizeDoc(r)
+  }));
   if (!p.rooms.some(r => r.id === p.activeRoomId)) p.activeRoomId = p.rooms[0].id;
   return p;
 }
@@ -122,3 +125,24 @@ export function openLastProject() {
 }
 
 export const activeRoom = p => p.rooms.find(r => r.id === p.activeRoomId) || p.rooms[0];
+
+// Rooms of one version group: the original (variant 1) and its copies (versionOf = original id).
+export function versionGroup(p, room) {
+  const root = p.rooms.find(r => r.id === room.versionOf) || room;
+  return p.rooms.filter(r => r === root || r.versionOf === root.id);
+}
+
+// Copy the room as the next free variant of its group, placed right after the group.
+// nameOf(originalName, n) builds the name, e.g. "Bedroom — variant B" for n = 2.
+export function makeVersion(p, id, nameOf) {
+  const src = p.rooms.find(r => r.id === id);
+  const root = p.rooms.find(r => r.id === src.versionOf) || src;
+  const group = versionGroup(p, src);
+  root.variant ??= 1;
+  const used = new Set(group.map(r => r.variant || 1));
+  let n = 2;
+  while (used.has(n)) n++;
+  const copy = { ...structuredClone(src), id: newId(), name: nameOf(root.name, n), versionOf: root.id, variant: n };
+  p.rooms.splice(p.rooms.indexOf(group[group.length - 1]) + 1, 0, copy);
+  return copy;
+}

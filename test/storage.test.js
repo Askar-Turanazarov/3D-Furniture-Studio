@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeDoc, makeRoom, makeProject, listProjects, loadProject, saveProjectNow, deleteProject,
-  migrateV1, openLastProject, activeRoom, onSaveError
+  migrateV1, openLastProject, activeRoom, onSaveError, makeVersion, versionGroup
 } from '../public/js/storage.js';
 import { state, item } from './helpers.js';
 
@@ -87,4 +87,23 @@ test('storage full is reported, not thrown', () => {
   assert.equal(ok, false);
   assert.equal(err.name, 'QuotaExceededError');
   onSaveError(() => {});
+});
+
+test('versions: next free letter, placed after the group, copy of the source', () => {
+  const a = makeRoom('Bedroom', v1());
+  const other = makeRoom('Kitchen', {});
+  const p = makeProject('P', [a, other]);
+  const name = (n, i) => `${n} — v${i}`;
+  const b = makeVersion(p, a.id, name);
+  const c = makeVersion(p, b.id, name);   // a version of a version still belongs to the original
+  assert.deepEqual(p.rooms.map(r => r.name), ['Bedroom', 'Bedroom — v2', 'Bedroom — v3', 'Kitchen']);
+  assert.equal(a.variant, 1);
+  assert.equal(c.versionOf, a.id);
+  assert.equal(b.items.length, 2);
+  assert.notEqual(b.items, a.items, 'deep copy');
+  p.rooms.splice(1, 1);   // delete v2 → the next copy reuses the letter
+  assert.equal(makeVersion(p, a.id, name).variant, 2);
+  assert.equal(versionGroup(p, other).length, 1);
+  saveProjectNow(p);
+  assert.deepEqual(loadProject(p.id).rooms.map(r => r.variant), [1, 3, 2, undefined], 'variants survive save/load');
 });

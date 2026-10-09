@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'room.versionMenu': 'Дублировать как версию', 'room.variant': 'вариант {v}', 'room.variantShort': 'вар. {v}', 'room.versionDone': 'Создана версия «{name}»',
     'unit.m2': 'м²',
     'room.add': 'Комната', 'room.new': 'Новая комната', 'room.edit': 'Комната', 'room.name': 'Название', 'room.purpose': 'Назначение', 'room.save': 'Сохранить', 'room.menu': 'Действия с комнатой', 'room.editMenu': 'Переименовать, назначение', 'room.delete': 'Удалить комнату', 'room.lastOne': 'Последнюю комнату проекта удалить нельзя', 'room.confirmDelete': 'Удалить комнату «{name}» со всей мебелью?', 'purpose.bedroom': 'Спальня', 'purpose.kids': 'Детская', 'purpose.living': 'Зал / гостиная', 'purpose.kitchen': 'Кухня', 'purpose.kitchenLiving': 'Кухня-гостиная', 'purpose.study': 'Кабинет', 'purpose.hall': 'Прихожая', 'purpose.other': 'Другое',
     'project.default': 'Мой проект', 'room.default': 'Комната {n}', 'storage.full': 'Не удалось сохранить: память браузера переполнена. Удалите старые проекты или экспортируйте их в файл',
@@ -70,6 +71,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'room.versionMenu': 'Versiya sifatida nusxalash', 'room.variant': 'variant {v}', 'room.variantShort': 'var. {v}', 'room.versionDone': '«{name}» versiyasi yaratildi',
     'unit.m2': 'm²',
     'room.add': 'Xona', 'room.new': 'Yangi xona', 'room.edit': 'Xona', 'room.name': 'Nomi', 'room.purpose': 'Vazifasi', 'room.save': 'Saqlash', 'room.menu': 'Xona bilan amallar', 'room.editMenu': 'Nomini o‘zgartirish, vazifasi', 'room.delete': 'Xonani o‘chirish', 'room.lastOne': 'Loyihadagi oxirgi xonani o‘chirib bo‘lmaydi', 'room.confirmDelete': '«{name}» xonasi butun mebeli bilan o‘chirilsinmi?', 'purpose.bedroom': 'Yotoqxona', 'purpose.kids': 'Bolalar xonasi', 'purpose.living': 'Zal / mehmonxona', 'purpose.kitchen': 'Oshxona', 'purpose.kitchenLiving': 'Oshxona-mehmonxona', 'purpose.study': 'Ish xonasi', 'purpose.hall': 'Dahliz', 'purpose.other': 'Boshqa',
     'project.default': 'Mening loyiham', 'room.default': 'Xona {n}', 'storage.full': 'Saqlab bo‘lmadi: brauzer xotirasi to‘lgan. Eski loyihalarni o‘chiring yoki faylga eksport qiling',
@@ -139,6 +141,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'room.versionMenu': 'Duplicate as a version', 'room.variant': 'variant {v}', 'room.variantShort': 'var. {v}', 'room.versionDone': 'Version “{name}” created',
     'unit.m2': 'm²',
     'room.add': 'Room', 'room.new': 'New room', 'room.edit': 'Room', 'room.name': 'Name', 'room.purpose': 'Purpose', 'room.save': 'Save', 'room.menu': 'Room actions', 'room.editMenu': 'Rename, purpose', 'room.delete': 'Delete room', 'room.lastOne': 'The last room of a project can\'t be deleted', 'room.confirmDelete': 'Delete the room “{name}” with all its furniture?', 'purpose.bedroom': 'Bedroom', 'purpose.kids': 'Kids\' room', 'purpose.living': 'Living room', 'purpose.kitchen': 'Kitchen', 'purpose.kitchenLiving': 'Kitchen-living room', 'purpose.study': 'Study', 'purpose.hall': 'Hallway', 'purpose.other': 'Other',
     'project.default': 'My project', 'room.default': 'Room {n}', 'storage.full': 'Could not save: browser storage is full. Delete old projects or export them to a file',

@@ -1,7 +1,9 @@
 // Sidebar forms, item list, selection panel, notes column and toasts.
 import { t, getLang } from './i18n.js';
 import { state, emit, addItem, removeItems, rotateItem, duplicateItems, select, selected, selectedItems, getItem, itemName,
-  selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked } from './state.js';
+  selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked,
+  selectObstacle, selectedOb, addObstacle, addNiche, removeObstacle, updateObstacle } from './state.js';
+import { wallLen } from './openings.js';
 
 import { rectOf } from './geometry.js';
 import { alignDeltas } from './align.js';
@@ -82,6 +84,7 @@ export function initUI({ autoPlace }) {
   });
 
   initOpenings();
+  initObstacles();
 
   $('problemList').addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
@@ -158,6 +161,71 @@ function initOpenings() {
   $('openDelBtn').addEventListener('click', () => { const o = selectedOpening(); if (o) removeOpening(o.id); });
 }
 
+// ---- structure: columns, ducts, ledges, radiators, niches ----
+function initObstacles() {
+  $('obAdd').addEventListener('click', e => {
+    const b = e.target.closest('[data-ob]');
+    if (b) addObstacle(b.dataset.ob);
+  });
+  const nf = $('nicheForm');
+  const centre = () => {
+    const f = nf.elements;
+    f.offset.value = Math.max(0, Math.round((wallLen(f.wall.value, state.room) - Number(f.width.value || 0)) / 2));
+  };
+  $('nicheBtn').addEventListener('click', () => {
+    nf.hidden = !nf.hidden;
+    if (!nf.hidden) {
+      const f = nf.elements;
+      f.width.value = Math.min(150, wallLen(f.wall.value, state.room));
+      f.depth.value = 60;
+      centre();
+    }
+  });
+  nf.elements.wall.addEventListener('change', centre);
+  nf.addEventListener('submit', e => {
+    e.preventDefault();
+    const f = nf.elements;
+    addNiche(f.wall.value, num(f.offset.value, 0, 3000), num(f.width.value, 1, 3000), num(f.depth.value, 1, 300));
+    nf.hidden = true;
+  });
+  $('nicheCancel').addEventListener('click', () => { nf.hidden = true; });
+  $('obList').addEventListener('click', e => {
+    const li = e.target.closest('li[data-id]');
+    if (li) selectObstacle(Number(li.dataset.id));
+  });
+  const form = $('obForm');
+  form.addEventListener('input', () => {
+    const o = selectedOb();
+    if (!o) return;
+    const patch = {};
+    for (const k of ['x', 'y', 'w', 'd', 'h', 'elev']) {
+      if (form.elements[k].value !== '') patch[k] = Math.round(Number(form.elements[k].value) || 0);
+    }
+    updateObstacle(o, patch);
+  });
+  $('obDelBtn').addEventListener('click', () => { const o = selectedOb(); if (o) removeObstacle(o.id); });
+}
+
+function renderObstacles() {
+  const locked = state.openingsLocked;
+  for (const b of $('obAdd').querySelectorAll('button')) b.disabled = locked;
+  if (locked) $('nicheForm').hidden = true;
+  $('obList').innerHTML = (state.obstacles || []).map(o => `<li data-id="${o.id}" class="${o.id === state.selectedObstacle ? 'selected' : ''}">
+      <i class="dot ob-dot"></i>
+      <span class="name">${escapeHtml(t('ob.' + o.kind))}</span>
+      <span class="dims">${o.w}×${o.d}×${o.h}${o.elev ? ' ↑' + o.elev : ''}</span>
+    </li>`).join('');
+  const o = selectedOb();
+  const form = $('obForm');
+  form.hidden = !o;
+  if (!o) return;
+  form.classList.toggle('locked', locked);
+  for (const el of form.elements) el.disabled = locked;
+  for (const k of ['x', 'y', 'w', 'd', 'h', 'elev']) {
+    if (document.activeElement !== form.elements[k]) form.elements[k].value = o[k];
+  }
+}
+
 function renderOpenings() {
   const locked = state.openingsLocked;
   for (const [id, key] of [['lockBtn', locked ? 'op.unlock' : 'op.lock'], ['lockBtn2', locked ? 'op.unlockShort' : 'op.lockShort']]) {
@@ -199,6 +267,7 @@ export function refresh() {
   renderList();
   renderSelPanel();
   renderOpenings();
+  renderObstacles();
   renderNotes();
 }
 

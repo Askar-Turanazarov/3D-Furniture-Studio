@@ -113,10 +113,12 @@ function draw() {
   drawGrid();
   drawPlinth();
   drawDimensions();
+  drawObstacles(false);   // floor-standing structure under the furniture
   const now = performance.now();
   const sel = state.items.find(i => i.id === state.selectedId);
   for (const it of state.items) if (it !== sel) drawItem(it, now);
   if (sel) drawItem(sel, now);
+  drawObstacles(true);    // ceiling ducts and other high structure over the furniture
   drawOpenings();   // over the furniture: a blocked door swing stays visible
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
   if (overlay.marquee) drawMarquee(overlay.marquee);
@@ -176,6 +178,55 @@ function drawPlinth() {
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, (L - 2 * p) * view.scale, (W - 2 * p) * view.scale);
   ctx.restore();
+}
+
+// Structure: grey hatching, height label; high parts (ceiling ducts) are light with a dashed outline and "↑240".
+const HIGH = 150;   // bottom above this — the obstacle hangs over the furniture
+
+function drawObstacles(high) {
+  for (const o of state.obstacles || []) {
+    if ((o.elev >= HIGH) !== high) continue;
+    const [x, y] = toScreen(o.x, o.y);
+    const w = o.w * view.scale, h = o.d * view.scale;
+    const sel = o.id === state.selectedObstacle;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = high ? 'rgba(134, 142, 150, .14)' : 'rgba(134, 142, 150, .38)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = high ? 'rgba(73, 80, 87, .3)' : 'rgba(73, 80, 87, .6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let s = -h; s < w; s += 7) { ctx.moveTo(x + s, y + h); ctx.lineTo(x + s + h, y); }
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = sel ? COLORS.selected : '#495057';
+    ctx.lineWidth = sel ? 2.5 : 1.2;
+    if (high) ctx.setLineDash([5, 4]);
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    const label = high ? `↑${o.elev}` : o.elev > 0 ? `${o.h} ↑${o.elev}` : `${o.h}`;
+    const name = t('ob.' + o.kind);
+    ctx.font = '600 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const big = w > ctx.measureText(name).width + 8 && h > 26;
+    if (w > ctx.measureText(label).width + 6 && h > 12) {
+      const cx = x + w / 2, cy = y + h / 2;
+      ctx.fillStyle = 'rgba(255, 255, 255, .85)';
+      const bw = Math.max(ctx.measureText(label).width, big ? ctx.measureText(name).width : 0) + 6;
+      const bh = big ? 26 : 13;
+      ctx.fillRect(cx - bw / 2, cy - bh / 2, bw, bh);
+      ctx.fillStyle = '#343a40';
+      if (big) {
+        ctx.fillText(name, cx, cy - 6);
+        ctx.fillText(label, cx, cy + 6);
+      } else ctx.fillText(label, cx, cy);
+    }
+    ctx.restore();
+  }
 }
 
 // Opening on the plan in screen px: a = start along the wall, b = end; wall band is WALL_PX thick outside the floor.

@@ -80,6 +80,7 @@ function applyRoom(r) {
   state.selectedId = null;
   state.selectedIds = new Set();
   state.selectedOpening = null;
+  state.selectedObstacle = null;
   state.found = null;
   applyDoc(r);
   state.openings ??= defaultOpenings(state.room);

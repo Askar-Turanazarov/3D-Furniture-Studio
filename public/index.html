@@ -68,6 +68,44 @@
             <button type="button" class="btn danger" id="openDelBtn" data-i18n="op.delete">✕ Удалить</button>
           </div>
         </form>
+        <div class="sub-title" data-i18n="ob.title">Конструктив</div>
+        <div class="btn-row ob-add" id="obAdd">
+          <button type="button" class="btn small" data-ob="column">+ <span data-i18n="ob.column">Колонна</span></button>
+          <button type="button" class="btn small" data-ob="duct">+ <span data-i18n="ob.duct">Короб</span></button>
+          <button type="button" class="btn small" data-ob="ceilingDuct">+ <span data-i18n="ob.ceilingDuct">Короб под потолком</span></button>
+          <button type="button" class="btn small" data-ob="ledge">+ <span data-i18n="ob.ledge">Выступ</span></button>
+          <button type="button" class="btn small" data-ob="radiator">+ <span data-i18n="ob.radiator">Батарея</span></button>
+          <button type="button" class="btn small" id="nicheBtn">+ <span data-i18n="ob.niche">Ниша</span></button>
+        </div>
+        <form id="nicheForm" class="grid3 niche-form" hidden>
+          <label><span data-i18n="op.wall">Стена</span>
+            <select name="wall">
+              <option value="north" data-i18n="wallName.north"></option>
+              <option value="east" data-i18n="wallName.east"></option>
+              <option value="south" data-i18n="wallName.south"></option>
+              <option value="west" data-i18n="wallName.west"></option>
+            </select></label>
+          <label><span data-i18n="niche.offset">Начало</span><input type="number" name="offset" min="0" max="3000"></label>
+          <label><span data-i18n="niche.width">Ширина ниши</span><input type="number" name="width" min="1" max="3000"></label>
+          <label><span data-i18n="niche.depth">Глубина</span><input type="number" name="depth" min="1" max="300"></label>
+          <div class="op-actions">
+            <button type="submit" class="btn accent" data-i18n="niche.create">Создать</button>
+            <button type="button" class="btn ghost" id="nicheCancel" data-i18n="order.cancel">Отмена</button>
+          </div>
+          <p class="hint" data-i18n="niche.hint">Ниша — это два выступа стены по бокам.</p>
+        </form>
+        <ul class="items op-list" id="obList"></ul>
+        <form id="obForm" class="grid3" hidden>
+          <label><span>X</span><input type="number" name="x" min="0" max="3000"></label>
+          <label><span>Y</span><input type="number" name="y" min="0" max="3000"></label>
+          <label><span data-i18n="ob.elev">От пола</span><input type="number" name="elev" min="0" max="600"></label>
+          <label><span data-i18n="dim.w">Ширина (X)</span><input type="number" name="w" min="1" max="3000"></label>
+          <label><span data-i18n="dim.d">Глубина (Y)</span><input type="number" name="d" min="1" max="3000"></label>
+          <label><span data-i18n="dim.h">Высота (Z)</span><input type="number" name="h" min="1" max="600"></label>
+          <div class="op-actions">
+            <button type="button" class="btn danger" id="obDelBtn" data-i18n="op.delete">✕ Удалить</button>
+          </div>
+        </form>
         <p class="hint" data-i18n="op.hint"></p>
       </section>
 

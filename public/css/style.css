@@ -88,6 +88,11 @@ body {
 /* ---------- forms ---------- */
 label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
 label.row { margin-bottom: 8px; }
+.sub-title { font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .3px; }
+.ob-add .btn.small { flex: 1 1 auto; font-size: 12px; padding: 5px 8px; }
+.niche-form { margin-top: 8px; padding: 8px; background: #f8f9fc; border-radius: 8px; }
+.niche-form .hint { grid-column: 1 / -1; margin: 0; }
+.ob-dot { background: repeating-linear-gradient(45deg, #868e96 0 2px, #dee2e6 2px 4px); }
 label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin: 4px 0; cursor: pointer; }
 label.check[hidden] { display: none; }
 label.check input { width: auto; margin: 0; }

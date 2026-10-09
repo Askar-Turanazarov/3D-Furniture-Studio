@@ -3,6 +3,7 @@ import { footprint, rectOf, insideRoom, blocked } from './geometry.js';
 import { findSpot } from './autoplace.js';
 import { getLang } from './i18n.js';
 import { newOpening, clampOpening, doorSwingRect } from './openings.js';
+import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 
 export const state = {
   room: { L: 400, W: 300, H: 270, plinth: 2 },
@@ -15,6 +16,9 @@ export const state = {
   openingsLocked: false,
   opSeq: 3,
   selectedOpening: null,
+  obstacles: [],      // columns, ducts, ledges, radiators — see obstacles.js
+  obSeq: 1,
+  selectedObstacle: null,
   catalog: [],        // furniture types (catalog.json → items)
   materials: [],      // catalog.json → materials (phase 6)
   pricing: {},        // catalog.json → pricing (phase 7)
@@ -27,16 +31,18 @@ export function emit() { listeners.forEach(fn => fn(state)); }
 
 // The room document: everything that is saved and undone (not selection or highlights).
 export function docFromState() {
-  const { room, settings, items, seq, openings, openingsLocked, opSeq } = state;
-  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq });
+  const { room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq } = state;
+  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq });
 }
 
 export function applyDoc(doc) {
   const d = structuredClone(doc);
   Object.assign(state, {
     room: d.room, settings: d.settings, items: d.items, seq: d.seq,
-    openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq
+    openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq,
+    obstacles: d.obstacles || [], obSeq: d.obSeq || 1
   });
+  if (!getObstacle(state.selectedObstacle)) state.selectedObstacle = null;
   if (!getItem(state.selectedId)) state.selectedId = null;
   state.selectedIds = new Set([...state.selectedIds].filter(id => getItem(id)));
   if (!getOpening(state.selectedOpening)) state.selectedOpening = null;
@@ -62,6 +68,7 @@ export function toggleSelect(id) {
   else if (state.selectedId === null) state.selectedId = id;
   else state.selectedIds.add(id);
   state.selectedOpening = null;
+  state.selectedObstacle = null;
   emit();
 }
 
@@ -69,6 +76,7 @@ export function selectMany(ids) {
   state.selectedId = ids[0] ?? null;
   state.selectedIds = new Set(ids.slice(1));
   state.selectedOpening = null;
+  state.selectedObstacle = null;
   emit();
 }
 
@@ -180,7 +188,7 @@ export function rotateItem(item) {
 export function select(id) {
   state.selectedId = id;
   state.selectedIds = new Set();
-  if (id !== null) state.selectedOpening = null;
+  if (id !== null) { state.selectedOpening = null; state.selectedObstacle = null; }
   emit();
 }
 
@@ -190,7 +198,7 @@ export const selectedOpening = () => getOpening(state.selectedOpening);
 
 export function selectOpening(id) {
   state.selectedOpening = id;
-  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); }
+  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedObstacle = null; }
   emit();
 }
 
@@ -213,6 +221,46 @@ export function updateOpening(o, patch) {
   if (state.openingsLocked) return;
   Object.assign(o, patch);
   clampOpening(o, state.room);
+  emit();
+}
+
+// ---- obstacles (structure): locked together with windows and doors ----
+export const getObstacle = id => (state.obstacles || []).find(o => o.id === id) || null;
+export const selectedOb = () => getObstacle(state.selectedObstacle);
+
+export function selectObstacle(id) {
+  state.selectedObstacle = id;
+  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedOpening = null; }
+  emit();
+}
+
+export function addObstacle(kind) {
+  if (state.openingsLocked) return null;
+  const o = newObstacle(kind, state.obSeq++, state.room, state.openings || []);
+  state.obstacles.push(o);
+  selectObstacle(o.id);
+  return o;
+}
+
+export function addNiche(wall, offset, width, depth) {
+  if (state.openingsLocked) return [];
+  const ledges = nicheLedges(wall, offset, width, depth, state.room, () => state.obSeq++);
+  state.obstacles.push(...ledges);
+  selectObstacle(ledges[0]?.id ?? null);
+  return ledges;
+}
+
+export function removeObstacle(id) {
+  if (state.openingsLocked) return;
+  state.obstacles = state.obstacles.filter(o => o.id !== id);
+  if (state.selectedObstacle === id) state.selectedObstacle = null;
+  emit();
+}
+
+export function updateObstacle(o, patch) {
+  if (state.openingsLocked) return;
+  Object.assign(o, patch);
+  clampObstacle(o, state.room);
   emit();
 }
 

@@ -3,7 +3,7 @@
 //   fsp3d.project.<id>     — the whole project: { id, name, createdAt, updatedAt, activeRoomId, rooms: [roomDoc] }
 //   fsp3d.lastProject      — id of the project opened last
 //   fsp3d.plan.v1          — old single-room plan; migrated once and kept as a spare copy
-// roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq }
+// roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq }
 const V1 = 'fsp3d.plan.v1';
 const INDEX = 'fsp3d.projects.v2';
 const LAST = 'fsp3d.lastProject';
@@ -31,6 +31,7 @@ export function newId() {
 export function normalizeDoc(d = {}) {
   const items = Array.isArray(d.items) ? d.items : [];
   const openings = Array.isArray(d.openings) ? d.openings : null;
+  const obstacles = Array.isArray(d.obstacles) ? d.obstacles : [];
   return {
     room: { ...DEFAULT_ROOM, ...d.room },
     settings: { ...DEFAULT_SETTINGS, ...d.settings },
@@ -38,7 +39,9 @@ export function normalizeDoc(d = {}) {
     seq: Math.max(d.seq || 1, ...items.map(i => i.id + 1)),
     openings,
     openingsLocked: !!d.openingsLocked,
-    opSeq: Math.max(d.opSeq || 1, ...(openings || []).map(o => o.id + 1))
+    opSeq: Math.max(d.opSeq || 1, ...(openings || []).map(o => o.id + 1)),
+    obstacles,
+    obSeq: Math.max(d.obSeq || 1, ...obstacles.map(o => o.id + 1))
   };
 }
 

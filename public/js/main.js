@@ -10,11 +10,16 @@ import { initTextures } from './textures.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
 import { validateAll, validateWarnings } from './validate.js';
 import { clampOpening } from './openings.js';
+import { fitObstacleHeight } from './obstacles.js';
 import { initInteraction } from './interaction.js';
 import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings } from './ui.js';
 
+let lastH = null;   // full-height obstacles follow the ceiling
+
 function update() {
   for (const o of state.openings) clampOpening(o, state.room);
+  for (const o of state.obstacles) fitObstacleHeight(o, lastH ?? state.room.H, state.room);
+  lastH = state.room.H;
   setWarnings(validateWarnings(state));
   const errors = validateAll(state);
   setDrawErrors(errors);

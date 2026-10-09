@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'ob.title': 'Конструктив', 'ob.column': 'Колонна', 'ob.duct': 'Короб', 'ob.ceilingDuct': 'Короб под потолком', 'ob.ledge': 'Выступ', 'ob.radiator': 'Батарея', 'ob.niche': 'Ниша', 'ob.elev': 'От пола', 'niche.offset': 'Начало', 'niche.width': 'Ширина ниши', 'niche.depth': 'Глубина', 'niche.create': 'Создать', 'niche.hint': 'Ниша — это два выступа стены по бокам свободного участка. Потом их можно двигать и менять по отдельности.',
     'order.allRooms': 'Отправить все комнаты проекта', 'order.summaryAll': 'Комнат: {r}, предметов всего: {n}', 'order.roomErrors': 'В комнате «{name}» есть ошибки размещения — исправьте их или отправьте только текущую комнату',
     'proj.title': 'Проекты', 'proj.new': 'Новый проект', 'proj.import': 'Импорт из файла', 'project.new': 'Новый проект', 'proj.hint': 'Проекты хранятся в этом браузере. Экспорт в файл — резервная копия и перенос на другое устройство.', 'proj.rooms': 'Комнат: {n}', 'proj.current': 'открыт', 'proj.rename': 'Переименовать', 'proj.duplicate': 'Дублировать', 'proj.export': 'Экспорт в файл (.json)', 'proj.delete': 'Удалить проект', 'proj.copyName': '{name} (копия)', 'proj.confirmDelete': 'Удалить проект «{name}» со всеми комнатами? Это нельзя отменить.', 'proj.imported': 'Проект «{name}» импортирован', 'proj.badFile': 'Файл не похож на проект планировщика',
     'room.versionMenu': 'Дублировать как версию', 'room.variant': 'вариант {v}', 'room.variantShort': 'вар. {v}', 'room.versionDone': 'Создана версия «{name}»',
@@ -14,11 +15,11 @@ const dict = {
     'hist.undo': 'Отменить (Ctrl+Z)', 'hist.redo': 'Повторить (Ctrl+Y)', 'hist.undone': 'Отменено', 'hist.redone': 'Повторено',
     'v3d.height': 'Рост', 'v3d.child': 'ребёнок', 'v3d.woman': 'женщина', 'v3d.man': 'мужчина',
     'v3d.distItem': 'До «{name}»: {m} м', 'v3d.distWall': 'До стены ({wall}): {m} м', 'wallShort.north': 'северная', 'wallShort.south': 'южная', 'wallShort.west': 'левая', 'wallShort.east': 'правая', 'v3d.distTouch': 'вплотную', 'v3d.fromFeet': 'от ног, по полу',
-    'op.title': 'Окна и двери', 'op.addWindow': '+ Окно', 'op.addDoor': '+ Дверь', 'op.lock': '🔓 Заблокировать', 'op.unlock': '🔒 Заблокировано',
-    'op.lockShort': '🔓 Проёмы', 'op.unlockShort': '🔒 Проёмы', 'op.locked': '🔒 Окна и двери заблокированы — их нельзя сдвинуть случайно',
+    'op.title': 'Окна, двери и конструктив', 'op.addWindow': '+ Окно', 'op.addDoor': '+ Дверь', 'op.lock': '🔓 Заблокировать', 'op.unlock': '🔒 Заблокировано',
+    'op.lockShort': '🔓 Конструктив', 'op.unlockShort': '🔒 Конструктив', 'op.locked': '🔒 Окна, двери и конструктив заблокированы — их нельзя сдвинуть случайно',
     'op.window': 'Окно', 'op.door': 'Дверь', 'op.wall': 'Стена', 'op.offset': 'Отступ, см', 'op.width': 'Ширина, см', 'op.height': 'Высота, см',
     'op.sill': 'Подоконник, см', 'op.flip': '⇄ Петли', 'op.delete': '✕ Удалить',
-    'op.hint': 'Окна и двери перетаскиваются вдоль стены (можно перенести на другую). Замок защищает их от случайного сдвига при расстановке мебели.',
+    'op.hint': 'Окна и двери перетаскиваются вдоль стены, конструктив — по плану. Замок защищает их от случайного сдвига при расстановке мебели.',
     'wallName.north': 'Северная (верх)', 'wallName.south': 'Южная (низ)', 'wallName.west': 'Левая', 'wallName.east': 'Правая',
     'err.door': 'Мешает открыванию двери', 'warn.window': 'Закрывает окно (выше подоконника {n} см)', 'legend.warn': 'Предупреждение',
     'notes.empty': 'Выберите предмет на плане — здесь появятся проверки и подсказки', 'notes.all': 'Все проблемы на плане', 'notes.allOk': 'Ошибок размещения нет',
@@ -73,6 +74,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'ob.title': 'Konstruktiv', 'ob.column': 'Ustun', 'ob.duct': 'Quti (stoyak)', 'ob.ceilingDuct': 'Shift ostidagi quti', 'ob.ledge': 'Devor bo‘rtig‘i', 'ob.radiator': 'Radiator', 'ob.niche': 'Tokcha', 'ob.elev': 'Poldan', 'niche.offset': 'Boshlanishi', 'niche.width': 'Tokcha kengligi', 'niche.depth': 'Chuqurligi', 'niche.create': 'Yaratish', 'niche.hint': 'Tokcha — bo‘sh qism yonlaridagi ikkita devor bo‘rtig‘i. Keyin ularni alohida surish va o‘zgartirish mumkin.',
     'order.allRooms': 'Loyihaning barcha xonalarini yuborish', 'order.summaryAll': 'Xonalar: {r}, jami buyumlar: {n}', 'order.roomErrors': '«{name}» xonasida joylashtirish xatolari bor — ularni tuzating yoki faqat joriy xonani yuboring',
     'proj.title': 'Loyihalar', 'proj.new': 'Yangi loyiha', 'proj.import': 'Fayldan import', 'project.new': 'Yangi loyiha', 'proj.hint': 'Loyihalar shu brauzerda saqlanadi. Faylga eksport — zaxira nusxa va boshqa qurilmaga ko‘chirish uchun.', 'proj.rooms': 'Xonalar: {n}', 'proj.current': 'ochiq', 'proj.rename': 'Nomini o‘zgartirish', 'proj.duplicate': 'Nusxalash', 'proj.export': 'Faylga eksport (.json)', 'proj.delete': 'Loyihani o‘chirish', 'proj.copyName': '{name} (nusxa)', 'proj.confirmDelete': '«{name}» loyihasi barcha xonalari bilan o‘chirilsinmi? Buni qaytarib bo‘lmaydi.', 'proj.imported': '«{name}» loyihasi import qilindi', 'proj.badFile': 'Fayl rejalashtiruvchi loyihasiga o‘xshamaydi',
     'room.versionMenu': 'Versiya sifatida nusxalash', 'room.variant': 'variant {v}', 'room.variantShort': 'var. {v}', 'room.versionDone': '«{name}» versiyasi yaratildi',
@@ -86,11 +88,11 @@ const dict = {
     'hist.undo': 'Bekor qilish (Ctrl+Z)', 'hist.redo': 'Qaytarish (Ctrl+Y)', 'hist.undone': 'Bekor qilindi', 'hist.redone': 'Qaytarildi',
     'v3d.height': 'Bo‘y', 'v3d.child': 'bola', 'v3d.woman': 'ayol', 'v3d.man': 'erkak',
     'v3d.distItem': '«{name}»gacha: {m} m', 'v3d.distWall': 'Devorgacha ({wall}): {m} m', 'wallShort.north': 'shimoliy', 'wallShort.south': 'janubiy', 'wallShort.west': 'chap', 'wallShort.east': 'o‘ng', 'v3d.distTouch': 'yonma-yon', 'v3d.fromFeet': 'oyoqdan, pol bo‘ylab',
-    'op.title': 'Derazalar va eshiklar', 'op.addWindow': '+ Deraza', 'op.addDoor': '+ Eshik', 'op.lock': '🔓 Qulflash', 'op.unlock': '🔒 Qulflangan',
-    'op.lockShort': '🔓 Teshiklar', 'op.unlockShort': '🔒 Teshiklar', 'op.locked': '🔒 Derazalar va eshiklar qulflangan — ularni tasodifan surib bo‘lmaydi',
+    'op.title': 'Derazalar, eshiklar va konstruktiv', 'op.addWindow': '+ Deraza', 'op.addDoor': '+ Eshik', 'op.lock': '🔓 Qulflash', 'op.unlock': '🔒 Qulflangan',
+    'op.lockShort': '🔓 Konstruktiv', 'op.unlockShort': '🔒 Konstruktiv', 'op.locked': '🔒 Derazalar, eshiklar va konstruktiv qulflangan — ularni tasodifan surib bo‘lmaydi',
     'op.window': 'Deraza', 'op.door': 'Eshik', 'op.wall': 'Devor', 'op.offset': 'Chekinish, sm', 'op.width': 'Kengligi, sm', 'op.height': 'Balandligi, sm',
     'op.sill': 'Deraza tokchasi, sm', 'op.flip': '⇄ Oshiq-moshiq', 'op.delete': '✕ O‘chirish',
-    'op.hint': 'Deraza va eshiklarni devor bo‘ylab suring (boshqa devorga ham o‘tkazish mumkin). Qulf ularni mebel joylashtirishda tasodifiy siljishdan himoya qiladi.',
+    'op.hint': 'Deraza va eshiklar devor bo‘ylab, konstruktiv esa reja bo‘ylab suriladi. Qulf ularni mebel joylashtirishda tasodifiy siljishdan himoya qiladi.',
     'wallName.north': 'Shimoliy (yuqori)', 'wallName.south': 'Janubiy (past)', 'wallName.west': 'Chap', 'wallName.east': 'O‘ng',
     'err.door': 'Eshik ochilishiga xalaqit beradi', 'warn.window': 'Derazani to‘sadi (tokchadan {n} sm baland)', 'legend.warn': 'Ogohlantirish',
     'notes.empty': 'Rejada buyumni tanlang — tekshiruvlar va maslahatlar shu yerda chiqadi', 'notes.all': 'Rejadagi barcha muammolar', 'notes.allOk': 'Joylashtirish xatolari yo‘q',
@@ -145,6 +147,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'ob.title': 'Structure', 'ob.column': 'Column', 'ob.duct': 'Duct', 'ob.ceilingDuct': 'Ceiling duct', 'ob.ledge': 'Ledge', 'ob.radiator': 'Radiator', 'ob.niche': 'Niche', 'ob.elev': 'Above floor', 'niche.offset': 'Start', 'niche.width': 'Niche width', 'niche.depth': 'Depth', 'niche.create': 'Create', 'niche.hint': 'A niche is two wall ledges on both sides of the free part. You can move and resize them separately afterwards.',
     'order.allRooms': 'Send all rooms of the project', 'order.summaryAll': 'Rooms: {r}, items in total: {n}', 'order.roomErrors': 'The room “{name}” has placement errors — fix them or send only the current room',
     'proj.title': 'Projects', 'proj.new': 'New project', 'proj.import': 'Import from file', 'project.new': 'New project', 'proj.hint': 'Projects are stored in this browser. Export to a file for a backup or to move to another device.', 'proj.rooms': 'Rooms: {n}', 'proj.current': 'open', 'proj.rename': 'Rename', 'proj.duplicate': 'Duplicate', 'proj.export': 'Export to file (.json)', 'proj.delete': 'Delete project', 'proj.copyName': '{name} (copy)', 'proj.confirmDelete': 'Delete the project “{name}” with all rooms? This can\'t be undone.', 'proj.imported': 'Project “{name}” imported', 'proj.badFile': 'This file doesn\'t look like a planner project',
     'room.versionMenu': 'Duplicate as a version', 'room.variant': 'variant {v}', 'room.variantShort': 'var. {v}', 'room.versionDone': 'Version “{name}” created',
@@ -158,11 +161,11 @@ const dict = {
     'hist.undo': 'Undo (Ctrl+Z)', 'hist.redo': 'Redo (Ctrl+Y)', 'hist.undone': 'Undone', 'hist.redone': 'Redone',
     'v3d.height': 'Height', 'v3d.child': 'child', 'v3d.woman': 'woman', 'v3d.man': 'man',
     'v3d.distItem': 'To “{name}”: {m} m', 'v3d.distWall': 'To the wall ({wall}): {m} m', 'wallShort.north': 'north', 'wallShort.south': 'south', 'wallShort.west': 'left', 'wallShort.east': 'right', 'v3d.distTouch': 'touching', 'v3d.fromFeet': 'from the feet, along the floor',
-    'op.title': 'Windows & doors', 'op.addWindow': '+ Window', 'op.addDoor': '+ Door', 'op.lock': '🔓 Lock', 'op.unlock': '🔒 Locked',
-    'op.lockShort': '🔓 Openings', 'op.unlockShort': '🔒 Openings', 'op.locked': '🔒 Windows and doors are locked — they cannot be moved by accident',
+    'op.title': 'Windows, doors & structure', 'op.addWindow': '+ Window', 'op.addDoor': '+ Door', 'op.lock': '🔓 Lock', 'op.unlock': '🔒 Locked',
+    'op.lockShort': '🔓 Structure', 'op.unlockShort': '🔒 Structure', 'op.locked': '🔒 Windows, doors and structure are locked — they cannot be moved by accident',
     'op.window': 'Window', 'op.door': 'Door', 'op.wall': 'Wall', 'op.offset': 'Offset, cm', 'op.width': 'Width, cm', 'op.height': 'Height, cm',
     'op.sill': 'Sill, cm', 'op.flip': '⇄ Hinges', 'op.delete': '✕ Delete',
-    'op.hint': 'Drag windows and doors along the wall (or onto another wall). The lock keeps them from moving by accident while you arrange furniture.',
+    'op.hint': 'Drag windows and doors along the wall, structure across the plan. The lock keeps them from moving by accident while you arrange furniture.',
     'wallName.north': 'North (top)', 'wallName.south': 'South (bottom)', 'wallName.west': 'Left', 'wallName.east': 'Right',
     'err.door': 'Blocks the door swing', 'warn.window': 'Covers the window (taller than the {n} cm sill)', 'legend.warn': 'Warning',
     'notes.empty': 'Select an item on the plan — checks and hints will appear here', 'notes.all': 'All problems on the plan', 'notes.allOk': 'No placement errors',

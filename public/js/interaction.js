@@ -1,7 +1,9 @@
 // Pointer (mouse + touch) drag with snap, multi-select, keyboard rotate / delete / nudge.
 import { state, emit, select, selected, rotateItem, removeItems, moveItems, snapValue,
   selectOpening, selectedOpening, removeOpening, updateOpening,
-  isSelected, selectedItems, toggleSelect, selectMany } from './state.js';
+  isSelected, selectedItems, toggleSelect, selectMany,
+  selectObstacle, selectedOb, updateObstacle, removeObstacle } from './state.js';
+import { obRect } from './obstacles.js';
 import { rectOf, footprint, overlaps } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
 import { toWorld, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom } from './renderer.js';
@@ -49,6 +51,14 @@ export function initInteraction(canvas) {
       canvas.setPointerCapture(e.pointerId);
       history.begin();
       if (state.selectedOpening !== o.id) selectOpening(o.id);
+      return;
+    }
+    if (hit?.obstacle) {
+      const o = hit.obstacle;
+      drag = { obstacle: o, offX: wx - o.x, offY: wy - o.y, pointerId: e.pointerId };
+      capture(canvas, e);
+      history.begin();
+      if (state.selectedObstacle !== o.id) selectObstacle(o.id);
       return;
     }
     if (!hit) {
@@ -106,6 +116,7 @@ export function initInteraction(canvas) {
     }
     canvas.style.cursor = 'grabbing';
     if (drag.opening) return dragOpening(wx, wy);
+    if (drag.obstacle) return dragObstacle(wx, wy);
     const it = drag.item;
     const f = footprint(it);
     const { L, W } = state.room;
@@ -133,6 +144,7 @@ export function initInteraction(canvas) {
       if (click) {
         if (state.selectedId !== null || state.selectedIds.size) select(null);
         else if (state.selectedOpening !== null) selectOpening(null);
+        else if (state.selectedObstacle !== null) selectObstacle(null);
       }
       return;
     }
@@ -168,6 +180,7 @@ export function initInteraction(canvas) {
       return e.preventDefault();
     }
     if (selectedOpening()) return openingKey(e);
+    if (selectedOb()) return obstacleKey(e);
     const items = selectedItems();
     if (!items.length) return;
     if (mod && e.code === 'KeyD') { duplicate(); return e.preventDefault(); }
@@ -225,7 +238,7 @@ function syncRuler() {
 }
 
 function rulerPoint(wx, wy, shift) {
-  const lines = snapLines(state.room, state.items.map(it => rectOf(it)));
+  const lines = snapLines(state.room, [...state.items.map(it => rectOf(it)), ...(state.obstacles || []).map(obRect)]);
   const p = snapPoint(wx, wy, lines, MAGNET_PX / view.scale);
   return shift && ruler.a ? lockAxis(ruler.a, p) : p;
 }
@@ -305,7 +318,61 @@ function hitTest(x, y) {
     const r = rectOf(it);
     return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   }) || null;
-  return item || (op ? { opening: op } : null);
+  if (item) return item;
+  const ob = state.openingsLocked ? null : obstacleAt(x, y);
+  if (ob) return { obstacle: ob };
+  return op ? { opening: op } : null;
+}
+
+function obstacleAt(x, y) {
+  const list = [...(state.obstacles || [])].reverse();
+  const sel = selectedOb();
+  if (sel) list.unshift(sel);
+  return list.find(o => x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.d) || null;
+}
+
+// Obstacles snap to the grid from the wall and stick to walls and other obstacles.
+function dragObstacle(wx, wy) {
+  const o = drag.obstacle;
+  const { L, W } = state.room;
+  const snap = Math.max(1, state.settings.snap);
+  const rawX = clamp(wx - drag.offX, 0, L - o.w);
+  const rawY = clamp(wy - drag.offY, 0, W - o.d);
+  const nx = obMagnet(rawX, o.w, 'x', o) ?? Math.round(rawX / snap) * snap;
+  const ny = obMagnet(rawY, o.d, 'y', o) ?? Math.round(rawY / snap) * snap;
+  if (nx !== o.x || ny !== o.y) updateObstacle(o, { x: nx, y: ny });
+}
+
+function obMagnet(raw, size, axis, self) {
+  const tol = MAGNET_PX / view.scale;
+  const max = axis === 'x' ? state.room.L : state.room.W;
+  const cands = [0, max - size];
+  for (const o of state.obstacles) {
+    if (o === self) continue;
+    const [s, len] = axis === 'x' ? [o.x, o.w] : [o.y, o.d];
+    cands.push(s + len, s - size, s, s + len - size);
+  }
+  let best = null, bestD = tol;
+  for (const c of cands) {
+    const d = Math.abs(raw - c);
+    if (d < bestD) { best = c; bestD = d; }
+  }
+  return best;
+}
+
+function obstacleKey(e) {
+  const o = selectedOb();
+  const step = state.settings.snap * (e.shiftKey ? 10 : 1);
+  switch (e.key) {
+    case 'Delete': case 'Backspace': removeObstacle(o.id); break;
+    case 'Escape': selectObstacle(null); break;
+    case 'ArrowLeft': updateObstacle(o, { x: o.x - step }); break;
+    case 'ArrowRight': updateObstacle(o, { x: o.x + step }); break;
+    case 'ArrowUp': updateObstacle(o, { y: o.y - step }); break;
+    case 'ArrowDown': updateObstacle(o, { y: o.y + step }); break;
+    default: return;
+  }
+  e.preventDefault();
 }
 
 function openingAt(x, y) {

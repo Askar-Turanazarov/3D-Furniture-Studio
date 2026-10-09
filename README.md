@@ -23,6 +23,9 @@ A web app for custom furniture: the client enters the room size and the furnitur
   - **Simple / Photo** textures (procedural or CC0 photo textures).
 - **Photo textures panel:** apply the built-in CC0 set in one click, download it (per surface or the whole set as ZIP), or upload your own photo for the floor, walls, furniture wood or upholstery (reset back to built-in anytime).
   - Fullscreen mode, touch joystick on mobile.
+- **Plan editing:** undo / redo (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; a whole drag is one step), duplicate (`Ctrl+D`), multi-select (`Shift`/`Ctrl`+click, `Shift`+drag box, `Ctrl+A`) with group move and an **Align / distribute** panel.
+- **Zoom & pan:** wheel zooms around the cursor (50–800 %), − / 100 % / + buttons (100 % = fit); pan by dragging the empty floor, `Space`+drag or the middle button; pinch on touch screens. The view is not saved.
+- **Ruler** (📏 / `M`): click two points; points snap to walls, plinth and furniture edges, `Shift` keeps the line straight. Shows the length and Δx / Δy; ⌫ clears all measurements.
 - **Order** — form (name, phone, comment) is saved to `order.json`.
 - **Languages:** EN / UZ / RU. The plan is kept in `localStorage`.
 
@@ -34,7 +37,7 @@ Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules
 npm install
 npm start
 ```
-Open http://localhost:3000 (Node.js 18+).
+Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 
 ### Controls
 | Where | Action | How |
@@ -42,6 +45,11 @@ Open http://localhost:3000 (Node.js 18+).
 | 2D | Move | drag with mouse / finger |
 | 2D | Rotate / delete / nudge | `R` / `Del` / arrows (`Shift` ×10) |
 | 2D | Window / door | drag along the wall; `Del` / arrows when selected; 🔒 — lock |
+| 2D | Undo / redo | `Ctrl+Z` / `Ctrl+Y` (`Ctrl+Shift+Z`) |
+| 2D | Duplicate / select all | `Ctrl+D` / `Ctrl+A` |
+| 2D | Multi-select | `Shift`/`Ctrl`+click, `Shift`+drag on the empty floor |
+| 2D | Zoom / pan | wheel, pinch / drag the empty floor, `Space`+drag, middle button |
+| 2D | Ruler | `M` or 📏; `Shift` — straight line; `Esc` — exit |
 | 3D Overview | Rotate / zoom / pan | left mouse / wheel / right mouse |
 | 3D Walk | Move | `W A S D` / arrows, `Shift` — faster |
 | 3D Walk | Look | mouse (after click), or drag with the mouse if pointer lock is unavailable |
@@ -55,9 +63,11 @@ catalog.json         furniture catalogue (types, default sizes, names in 3 langu
 order.json           saved orders
 public/index.html    layout
 public/css/          styles
-public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order
+public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
+                     history (undo), align, ruler
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
+test/                unit tests (node:test): npm test
 ```
 
 ### Rules
@@ -89,6 +99,9 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
   - **Oddiy / Foto** teksturalar (protsedural yoki CC0 foto-teksturalar).
 - **Foto-teksturalar paneli:** tayyor CC0 to‘plamni bir bosishda qo‘llash, uni yuklab olish (har bir sirt alohida yoki butun to‘plam ZIP’da) yoki pol, devorlar, mebel yog‘ochi va qoplama uchun o‘z rasmingizni yuklash (istalgan vaqtda tayyoriga qaytarish mumkin).
   - To‘liq ekran rejimi, mobil qurilmalarda joystik.
+- **Rejani tahrirlash:** bekor qilish / qaytarish (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; butun sudrash — bitta qadam), nusxa olish (`Ctrl+D`), bir nechta tanlash (`Shift`/`Ctrl`+bosish, `Shift`+tortish — ramka, `Ctrl+A`), guruhni siljitish va **Tekislash / taqsimlash** paneli.
+- **Masshtab va siljitish:** g‘ildirak kursor atrofida yaqinlashtiradi (50–800 %), − / 100 % / + tugmalari (100 % = sig‘dirish); bo‘sh polni tortish, `Probel`+tortish yoki o‘rta tugma bilan siljitish; sensorli ekranda ikki barmoq. Ko‘rinish saqlanmaydi.
+- **Chizg‘ich** (📏 / `M`): ikki nuqtani bosing; nuqtalar devor, plintus va mebel chetlariga yopishadi, `Shift` chiziqni to‘g‘ri ushlaydi. Uzunlik va Δx / Δy ko‘rsatiladi; ⌫ — barcha o‘lchovlarni tozalash.
 - **Buyurtma** — forma (ism, telefon, izoh) `order.json` fayliga saqlanadi.
 - **Tillar:** EN / UZ / RU. Reja `localStorage`da saqlanadi.
 
@@ -100,7 +113,7 @@ Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modu
 npm install
 npm start
 ```
-http://localhost:3000 manzilini oching (Node.js 18+).
+http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 
 ### Boshqaruv
 | Qayerda | Amal | Qanday |
@@ -108,6 +121,11 @@ http://localhost:3000 manzilini oching (Node.js 18+).
 | 2D | Siljitish | sichqoncha / barmoq bilan sudrash |
 | 2D | Burish / o‘chirish / siljitish | `R` / `Del` / strelkalar (`Shift` ×10) |
 | 2D | Deraza / eshik | devor bo‘ylab sudrash; tanlanganda `Del` / strelkalar; 🔒 — qulf |
+| 2D | Bekor qilish / qaytarish | `Ctrl+Z` / `Ctrl+Y` (`Ctrl+Shift+Z`) |
+| 2D | Nusxa / hammasini tanlash | `Ctrl+D` / `Ctrl+A` |
+| 2D | Bir nechta tanlash | `Shift`/`Ctrl`+bosish, bo‘sh polda `Shift`+tortish |
+| 2D | Masshtab / siljitish | g‘ildirak, ikki barmoq / bo‘sh polni tortish, `Probel`+tortish, o‘rta tugma |
+| 2D | Chizg‘ich | `M` yoki 📏; `Shift` — to‘g‘ri chiziq; `Esc` — chiqish |
 | 3D Ko‘rinish | Aylantirish / masshtab / surish | chap tugma / g‘ildirak / o‘ng tugma |
 | 3D Sayr | Yurish | `W A S D` / strelkalar, `Shift` — tezroq |
 | 3D Sayr | Qarash | sichqoncha (bosgandan keyin) yoki kursor qulflanmasa — sichqonchani bosib surish |
@@ -121,9 +139,11 @@ catalog.json         mebel katalogi (turlar, standart o‘lchamlar, 3 tildagi no
 order.json           saqlangan buyurtmalar
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
-public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order
+public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
+                     history (bekor qilish), align, ruler
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
+test/                unit testlar (node:test): npm test
 ```
 
 ### Qoidalar
@@ -155,6 +175,9 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
   - Текстуры **Простые / Фото** (процедурные или фото-текстуры CC0).
 - **Панель «Фото-текстуры»:** готовый набор CC0 применяется в один клик, его можно скачать (по поверхностям или весь набор ZIP) или загрузить своё фото для пола, стен, дерева мебели или обивки (в любой момент можно вернуть готовую).
   - Полноэкранный режим, джойстик на мобильных.
+- **Правка плана:** отмена / повтор (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; всё перетаскивание — один шаг), дублирование (`Ctrl+D`), выделение нескольких (`Shift`/`Ctrl`+клик, `Shift`+протяжка — рамка, `Ctrl+A`), перемещение группы и панель **Выровнять / распределить**.
+- **Масштаб и сдвиг:** колесо приближает относительно курсора (50–800 %), кнопки − / 100 % / + (100 % = вписать); сдвиг — протяжкой по пустому полу, `Пробел`+протяжка или средней кнопкой; на тач-экране — щипок. Вид не сохраняется.
+- **Линейка** (📏 / `M`): клик по двум точкам; точки притягиваются к стенам, плинтусу и краям мебели, `Shift` держит линию ровной. Показывает длину и Δx / Δy; ⌫ — очистить все измерения.
 - **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json`.
 - **Языки:** EN / UZ / RU. План хранится в `localStorage`.
 
@@ -166,7 +189,7 @@ Node.js + Express (статика + небольшой JSON API), чистый H
 npm install
 npm start
 ```
-Откройте http://localhost:3000 (Node.js 18+).
+Откройте http://localhost:3000 (Node.js 18+). Тесты: `npm test`.
 
 ### Управление
 | Где | Действие | Как |
@@ -174,6 +197,11 @@ npm start
 | 2D | Перемещение | перетаскивание мышью / пальцем |
 | 2D | Поворот / удаление / сдвиг | `R` / `Del` / стрелки (`Shift` ×10) |
 | 2D | Окно / дверь | перетаскивание вдоль стены; `Del` / стрелки у выбранного; 🔒 — замок |
+| 2D | Отмена / повтор | `Ctrl+Z` / `Ctrl+Y` (`Ctrl+Shift+Z`) |
+| 2D | Дублировать / выделить всё | `Ctrl+D` / `Ctrl+A` |
+| 2D | Выделение нескольких | `Shift`/`Ctrl`+клик, `Shift`+протяжка по пустому полу |
+| 2D | Масштаб / сдвиг | колесо, щипок / протяжка по пустому полу, `Пробел`+протяжка, средняя кнопка |
+| 2D | Линейка | `M` или 📏; `Shift` — ровная линия; `Esc` — выход |
 | 3D Обзор | Вращение / масштаб / сдвиг | левая кнопка / колесо / правая кнопка |
 | 3D Прогулка | Ходьба | `W A S D` / стрелки, `Shift` — быстрее |
 | 3D Прогулка | Взгляд | мышь (после клика) или, если захват курсора недоступен, зажать кнопку мыши и вести |
@@ -187,9 +215,11 @@ catalog.json         каталог мебели (типы, размеры по 
 order.json           сохранённые заявки
 public/index.html    разметка
 public/css/          стили
-public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order
+public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
+                     history (отмена), align, ruler
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
+test/                модульные тесты (node:test): npm test
 ```
 
 ### Правила

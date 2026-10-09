@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Furniture Super Planner 3D</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▦</span>
+      <h1>Furniture Super Planner <span class="accent">3D</span></h1>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="ru">RU</button>
+      <button data-lang="uz">UZ</button>
+      <button data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section class="panel">
+        <h2 data-i18n="room.title">Комната</h2>
+        <form id="roomForm" class="grid3">
+          <label><span data-i18n="room.length">Длина</span>
+            <input type="number" name="L" min="100" max="3000" step="1" value="400"></label>
+          <label><span data-i18n="room.width">Ширина</span>
+            <input type="number" name="W" min="100" max="3000" step="1" value="300"></label>
+          <label><span data-i18n="room.height">Высота</span>
+            <input type="number" name="H" min="150" max="600" step="1" value="270"></label>
+        </form>
+        <p class="hint" data-i18n="units">Все размеры в сантиметрах</p>
+      </section>
+
+      <section class="panel">
+        <h2 data-i18n="add.title">Добавить мебель</h2>
+        <form id="addForm">
+          <label class="row"><span data-i18n="add.type">Тип</span>
+            <select name="type" id="typeSelect"></select></label>
+          <div class="grid3">
+            <label><span data-i18n="dim.w">Ширина (X)</span>
+              <input type="number" name="w" min="10" max="1000" required></label>
+            <label><span data-i18n="dim.d">Глубина (Y)</span>
+              <input type="number" name="d" min="10" max="1000" required></label>
+            <label><span data-i18n="dim.h">Высота (Z)</span>
+              <input type="number" name="h" min="10" max="600" required></label>
+          </div>
+          <button type="submit" class="btn primary" data-i18n="add.btn">Добавить</button>
+        </form>
+      </section>
+
+      <section class="panel" id="selPanel" hidden>
+        <h2 data-i18n="sel.title">Выбранный предмет</h2>
+        <div class="sel-name" id="selName"></div>
+        <form id="selForm" class="grid3">
+          <label><span data-i18n="dim.w">Ширина (X)</span>
+            <input type="number" name="w" min="10" max="1000"></label>
+          <label><span data-i18n="dim.d">Глубина (Y)</span>
+            <input type="number" name="d" min="10" max="1000"></label>
+          <label><span data-i18n="dim.h">Высота (Z)</span>
+            <input type="number" name="h" min="10" max="600"></label>
+        </form>
+        <div class="btn-row">
+          <button class="btn" id="rotateBtn" title="R">⟳ <span data-i18n="sel.rotate">Повернуть</span></button>
+          <button class="btn accent" id="autoBtn">⌖ <span data-i18n="sel.auto">Найти место</span></button>
+          <button class="btn danger" id="deleteBtn" title="Delete">✕ <span data-i18n="sel.delete">Удалить</span></button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2><span data-i18n="list.title">Мебель на плане</span> <span class="count" id="itemCount">0</span></h2>
+        <ul class="items" id="itemList"></ul>
+        <p class="hint" id="emptyHint" data-i18n="list.empty">Пока пусто — добавьте предмет</p>
+      </section>
+
+      <section class="panel">
+        <h2 data-i18n="set.title">Настройки</h2>
+        <form id="setForm" class="grid3">
+          <label><span data-i18n="set.snap">Привязка</span>
+            <select name="snap"><option>1</option><option>3</option><option>5</option><option>10</option></select></label>
+          <label><span data-i18n="set.gap">Зазор</span>
+            <input type="number" name="gap" min="0" max="20"></label>
+          <label><span data-i18n="set.plinth">Плинтус</span>
+            <input type="number" name="plinth" min="0" max="10"></label>
+          <label><span data-i18n="set.grid">Сетка</span>
+            <select name="grid"><option>10</option><option>50</option></select></label>
+        </form>
+        <button class="btn ghost" id="clearBtn" data-i18n="set.clear">Очистить план</button>
+      </section>
+
+      <button class="btn primary big" id="orderBtn" data-i18n="order.open">Оформить заявку</button>
+    </aside>
+
+    <main class="stage">
+      <div class="banner" id="banner" hidden></div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="plan"></canvas>
+      </div>
+      <div class="legend">
+        <span><i class="sw ok"></i><span data-i18n="legend.ok">Норма</span></span>
+        <span><i class="sw bad"></i><span data-i18n="legend.bad">Ошибка</span></span>
+        <span><i class="sw found"></i><span data-i18n="legend.found">Найдено место</span></span>
+        <span class="keys" data-i18n="legend.keys">R — поворот · Del — удалить · стрелки — сдвиг</span>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="orderDlg">
+    <form id="orderForm" method="dialog">
+      <h2 data-i18n="order.title">Заявка на мебель</h2>
+      <label class="row"><span data-i18n="order.name">Имя</span>
+        <input name="name" required maxlength="100"></label>
+      <label class="row"><span data-i18n="order.phone">Телефон</span>
+        <input name="phone" type="tel" required maxlength="30" placeholder="+998 __ ___ __ __"></label>
+      <label class="row"><span data-i18n="order.comment">Комментарий</span>
+        <textarea name="comment" rows="3" maxlength="1000"></textarea></label>
+      <p class="hint" id="orderSummary"></p>
+      <div class="btn-row end">
+        <button type="button" class="btn ghost" id="orderCancel" data-i18n="order.cancel">Отмена</button>
+        <button type="submit" class="btn primary" value="send" data-i18n="order.send">Отправить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

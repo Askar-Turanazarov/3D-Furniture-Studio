@@ -104,6 +104,7 @@ export function setErrors(map) { errors = map; }
 export function describe(err) {
   const p = { ...err.params };
   if (p.wall) p.wall = t('wall.' + p.wall);
+  if (p.wallAlong) p.wall = t('wallAlong.' + p.wallAlong);
   if (p.otherId) { const o = getItem(p.otherId); p.name = o ? itemName(o) : '?'; }
   p.gap = state.settings.gap;
   return t(err.key, p);

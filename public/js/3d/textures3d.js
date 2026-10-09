@@ -139,10 +139,31 @@ async function loadSet(name) {
     const [map, normalMap, roughnessMap] = await Promise.all([
       load('color', true), load('normal', false), load('roughness', false)
     ]);
-    return { map, normalMap, roughnessMap };
+    // Upholstery is tinted by the item colour, so its photo must be neutral grey.
+    return { map: name === 'fabric' ? greyscale(map) : map, normalMap, roughnessMap };
   } catch {
     return null;
   }
+}
+
+function greyscale(t) {
+  const img = t.image;
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height);
+  const px = d.data;
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) sum += 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
+  const k = 215 / (sum / (px.length / 4));          // normalise to a light grey
+  for (let i = 0; i < px.length; i += 4) {
+    const v = Math.min(255, (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) * k);
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+  g.putImageData(d, 0, 0);
+  t.dispose();
+  return toTexture(c);
 }
 
 /** Switch texture quality. Resolves to false if photo textures are missing. */
@@ -220,7 +241,7 @@ export function furnitureMat(kind, color, status = 'ok') {
   let m;
   switch (kind) {
     case 'wood': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: tint(color, wood.photo), roughness: 0.55 }); break;
-    case 'fabric': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: tint(color, fab.photo), roughness: 0.95 }); break;
+    case 'fabric': m = new THREE.MeshStandardMaterial({ ...maps(fab), color, roughness: 0.95 }); break;
     case 'soft': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: '#f4f1ea', roughness: 0.95 }); break;
     case 'dark': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: wood.photo ? '#6b5442' : '#4a3a2c', roughness: 0.6 }); break;
     default: m = new THREE.MeshStandardMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 0.9 });

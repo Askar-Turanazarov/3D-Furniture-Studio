@@ -2,10 +2,12 @@
 import * as THREE from 'three';
 import { t, onLangChange } from '../i18n.js';
 import { state, onChange } from '../state.js';
+import { buildRoom, disposeGroup } from './room3d.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
 let roomKey = '';
+let room = null;
 
 export const CM = 0.01;
 
@@ -28,6 +30,7 @@ function init(el) {
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#1e2235');
   camera = new THREE.PerspectiveCamera(60, 1, 0.05, 100);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#8a7660', 1.5));
   clock = new THREE.Clock();
 
   new ResizeObserver(resize).observe(el);
@@ -50,6 +53,9 @@ function rebuild() {
   const key = [L, W, H, plinth].join('x');
   if (key !== roomKey) {
     roomKey = key;
+    if (room) disposeGroup(room.group);
+    room = buildRoom(state.room);
+    scene.add(room.group);
     camera.position.set(L * CM / 2, H * CM * 1.6, W * CM * 1.9);
     camera.lookAt(L * CM / 2, 0, W * CM / 2);
   }

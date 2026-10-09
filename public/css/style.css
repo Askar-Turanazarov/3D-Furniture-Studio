@@ -119,6 +119,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .zoom-val { min-width: 58px; font-variant-numeric: tabular-nums; padding-left: 6px; padding-right: 6px; }
 .stage.is3d .zoom-group { display: none; }
 #plan { touch-action: none; }
+.btn.active { background: #e7f5ff; border-color: #0b7285; color: #0b7285; }
+.stage.is3d #rulerBtn, .stage.is3d #rulerClearBtn { display: none; }
 .align-box { margin-top: 10px; }
 .align-box .sub { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; }
 .align-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }

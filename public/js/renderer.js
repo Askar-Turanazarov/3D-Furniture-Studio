@@ -3,6 +3,7 @@ import { state, itemName, isSelected } from './state.js';
 import { rectOf, rayGaps } from './geometry.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
+import { ruler, measure } from './ruler.js';
 
 const COLORS = {
   floor: '#fbfaf7',
@@ -119,6 +120,7 @@ function draw() {
   drawOpenings();   // over the furniture: a blocked door swing stays visible
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
   if (overlay.marquee) drawMarquee(overlay.marquee);
+  drawRuler();
 
   if (state.found && now < state.found.until) {
     setTimeout(requestDraw, state.found.until - now + 20);
@@ -314,6 +316,73 @@ function drawItem(it, now) {
 
   drawFront(it, x, y, w, h);
   drawLabel(it, x, y, w, h);
+  ctx.restore();
+}
+
+const RULER = '#0b7285';
+
+function drawRuler() {
+  for (const m of ruler.measures) drawMeasure(m.a, m.b, false);
+  if (!ruler.active) return;
+  const h = ruler.hover;
+  if (ruler.a && h) drawMeasure(ruler.a, h, true);
+  else if (ruler.a) drawRulerPoint(ruler.a, true);
+  if (h) drawRulerPoint(h, h.snapX || h.snapY);
+}
+
+function drawRulerPoint(p, snapped) {
+  const [x, y] = toScreen(p.x, p.y);
+  ctx.save();
+  ctx.strokeStyle = RULER;
+  ctx.fillStyle = snapped ? RULER : '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Line with end ticks and a label "237 см" (+ Δx / Δy for a diagonal).
+function drawMeasure(a, b, preview) {
+  const [x0, y0] = toScreen(a.x, a.y);
+  const [x1, y1] = toScreen(b.x, b.y);
+  const { len, dx, dy } = measure(a, b);
+  const pl = Math.hypot(x1 - x0, y1 - y0) || 1;
+  const nx = -(y1 - y0) / pl * 6, ny = (x1 - x0) / pl * 6;
+  ctx.save();
+  ctx.strokeStyle = RULER;
+  ctx.lineWidth = 1.5;
+  if (preview) ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(x0 - nx, y0 - ny); ctx.lineTo(x0 + nx, y0 + ny);
+  ctx.moveTo(x1 - nx, y1 - ny); ctx.lineTo(x1 + nx, y1 + ny);
+  ctx.stroke();
+  if (len >= 1) {
+    const cm = t('unit.cm');
+    const lines = [`${Math.round(len)} ${cm}`];
+    if (dx >= 1 && dy >= 1) lines.push(`Δx ${Math.round(dx)} · Δy ${Math.round(dy)}`);
+    ctx.font = '700 12px system-ui, sans-serif';
+    const tw = Math.max(...lines.map(s => ctx.measureText(s).width)) + 10;
+    const th = lines.length * 15 + 4;
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    ctx.fillStyle = 'rgba(255,255,255,.92)';
+    ctx.strokeStyle = RULER;
+    ctx.lineWidth = 1;
+    ctx.fillRect(mx - tw / 2, my - th / 2, tw, th);
+    ctx.strokeRect(mx - tw / 2 + 0.5, my - th / 2 + 0.5, tw - 1, th - 1);
+    ctx.fillStyle = RULER;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    lines.forEach((s, i) => {
+      if (i) ctx.font = '500 11px system-ui, sans-serif';
+      ctx.fillText(s, mx, my - th / 2 + 10 + i * 15);
+    });
+  }
   ctx.restore();
 }
 

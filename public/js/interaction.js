@@ -6,7 +6,9 @@ import { rectOf, footprint, overlaps } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
 import { toWorld, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom } from './renderer.js';
 import { history } from './history.js';
-import { duplicate } from './ui.js';
+import { duplicate, toast } from './ui.js';
+import { ruler, snapLines, snapPoint, lockAxis } from './ruler.js';
+import { t } from './i18n.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
@@ -20,6 +22,7 @@ let pinch = null;             // { d, mx, my }
 
 export function initInteraction(canvas) {
   initZoom(canvas);
+  initRuler(canvas);
   canvas.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') {
       touches.set(e.pointerId, local(canvas, e));
@@ -34,6 +37,10 @@ export function initInteraction(canvas) {
       return;
     }
     const [wx, wy] = toWorld(...local(canvas, e));
+    if (ruler.active) {
+      if (e.button === 0) rulerClick(wx, wy, e.shiftKey);
+      return;
+    }
     const hit = hitTest(wx, wy);
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     if (hit?.opening) {
@@ -82,6 +89,11 @@ export function initInteraction(canvas) {
       drag.sx = e.clientX; drag.sy = e.clientY;
       canvas.style.cursor = 'grabbing';
       return panBy(dx, dy);
+    }
+    if (!drag && ruler.active) {
+      ruler.hover = rulerPoint(wx, wy, e.shiftKey);
+      canvas.style.cursor = 'crosshair';
+      return requestDraw();
     }
     if (!drag) {
       canvas.style.cursor = hitTest(wx, wy) ? 'grab' : 'default';
@@ -145,6 +157,12 @@ export function initInteraction(canvas) {
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
     if (!document.getElementById('view3d').hidden) return;   // keys belong to the 3D view
     const mod = e.ctrlKey || e.metaKey;
+    if (!mod && e.code === 'KeyM') { toggleRuler(); return e.preventDefault(); }
+    if (ruler.active && e.key === 'Escape') {
+      // Esc first drops an unfinished measurement, then leaves the ruler mode.
+      if (ruler.a) { ruler.a = null; requestDraw(); } else toggleRuler(false);
+      return e.preventDefault();
+    }
     if (mod && e.code === 'KeyA') {
       selectMany(state.items.map(i => i.id));
       return e.preventDefault();
@@ -167,6 +185,52 @@ export function initInteraction(canvas) {
     }
     e.preventDefault();
   });
+}
+
+// --- Ruler ---
+let rulerCanvas = null;
+
+function initRuler(canvas) {
+  rulerCanvas = canvas;
+  document.getElementById('rulerBtn').addEventListener('click', () => toggleRuler());
+  document.getElementById('rulerClearBtn').addEventListener('click', () => {
+    ruler.measures = [];
+    ruler.a = null;
+    syncRuler();
+  });
+  canvas.addEventListener('pointerleave', () => { if (ruler.hover) { ruler.hover = null; requestDraw(); } });
+}
+
+export function toggleRuler(on = !ruler.active) {
+  if (on === ruler.active) return;
+  ruler.active = on;
+  ruler.a = ruler.hover = null;
+  rulerCanvas.style.cursor = on ? 'crosshair' : 'default';
+  if (on) toast(t('ruler.on'));
+  syncRuler();
+}
+
+function syncRuler() {
+  document.getElementById('rulerBtn').classList.toggle('active', ruler.active);
+  document.getElementById('rulerClearBtn').hidden = !ruler.measures.length;
+  requestDraw();
+}
+
+function rulerPoint(wx, wy, shift) {
+  const lines = snapLines(state.room, state.items.map(it => rectOf(it)));
+  const p = snapPoint(wx, wy, lines, MAGNET_PX / view.scale);
+  return shift && ruler.a ? lockAxis(ruler.a, p) : p;
+}
+
+function rulerClick(wx, wy, shift) {
+  const p = rulerPoint(wx, wy, shift);
+  if (!ruler.a) ruler.a = { x: p.x, y: p.y };
+  else {
+    if (p.x !== ruler.a.x || p.y !== ruler.a.y) ruler.measures.push({ a: ruler.a, b: { x: p.x, y: p.y } });
+    ruler.a = null;
+  }
+  ruler.hover = p;
+  syncRuler();
 }
 
 function capture(canvas, e) {

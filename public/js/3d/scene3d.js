@@ -11,6 +11,7 @@ import * as controls from './controls3d.js';
 import { initTouch } from './touch3d.js';
 import { setQuality, resetPhoto } from './textures3d.js';
 import { toast } from '../ui.js';
+import { compose, savePicture, canShareFiles } from '../snapshot.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
@@ -49,6 +50,11 @@ function init(el) {
   if (saved !== 'simple') applyQuality(saved);
   // The texture panel changed the photo set: reload it and switch to Photo.
   document.addEventListener('fsp3d:textures', () => { resetPhoto(); applyQuality('photo'); });
+
+  el.querySelector('#snap3dBtn').addEventListener('click', () => savePicture(compose(snapshotCanvas())));
+  const share = el.querySelector('#share3dBtn');
+  share.hidden = !canShareFiles();
+  share.addEventListener('click', () => savePicture(compose(snapshotCanvas()), true));
 
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });
@@ -133,6 +139,22 @@ export function show(el) {
 export function hide() {
   running = false;
   if (renderer) controls.release();
+}
+
+// One frame at 2× pixel ratio copied right after rendering (no preserveDrawingBuffer needed).
+export function snapshotCanvas() {
+  const pr = renderer.getPixelRatio();
+  renderer.setPixelRatio(2);
+  resize();
+  renderer.render(scene, camera);
+  const c = document.createElement('canvas');
+  c.width = renderer.domElement.width;
+  c.height = renderer.domElement.height;
+  c.getContext('2d').drawImage(renderer.domElement, 0, 0);
+  renderer.setPixelRatio(pr);
+  resize();
+  renderer.render(scene, camera);
+  return c;
 }
 
 export const getScene = () => scene;

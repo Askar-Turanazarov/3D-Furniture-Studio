@@ -7,6 +7,7 @@ import { initProjects, persist } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
 import { initTextures } from './textures.js';
+import { initSnapshot } from './snapshot.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings, setPassages as setDrawPassages } from './renderer.js';
 import { validateAll, validateWarnings, obstacleWarnings } from './validate.js';
 import { narrowPassages } from './passages.js';
@@ -167,6 +168,7 @@ async function start() {
   initViewSwitch();
   initTextures();
   initHistory();
+  initSnapshot();
   await loadCatalog();
   initProjects();
   initProjectsDialog();

@@ -348,6 +348,8 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
   margin-left: auto; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer;
   background: rgba(20, 24, 40, .65); color: #fff; font-weight: 700;
 }
+.hud-btn + .hud-btn { margin-left: 0; }
+.hud-btn[hidden] { display: none; }
 .hud-hint {
   bottom: 10px; left: 50%; transform: translateX(-50%);
   background: rgba(20, 24, 40, .6); color: #e0e4f5; font-size: 12px;

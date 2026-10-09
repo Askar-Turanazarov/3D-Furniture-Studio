@@ -53,6 +53,14 @@ export function setPassages(list) { passages = list; }
 // A passage clicked in the notes flashes for 3 s even when the bands are hidden.
 export const flash = { passage: null, until: 0 };
 
+// Synchronous draw for snapshots: { dpr } overrides the pixel ratio, { clean } skips the ruler and the box selection.
+let drawOpts = {};
+export function drawNow(opts = {}) {
+  drawOpts = opts;
+  try { draw(); } finally { drawOpts = {}; }
+  return canvas;
+}
+
 export function requestDraw() {
   if (pending) return;
   pending = true;
@@ -106,7 +114,7 @@ function changed() {
 }
 
 function draw() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = drawOpts.dpr || window.devicePixelRatio || 1;
   const cw = wrap.clientWidth, ch = wrap.clientHeight;
   if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
     canvas.width = Math.round(cw * dpr);
@@ -131,8 +139,10 @@ function draw() {
   drawPassages();
   drawOpenings();   // over the furniture: a blocked door swing stays visible
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
-  if (overlay.marquee) drawMarquee(overlay.marquee);
-  drawRuler();
+  if (!drawOpts.clean) {
+    if (overlay.marquee) drawMarquee(overlay.marquee);
+    drawRuler();
+  }
 
   if (state.found && now < state.found.until) {
     setTimeout(requestDraw, state.found.until - now + 20);

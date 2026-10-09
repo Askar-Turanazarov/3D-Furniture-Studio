@@ -1,6 +1,15 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'view.plan': 'план', 'view.scene': 'сцена', 'view.fullscreen': 'Весь экран',
+    'v3d.orbit': 'Обзор', 'v3d.walk': 'Прогулка', 'v3d.simple': 'Простые', 'v3d.photo': 'Фото-текстуры',
+    'v3d.clickToWalk': 'Нажмите, чтобы войти в комнату',
+    'v3d.walkKeys': 'WASD / стрелки — ходьба · мышь — взгляд · Shift — быстрее · Esc — выход',
+    'v3d.orbitHint': 'Мышь: вращение · колесо: масштаб · правая кнопка: сдвиг',
+    'v3d.walkHint': 'WASD — ходьба · мышь — взгляд · Esc — отпустить курсор',
+    'v3d.touchHint': 'Джойстик — ходьба · проведите справа — взгляд',
+    'v3d.noWebgl': 'WebGL недоступен в этом браузере',
+    'v3d.photoFail': 'Фото-текстуры не найдены — используются простые',
     'unit.cm': 'см',
     'room.title': 'Комната', 'room.length': 'Длина', 'room.width': 'Ширина', 'room.height': 'Высота',
     'units': 'Все размеры в сантиметрах (см)',
@@ -35,6 +44,15 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'view.plan': 'reja', 'view.scene': 'sahna', 'view.fullscreen': 'To‘liq ekran',
+    'v3d.orbit': 'Ko‘rinish', 'v3d.walk': 'Sayr', 'v3d.simple': 'Oddiy', 'v3d.photo': 'Foto-teksturalar',
+    'v3d.clickToWalk': 'Xonaga kirish uchun bosing',
+    'v3d.walkKeys': 'WASD / strelkalar — yurish · sichqoncha — qarash · Shift — tezroq · Esc — chiqish',
+    'v3d.orbitHint': 'Sichqoncha: aylantirish · g‘ildirak: masshtab · o‘ng tugma: siljitish',
+    'v3d.walkHint': 'WASD — yurish · sichqoncha — qarash · Esc — kursorni qo‘yib yuborish',
+    'v3d.touchHint': 'Joystik — yurish · o‘ngda suring — qarash',
+    'v3d.noWebgl': 'Bu brauzerda WebGL mavjud emas',
+    'v3d.photoFail': 'Foto-teksturalar topilmadi — oddiylari ishlatiladi',
     'unit.cm': 'sm',
     'room.title': 'Xona', 'room.length': 'Uzunligi', 'room.width': 'Kengligi', 'room.height': 'Balandligi',
     'units': 'Barcha o‘lchamlar santimetrda (sm)',
@@ -69,6 +87,15 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'view.plan': 'plan', 'view.scene': 'scene', 'view.fullscreen': 'Fullscreen',
+    'v3d.orbit': 'Overview', 'v3d.walk': 'Walk', 'v3d.simple': 'Simple', 'v3d.photo': 'Photo textures',
+    'v3d.clickToWalk': 'Click to enter the room',
+    'v3d.walkKeys': 'WASD / arrows — move · mouse — look · Shift — faster · Esc — exit',
+    'v3d.orbitHint': 'Mouse: rotate · wheel: zoom · right button: pan',
+    'v3d.walkHint': 'WASD — move · mouse — look · Esc — release cursor',
+    'v3d.touchHint': 'Joystick — move · swipe on the right — look',
+    'v3d.noWebgl': 'WebGL is not available in this browser',
+    'v3d.photoFail': 'Photo textures not found — using simple ones',
     'unit.cm': 'cm',
     'room.title': 'Room', 'room.length': 'Length', 'room.width': 'Width', 'room.height': 'Height',
     'units': 'All dimensions in centimetres (cm)',

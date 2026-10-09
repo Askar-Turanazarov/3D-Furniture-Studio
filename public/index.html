@@ -102,9 +102,37 @@
     </aside>
 
     <main class="stage">
+      <div class="stage-bar">
+        <div class="seg" role="group" aria-label="View">
+          <button id="view2dBtn" class="active">2D <span data-i18n="view.plan">план</span></button>
+          <button id="view3dBtn">3D <span data-i18n="view.scene">сцена</span></button>
+        </div>
+        <button class="btn" id="fullscreenBtn">⛶ <span data-i18n="view.fullscreen">Весь экран</span></button>
+      </div>
       <div class="banner" id="banner" hidden></div>
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="plan"></canvas>
+        <div id="view3d" class="view3d" hidden>
+          <div class="hud hud-top">
+            <div class="seg" role="group">
+              <button data-mode="orbit" class="active" data-i18n="v3d.orbit">Обзор</button>
+              <button data-mode="walk" data-i18n="v3d.walk">Прогулка</button>
+            </div>
+            <div class="seg" role="group">
+              <button data-quality="simple" class="active" data-i18n="v3d.simple">Простые</button>
+              <button data-quality="photo" data-i18n="v3d.photo">Фото-текстуры</button>
+            </div>
+            <button class="hud-btn" id="exitFsBtn" hidden>✕</button>
+          </div>
+          <div class="hud hud-hint" id="hint3d"></div>
+          <div class="walk-overlay" id="walkOverlay" hidden>
+            <div class="walk-card">
+              <b data-i18n="v3d.clickToWalk">Нажмите, чтобы войти в комнату</b>
+              <span data-i18n="v3d.walkKeys">WASD / стрелки — ходьба · мышь — взгляд · Shift — быстрее · Esc — выход</span>
+            </div>
+          </div>
+          <div class="joystick" id="joystick" hidden><div class="stick"></div></div>
+        </div>
       </div>
       <div class="legend">
         <span><i class="sw ok"></i><span data-i18n="legend.ok">Норма</span></span>

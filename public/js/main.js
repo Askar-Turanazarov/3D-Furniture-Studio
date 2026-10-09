@@ -32,6 +32,36 @@ function autoPlace(item) {
   }
 }
 
+// 2D plan ⇄ 3D scene (the 3D module is loaded on first use).
+let view3d = null;
+async function setView(mode) {
+  const is3d = mode === '3d';
+  document.getElementById('view2dBtn').classList.toggle('active', !is3d);
+  document.getElementById('view3dBtn').classList.toggle('active', is3d);
+  document.getElementById('view3d').hidden = !is3d;
+  if (is3d) {
+    view3d ??= await import('./3d/scene3d.js');
+    view3d.show(document.getElementById('view3d'));
+  } else if (view3d) {
+    view3d.hide();
+    requestDraw();
+  }
+}
+
+function initViewSwitch() {
+  const wrap = document.getElementById('canvasWrap');
+  document.getElementById('view2dBtn').addEventListener('click', () => setView('2d'));
+  document.getElementById('view3dBtn').addEventListener('click', () => setView('3d'));
+  document.getElementById('fullscreenBtn').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else wrap.requestFullscreen?.().catch(() => {});
+  });
+  document.getElementById('exitFsBtn').addEventListener('click', () => document.exitFullscreen());
+  document.addEventListener('fullscreenchange', () => {
+    document.getElementById('exitFsBtn').hidden = !document.fullscreenElement;
+  });
+}
+
 async function loadCatalog() {
   try {
     const res = await fetch('/api/catalog');
@@ -48,6 +78,7 @@ async function start() {
   initInteraction(document.getElementById('plan'));
   initUI({ autoPlace });
   initOrder();
+  initViewSwitch();
   await loadCatalog();
   load(state);
   fillCatalog();

@@ -62,6 +62,40 @@ export function drawNow(opts = {}) {
   return canvas;
 }
 
+// Draw a room into any canvas: project previews, version comparison, the order drawing.
+// opts: { doc — roomDoc (default: the current room), errors — Map, dpr, scale — px per cm (default: fit),
+//         drawing — white sheet, no grid/zones; walls — every item's distances to the walls; numbers — Map id → №; pad }
+// Nothing of the live plan (selection, zoom, errors) is changed. → { scale, ox, oy } of the drawn plan.
+const DOC_KEYS = ['room', 'items', 'openings', 'obstacles', 'settings', 'style',
+  'selectedId', 'selectedIds', 'selectedOpening', 'selectedObstacle', 'found'];
+export function drawPlanTo(target, w, h, opts = {}) {
+  const saved = { canvas, ctx, lastW, lastH, view: { ...view }, errors, obWarnings, passages };
+  const savedState = Object.fromEntries(DOC_KEYS.map(k => [k, state[k]]));
+  try {
+    const d = opts.doc;
+    if (d) Object.assign(state, {
+      room: d.room, items: d.items || [], openings: d.openings || [], obstacles: d.obstacles || [],
+      settings: { ...state.settings, ...d.settings }, style: d.style
+    });
+    Object.assign(state, { selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null });
+    canvas = target;
+    ctx = target.getContext('2d');
+    Object.assign(view, { zoom: 1, panX: 0, panY: 0 });
+    errors = opts.errors || new Map();
+    obWarnings = new Map();
+    passages = [];
+    drawOpts = { clean: true, dpr: opts.dpr || 1, size: [w, h], scale: opts.scale, pad: opts.pad,
+      drawing: opts.drawing, walls: opts.walls, numbers: opts.numbers };
+    draw();
+    return { scale: view.scale, ox: view.ox, oy: view.oy };
+  } finally {
+    drawOpts = {};
+    ({ canvas, ctx, lastW, lastH, errors, obWarnings, passages } = saved);
+    Object.assign(view, saved.view);
+    Object.assign(state, savedState);
+  }
+}
+
 export function requestDraw() {
   if (pending) return;
   pending = true;
@@ -75,8 +109,9 @@ export const toWorld = (px, py) => [(px - view.ox) / view.scale, (py - view.oy) 
 function computeView(cw, ch) {
   const { L, W } = state.room;
   lastW = cw; lastH = ch;
-  const fit = Math.max(0.05, Math.min((cw - 2 * MARGIN) / L, (ch - 2 * MARGIN) / W));
-  const scale = fit * view.zoom;
+  const m = drawOpts.pad ?? MARGIN;
+  const fit = Math.max(0.05, Math.min((cw - 2 * m) / L, (ch - 2 * m) / W));
+  const scale = drawOpts.scale || fit * view.zoom;
   view.scale = scale;
   view.ox = Math.round((cw - L * scale) / 2) + view.panX;
   view.oy = Math.round((ch - W * scale) / 2) + view.panY;
@@ -116,7 +151,7 @@ function changed() {
 
 function draw() {
   const dpr = drawOpts.dpr || window.devicePixelRatio || 1;
-  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  const [cw, ch] = drawOpts.size || [wrap.clientWidth, wrap.clientHeight];
   if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
     canvas.width = Math.round(cw * dpr);
     canvas.height = Math.round(ch * dpr);
@@ -124,9 +159,11 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cw, ch);
   computeView(cw, ch);
+  const sheet = drawOpts.drawing;
+  if (sheet) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch); }
 
   drawRoom();
-  drawGrid();
+  if (!sheet) drawGrid();
   drawPlinth();
   drawDimensions();
   drawObstacles(false);   // floor-standing structure under the furniture
@@ -136,10 +173,10 @@ function draw() {
   for (const it of state.items) if (it !== sel && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
   if (sel) drawItem(sel, now);
   drawObstacles(true);    // ceiling ducts and other high structure over the furniture
-  drawZones(sel);
-  drawPassages();
+  if (!sheet) { drawZones(sel); drawPassages(); }
   drawOpenings();   // over the furniture: a blocked door swing stays visible
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
+  if (drawOpts.walls) for (const it of state.items) drawClearances(it, true);
   if (!drawOpts.clean) {
     if (overlay.marquee) drawMarquee(overlay.marquee);
     if (overlay.niche) drawNicheGhost(overlay.niche);
@@ -482,7 +519,23 @@ function drawItem(it, now) {
   drawFront(it, x, y, w, h);
   drawLabel(it, x, y, w, h);
   if (high) drawElevTag(it, x, y, w, h);
+  const no = drawOpts.numbers?.get(it.id);
+  if (no) drawNumber(no, x + w, y);
   ctx.restore();
+}
+
+// Specification number in a circle at the top-right corner of the item (order drawing).
+function drawNumber(no, x, y) {
+  const r = 11;
+  ctx.fillStyle = '#212529';
+  ctx.beginPath();
+  ctx.arc(x - r - 2, y + r + 2, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 12px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(no), x - r - 2, y + r + 2);
 }
 
 // "↑140" badge in the corner of a wall-mounted item.
@@ -671,7 +724,8 @@ function fit(text, maxW) {
 }
 
 // Distances (cm) from the selected item to the walls (inner faces) and to neighbours in between.
-function drawClearances(it) {
+// wallsOnly: the order drawing shows every item's distances to the walls.
+function drawClearances(it, wallsOnly = false) {
   // Only neighbours at the same height: a shelf above the desk does not "close" the desk.
   const others = state.items.filter(o => o !== it && zOverlaps(o, it)).map(o => rectOf(o))
     .concat(obstacleRects(state.obstacles, it));
@@ -682,7 +736,7 @@ function drawClearances(it) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const { x1, y1, x2, y2, d, kind } of lines) {
-    if (d <= 0) continue;
+    if (d <= 0 || (wallsOnly && kind !== 'wall')) continue;
     const color = kind === 'item' ? COLORS.toItem : COLORS.selected;
     const [sx1, sy1] = toScreen(x1, y1);
     const [sx2, sy2] = toScreen(x2, y2);

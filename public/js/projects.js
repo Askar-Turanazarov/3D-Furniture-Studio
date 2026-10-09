@@ -7,11 +7,12 @@ import {
   makeVersion, versionGroup, saveProjectNow, setLastProject
 } from './storage.js';
 import { defaultOpenings } from './openings.js';
-import { resetView } from './renderer.js';
+import { resetView, drawPlanTo } from './renderer.js';
 import { resetRuler } from './interaction.js';
 import { t, getLang, onLangChange } from './i18n.js';
 import { loadTemplates, templateDoc, localName, sizeLabel, drawMiniPlan } from './templates.js';
 import { toast, syncForms } from './ui.js';
+import { openCompare } from './compare.js';
 
 export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'other'];
 
@@ -63,17 +64,13 @@ export function newProject() {
 // Forget the open project without saving it (it is being deleted).
 export function closeProject() { project = null; }
 
-// Small JPEG of the plan for the project card (only while the 2D plan is on screen).
+// Small JPEG of the plan for the project card (drawn off-screen, so it works from the 3D view too).
 export function capturePreview() {
-  const src = document.getElementById('plan');
-  if (!project || !src.width || !document.getElementById('view3d').hidden) return;
+  if (!project) return;
   const c = document.createElement('canvas');
-  c.width = 240;
-  c.height = Math.max(1, Math.round(240 * src.height / src.width));
-  const g = c.getContext('2d');
-  g.fillStyle = '#fff';
-  g.fillRect(0, 0, c.width, c.height);
-  g.drawImage(src, 0, 0, c.width, c.height);
+  const { L, W } = state.room;
+  const h = Math.max(60, Math.min(240, Math.round(240 * W / L)));
+  drawPlanTo(c, 240, h, { drawing: true, pad: 8 });
   project.preview = c.toDataURL('image/jpeg', 0.7);
 }
 
@@ -178,6 +175,7 @@ function initTabs() {
     closeMenu();
     if (b.dataset.act === 'edit') openRoomDialog(id);
     if (b.dataset.act === 'version') duplicateAsVersion(id);
+    if (b.dataset.act === 'compare') openCompare(id);
     if (b.dataset.act === 'delete') deleteRoom(id);
   });
   document.addEventListener('pointerdown', e => {
@@ -225,6 +223,7 @@ function openMenu(id, anchor) {
   const m = $('roomMenu');
   if (!m.hidden && m.dataset.room === id) return closeMenu();
   m.dataset.room = id;
+  m.querySelector('[data-act="compare"]').hidden = project.rooms.length < 2;
   m.hidden = false;
   const r = anchor.getBoundingClientRect();
   m.style.left = Math.min(r.left, window.innerWidth - m.offsetWidth - 8) + 'px';

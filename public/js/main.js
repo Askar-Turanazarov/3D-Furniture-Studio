@@ -6,6 +6,7 @@ import { parseCatalog } from './catalog.js';
 import { initProjects, persist } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
+import { initCompare } from './compare.js';
 import { initTextures } from './textures.js';
 import { initSnapshot } from './snapshot.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings, setPassages as setDrawPassages } from './renderer.js';
@@ -165,6 +166,7 @@ async function start() {
   initInteraction(document.getElementById('plan'));
   initUI({ autoPlace });
   initOrder();
+  initCompare();
   initViewSwitch();
   initTextures();
   initHistory();

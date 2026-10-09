@@ -358,8 +358,29 @@
   <div class="menu" id="roomMenu" hidden>
     <button type="button" data-act="edit" data-i18n="room.editMenu">Переименовать, назначение</button>
     <button type="button" data-act="version" data-i18n="room.versionMenu">Дублировать как версию</button>
+    <button type="button" data-act="compare" data-i18n="cmp.menu">Сравнить с…</button>
     <button type="button" data-act="delete" class="danger" data-i18n="room.delete">Удалить комнату</button>
   </div>
+
+  <dialog id="compareDlg" class="wide compare-dlg">
+    <div class="dlg-head">
+      <h2 data-i18n="cmp.title">Сравнение вариантов</h2>
+      <button type="button" class="btn icon ghost" id="compareClose" aria-label="Close">✕</button>
+    </div>
+    <div class="compare-grid">
+      <figure>
+        <figcaption><b id="compareLeftName"></b></figcaption>
+        <canvas id="compareLeft"></canvas>
+        <div class="cmp-info" id="compareLeftInfo"></div>
+      </figure>
+      <figure>
+        <figcaption><select id="compareSel" data-i18n-title="cmp.with"></select></figcaption>
+        <canvas id="compareRight"></canvas>
+        <div class="cmp-info" id="compareRightInfo"></div>
+      </figure>
+    </div>
+    <p class="hint" data-i18n="cmp.hint">Только просмотр: чтобы править, переключитесь на вкладку комнаты.</p>
+  </dialog>
 
   <dialog id="projectsDlg" class="wide">
     <div class="dlg-head">

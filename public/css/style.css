@@ -441,3 +441,11 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 .niche-panel[hidden] { display: none; }
 .niche-panel label { display: flex; flex-direction: row; align-items: center; gap: 6px; }
 .niche-panel .btn-row { margin: 2px 0 0; }
+dialog.compare-dlg { width: min(1100px, 96vw); }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.compare-grid figure { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.compare-grid figcaption { min-height: 30px; display: flex; align-items: center; }
+.compare-grid canvas { display: block; border-radius: 8px; background: #f8f9fb; }
+.cmp-info { font-size: 13px; color: var(--muted); }
+.cmp-info.bad { color: #c92a2a; }
+@media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }

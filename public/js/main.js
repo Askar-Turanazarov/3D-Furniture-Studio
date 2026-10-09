@@ -1,6 +1,7 @@
 import { t, initLangSwitcher, onLangChange } from './i18n.js';
 import { state, onChange } from './state.js';
 import { initRenderer, requestDraw } from './renderer.js';
+import { initInteraction } from './interaction.js';
 import { initUI, fillCatalog, syncForms, refresh, toast } from './ui.js';
 
 function update() {
@@ -21,6 +22,7 @@ async function loadCatalog() {
 async function start() {
   initLangSwitcher();
   initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
+  initInteraction(document.getElementById('plan'));
   initUI({ autoPlace: () => {} });
   await loadCatalog();
   fillCatalog();

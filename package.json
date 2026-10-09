@@ -1,0 +1,13 @@
+{
+  "name": "furniture-super-planner-3d",
+  "version": "0.1.0",
+  "description": "Furniture Super Planner 3D — room and custom furniture planner",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

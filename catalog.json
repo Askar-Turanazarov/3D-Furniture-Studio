@@ -1,0 +1,8 @@
+[
+  { "type": "wardrobe",   "name": { "ru": "Шкаф",    "uz": "Shkaf",       "en": "Wardrobe" },   "w": 120, "d": 60, "h": 220, "color": "#8d6e63" },
+  { "type": "table",      "name": { "ru": "Стол",    "uz": "Stol",        "en": "Table" },      "w": 120, "d": 70, "h": 75,  "color": "#a1887f" },
+  { "type": "sofa",       "name": { "ru": "Диван",   "uz": "Divan",       "en": "Sofa" },       "w": 200, "d": 90, "h": 85,  "color": "#5c6bc0" },
+  { "type": "nightstand", "name": { "ru": "Тумба",   "uz": "Tumba",       "en": "Nightstand" }, "w": 50,  "d": 40, "h": 55,  "color": "#bcaaa4" },
+  { "type": "bed",        "name": { "ru": "Кровать", "uz": "Karavot",     "en": "Bed" },        "w": 160, "d": 200, "h": 50, "color": "#7986cb" },
+  { "type": "chair",      "name": { "ru": "Стул",    "uz": "Stul",        "en": "Chair" },      "w": 45,  "d": 50, "h": 90,  "color": "#90a4ae" }
+]

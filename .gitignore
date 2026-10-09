@@ -1,0 +1,7 @@
+node_modules/
+tasks/
+scratch/
+.claude/
+prompt.txt
+prompt-mega.txt
+*.log

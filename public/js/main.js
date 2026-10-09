@@ -1,9 +1,33 @@
-import { initLangSwitcher, onLangChange } from './i18n.js';
-import { onChange } from './state.js';
+import { t, initLangSwitcher, onLangChange } from './i18n.js';
+import { state, onChange } from './state.js';
 import { initRenderer, requestDraw } from './renderer.js';
+import { initUI, fillCatalog, syncForms, refresh, toast } from './ui.js';
 
-initLangSwitcher();
-initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
-onChange(requestDraw);
-onLangChange(requestDraw);
-requestDraw();
+function update() {
+  requestDraw();
+  refresh();
+}
+
+async function loadCatalog() {
+  try {
+    const res = await fetch('/api/catalog');
+    if (!res.ok) throw new Error(res.status);
+    state.catalog = await res.json();
+  } catch {
+    toast(t('catalog.fail'), true);
+  }
+}
+
+async function start() {
+  initLangSwitcher();
+  initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
+  initUI({ autoPlace: () => {} });
+  await loadCatalog();
+  fillCatalog();
+  syncForms();
+  onChange(update);
+  onLangChange(() => { fillCatalog(); update(); });
+  update();
+}
+
+start();

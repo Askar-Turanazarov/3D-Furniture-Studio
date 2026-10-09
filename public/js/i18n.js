@@ -1,6 +1,8 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'v3d.height': 'Рост', 'v3d.child': 'ребёнок', 'v3d.woman': 'женщина', 'v3d.man': 'мужчина',
+    'v3d.distItem': 'До «{name}»: {m} м', 'v3d.distWall': 'До стены ({wall}): {m} м', 'wallShort.north': 'северная', 'wallShort.south': 'южная', 'wallShort.west': 'левая', 'wallShort.east': 'правая', 'v3d.distTouch': 'вплотную', 'v3d.fromFeet': 'от ног, по полу',
     'op.title': 'Окна и двери', 'op.addWindow': '+ Окно', 'op.addDoor': '+ Дверь', 'op.lock': '🔓 Заблокировать', 'op.unlock': '🔒 Заблокировано',
     'op.lockShort': '🔓 Проёмы', 'op.unlockShort': '🔒 Проёмы', 'op.locked': '🔒 Окна и двери заблокированы — их нельзя сдвинуть случайно',
     'op.window': 'Окно', 'op.door': 'Дверь', 'op.wall': 'Стена', 'op.offset': 'Отступ, см', 'op.width': 'Ширина, см', 'op.height': 'Высота, см',
@@ -60,6 +62,8 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'v3d.height': 'Bo‘y', 'v3d.child': 'bola', 'v3d.woman': 'ayol', 'v3d.man': 'erkak',
+    'v3d.distItem': '«{name}»gacha: {m} m', 'v3d.distWall': 'Devorgacha ({wall}): {m} m', 'wallShort.north': 'shimoliy', 'wallShort.south': 'janubiy', 'wallShort.west': 'chap', 'wallShort.east': 'o‘ng', 'v3d.distTouch': 'yonma-yon', 'v3d.fromFeet': 'oyoqdan, pol bo‘ylab',
     'op.title': 'Derazalar va eshiklar', 'op.addWindow': '+ Deraza', 'op.addDoor': '+ Eshik', 'op.lock': '🔓 Qulflash', 'op.unlock': '🔒 Qulflangan',
     'op.lockShort': '🔓 Teshiklar', 'op.unlockShort': '🔒 Teshiklar', 'op.locked': '🔒 Derazalar va eshiklar qulflangan — ularni tasodifan surib bo‘lmaydi',
     'op.window': 'Deraza', 'op.door': 'Eshik', 'op.wall': 'Devor', 'op.offset': 'Chekinish, sm', 'op.width': 'Kengligi, sm', 'op.height': 'Balandligi, sm',
@@ -119,6 +123,8 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'v3d.height': 'Height', 'v3d.child': 'child', 'v3d.woman': 'woman', 'v3d.man': 'man',
+    'v3d.distItem': 'To “{name}”: {m} m', 'v3d.distWall': 'To the wall ({wall}): {m} m', 'wallShort.north': 'north', 'wallShort.south': 'south', 'wallShort.west': 'left', 'wallShort.east': 'right', 'v3d.distTouch': 'touching', 'v3d.fromFeet': 'from the feet, along the floor',
     'op.title': 'Windows & doors', 'op.addWindow': '+ Window', 'op.addDoor': '+ Door', 'op.lock': '🔓 Lock', 'op.unlock': '🔒 Locked',
     'op.lockShort': '🔓 Openings', 'op.unlockShort': '🔒 Openings', 'op.locked': '🔒 Windows and doors are locked — they cannot be moved by accident',
     'op.window': 'Window', 'op.door': 'Door', 'op.wall': 'Wall', 'op.offset': 'Offset, cm', 'op.width': 'Width, cm', 'op.height': 'Height, cm',

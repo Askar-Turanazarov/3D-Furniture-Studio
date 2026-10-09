@@ -2,9 +2,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { state } from '../state.js';
+import { state, itemName } from '../state.js';
 import { rectOf } from '../geometry.js';
-import { t } from '../i18n.js';
+import { t, getLang } from '../i18n.js';
 
 const NORMALS = {
   north: new THREE.Vector3(0, 0, -1), south: new THREE.Vector3(0, 0, 1),
@@ -22,6 +22,11 @@ export const touchInput = { f: 0, r: 0, active: false };
 let room = null;           // result of buildRoom()
 let mode = 'orbit';
 const tmp = new THREE.Vector3();
+let personH = 170;          // cm, eyes ≈ 93 % of the height
+try { personH = Number(localStorage.getItem('fsp3d.height')) || 170; } catch { /* ignore */ }
+const HEIGHTS = [120, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200];
+const PRESETS = { 120: 'v3d.child', 165: 'v3d.woman', 180: 'v3d.man' };
+let distAt = 0;
 
 export function initControls(cam, dom, el) {
   camera = cam;
@@ -43,7 +48,7 @@ export function initControls(cam, dom, el) {
   });
   document.addEventListener('pointerlockerror', () => { if (mode === 'walk') startFree(); });
   plc.addEventListener('lock', () => { document.activeElement?.blur(); touchInput.active = false; overlay.hidden = true; updateHint(); });
-  plc.addEventListener('unlock', () => { if (mode === 'walk' && !touchInput.active) overlay.hidden = false; });
+  plc.addEventListener('unlock', () => { if (mode === 'walk' && !touchInput.active) overlay.hidden = false; updateHint(); });
 
   // Mouse drag look when walking without pointer lock.
   let drag = null;
@@ -73,6 +78,21 @@ export function initControls(cam, dom, el) {
   window.addEventListener('blur', () => keys.clear());
 
   el.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+  const sel = el.querySelector('#heightSel');
+  sel.addEventListener('change', () => {
+    personH = Number(sel.value);
+    try { localStorage.setItem('fsp3d.height', personH); } catch { /* ignore */ }
+    if (room && mode === 'walk') camera.position.y = eyeHeight();
+    sel.blur();   // WASD / arrows must move the person, not the select
+  });
+}
+
+function fillHeights() {
+  const sel = container.querySelector('#heightSel');
+  if (!HEIGHTS.includes(personH)) personH = 170;
+  sel.innerHTML = HEIGHTS.map(h => `<option value="${h}">${h} ${t('unit.cm')}${PRESETS[h] ? ' · ' + t(PRESETS[h]) : ''}</option>`).join('');
+  sel.value = personH;
 }
 
 // New room geometry: re-aim the overview camera.
@@ -109,6 +129,11 @@ export function setMode(next) {
 }
 
 export function updateHint() {
+  fillHeights();
+  container.querySelector('#heightBox').hidden = mode !== 'walk';
+  const walking = mode === 'walk' && (plc.isLocked || touchInput.active);
+  container.querySelector('#dist3d').hidden = !walking;
+  container.querySelector('#cross3d').hidden = !walking;
   const key = mode === 'orbit' ? 'v3d.orbitHint' : isTouch() ? 'v3d.touchHint'
     : touchInput.active ? 'v3d.dragHint' : 'v3d.walkHint';
   container.querySelector('#hint3d').textContent = t(key);
@@ -126,11 +151,12 @@ function stopFree() {
   touchInput.f = touchInput.r = 0;
   keys.clear();
   overlay.hidden = false;
+  updateHint();
 }
 
 export const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
-const eyeHeight = () => Math.min(1.6, room.size.H - 0.15);
+const eyeHeight = () => Math.min(personH * 0.93 / 100, room.size.H - 0.15);
 
 // Furniture footprints in metres.
 function obstacles() {
@@ -219,6 +245,52 @@ function cutaway() {
 export function update(dt) {
   if (mode === 'orbit') orbit.update(); else walk(dt);
   cutaway();
+  if (mode === 'walk' && performance.now() - distAt > 100) { distAt = performance.now(); showDistance(); }
+}
+
+// Straight distance along the floor from the person's feet (camera projected down)
+// in the looking direction to the first furniture footprint or wall.
+function showDistance() {
+  const el = container.querySelector('#dist3d');
+  if (el.hidden || !room) return;
+  const fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd);
+  fwd.y = 0;
+  if (fwd.lengthSq() < 1e-6) return;
+  fwd.normalize();
+  const ox = camera.position.x, oz = camera.position.z;
+  const { L, W } = room.size;
+  // Walls: inner faces.
+  let best = { d: Infinity, wall: null, item: null };
+  for (const [wall, d] of [
+    ['west', fwd.x < 0 ? -ox / fwd.x : Infinity], ['east', fwd.x > 0 ? (L - ox) / fwd.x : Infinity],
+    ['north', fwd.z < 0 ? -oz / fwd.z : Infinity], ['south', fwd.z > 0 ? (W - oz) / fwd.z : Infinity]
+  ]) if (d < best.d) best = { d, wall, item: null };
+  // Furniture: ray vs AABB (slab method).
+  state.items.forEach(it => {
+    const r = rectOf(it);
+    const d = rayBox(ox, oz, fwd.x, fwd.z, r.x / 100, r.y / 100, (r.x + r.w) / 100, (r.y + r.h) / 100);
+    if (d !== null && d < best.d) best = { d, wall: null, item: it };
+  });
+  if (!isFinite(best.d)) return;
+  const m = best.d < 0.01 ? t('v3d.distTouch') : best.d.toLocaleString(getLang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const cm = Math.round(best.d * 100);
+  const text = best.item ? t('v3d.distItem', { name: itemName(best.item), m }) : t('v3d.distWall', { wall: t('wallShort.' + best.wall), m });
+  el.innerHTML = '';
+  el.append(text, Object.assign(document.createElement('small'), { textContent: `${cm} ${t('unit.cm')} · ${t('v3d.fromFeet')}` }));
+}
+
+function rayBox(ox, oz, dx, dz, x0, z0, x1, z1) {
+  let tmin = 0, tmax = Infinity;
+  for (const [o, d, a, b] of [[ox, dx, x0, x1], [oz, dz, z0, z1]]) {
+    if (Math.abs(d) < 1e-9) { if (o < a || o > b) return null; continue; }
+    let t1 = (a - o) / d, t2 = (b - o) / d;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    tmin = Math.max(tmin, t1);
+    tmax = Math.min(tmax, t2);
+    if (tmin > tmax) return null;
+  }
+  return tmin;
 }
 
 export const getMode = () => mode;

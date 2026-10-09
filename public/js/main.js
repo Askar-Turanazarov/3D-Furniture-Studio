@@ -1,6 +1,7 @@
 import { t, initLangSwitcher, onLangChange } from './i18n.js';
 import { state, onChange, emit, itemName } from './state.js';
 import { findSpot } from './autoplace.js';
+import { load, save } from './storage.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
 import { validateAll } from './validate.js';
 import { initInteraction } from './interaction.js';
@@ -12,6 +13,7 @@ function update() {
   setUiErrors(errors);
   requestDraw();
   refresh();
+  save(state);
 }
 
 // Move the item to the first free spot and flash it green, or explain why not.
@@ -45,6 +47,7 @@ async function start() {
   initInteraction(document.getElementById('plan'));
   initUI({ autoPlace });
   await loadCatalog();
+  load(state);
   fillCatalog();
   syncForms();
   onChange(update);

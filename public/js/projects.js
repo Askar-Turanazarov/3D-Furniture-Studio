@@ -10,6 +10,7 @@ import { defaultOpenings } from './openings.js';
 import { resetView } from './renderer.js';
 import { resetRuler } from './interaction.js';
 import { t, getLang, onLangChange } from './i18n.js';
+import { loadTemplates, templateDoc, localName, sizeLabel, drawMiniPlan } from './templates.js';
 import { toast, syncForms } from './ui.js';
 
 export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'other'];
@@ -116,6 +117,23 @@ function addRoom({ name, purpose, L, W, H }) {
   switchRoom(r.id);
 }
 
+function addRoomFromTemplate(tpl, name) {
+  const doc = templateDoc(tpl, { plinth: state.room.plinth, settings: { ...state.settings } });
+  const r = makeRoom(name, doc, { purpose: tpl.purpose });
+  project.rooms.push(r);
+  switchRoom(r.id);
+}
+
+// A whole apartment: one tab per template room.
+export function newProjectFromTemplates(name, tpls) {
+  const lang = getLang();
+  const rooms = tpls.map(tp => makeRoom(localName(tp, lang), templateDoc(tp), { purpose: tp.purpose }));
+  const p = makeProject(name, rooms);
+  if (!saveProjectNow(p)) return false;
+  openProject(p);
+  return true;
+}
+
 const LETTERS = { ru: 'АБВГДЕЖЗИКЛМН', uz: 'ABCDEFGHIJKLM', en: 'ABCDEFGHIJKLM' };
 const letter = n => (LETTERS[getLang()] || LETTERS.en)[n - 1] || String(n);
 
@@ -215,8 +233,10 @@ function openMenu(id, anchor) {
 
 function closeMenu() { $('roomMenu').hidden = true; }
 
-// ---- room dialog: new room (name, purpose, size) or edit (name, purpose) ----
+// ---- room dialog: new room (empty with a size, or from a template) or edit (name, purpose) ----
 let editing = null;   // room id or null for a new room
+let mode = 'empty';   // 'empty' | 'template'
+let tplData = null, tplSet = null, tplPicked = null;
 
 function initRoomDialog() {
   const sel = $('roomDlgForm').elements.purpose;
@@ -227,12 +247,39 @@ function initRoomDialog() {
   };
   fill();
   onLangChange(fill);
+  onLangChange(() => { if ($('roomDlg').open && mode === 'template') renderTemplates(); });
+  try { tplSet = localStorage.getItem('fsp3d.tplSet'); } catch { /* ignore */ }
+  $('roomDlgMode').addEventListener('click', e => {
+    const b = e.target.closest('[data-mode]');
+    if (b) setMode(b.dataset.mode);
+  });
+  $('tplSets').addEventListener('click', e => {
+    const b = e.target.closest('[data-set]');
+    if (!b) return;
+    tplSet = b.dataset.set;
+    try { localStorage.setItem('fsp3d.tplSet', tplSet); } catch { /* ignore */ }
+    renderTemplates();
+  });
+  $('tplGrid').addEventListener('click', e => {
+    const card = e.target.closest('[data-tpl]');
+    if (!card) return;
+    tplPicked = tplData.templates.find(x => x.id === card.dataset.tpl);
+    const f = $('roomDlgForm').elements;
+    f.name.value = localName(tplPicked, getLang());
+    f.purpose.value = tplPicked.purpose;
+    $('tplGrid').querySelectorAll('[data-tpl]').forEach(c => c.classList.toggle('active', c === card));
+  });
+  $('tplGrid').addEventListener('dblclick', e => {
+    if (e.target.closest('[data-tpl]')) $('roomDlgForm').requestSubmit();
+  });
   $('roomDlgCancel').addEventListener('click', () => $('roomDlg').close());
   $('roomDlgForm').addEventListener('submit', e => {
     e.preventDefault();
     const f = e.target.elements;
     const name = f.name.value.trim() || t('room.default', { n: project.rooms.length + 1 });
+    if (!editing && mode === 'template' && !tplPicked) return toast(t('tpl.pick'), true);
     $('roomDlg').close();
+    if (!editing && mode === 'template') return addRoomFromTemplate(tplPicked, name);
     if (editing) {
       const r = project.rooms.find(x => x.id === editing);
       Object.assign(r, { name, purpose: f.purpose.value });
@@ -250,10 +297,62 @@ function openRoomDialog(id) {
   const f = $('roomDlgForm').elements;
   const r = id ? project.rooms.find(x => x.id === id) : null;
   $('roomDlgTitle').textContent = t(r ? 'room.edit' : 'room.new');
-  $('roomDlgSize').hidden = !!r;
+  $('roomDlgMode').hidden = !!r;
+  tplPicked = null;
+  setMode(r ? 'empty' : mode);
   f.name.value = r ? r.name : t('room.default', { n: project.rooms.length + 1 });
   f.purpose.value = r ? r.purpose : '';
   if (!r) { f.L.value = state.room.L; f.W.value = state.room.W; f.H.value = state.room.H; }
   $('roomDlg').showModal();
   f.name.select();
+}
+
+function setMode(m) {
+  mode = m;
+  const tpl = m === 'template' && !editing;
+  $('roomDlgMode').querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+  $('roomDlgSize').hidden = !!editing || tpl;
+  $('tplPane').hidden = !tpl;
+  $('roomDlg').classList.toggle('wide', tpl);
+  if (!tpl) return;
+  if (tplData) return renderTemplates();
+  $('tplGrid').textContent = '…';
+  loadTemplates()
+    .then(d => { tplData = d; if (mode === 'template') renderTemplates(); })
+    .catch(() => { $('tplGrid').textContent = t('tpl.loadError'); });
+}
+
+function renderTemplates() {
+  const lang = getLang();
+  if (!tplData.sets.some(s => s.id === tplSet)) tplSet = tplData.sets[0].id;
+  $('tplSets').replaceChildren(...tplData.sets.map(s => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.set = s.id;
+    b.textContent = localName(s, lang);
+    b.classList.toggle('active', s.id === tplSet);
+    return b;
+  }));
+  const set = tplData.sets.find(s => s.id === tplSet);
+  $('tplNote').textContent = set.note?.[lang] || '';
+  const list = tplData.templates.filter(x => x.set === tplSet);
+  if (tplPicked && tplPicked.set !== tplSet) tplPicked = null;
+  $('tplGrid').replaceChildren(...list.map(tp => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'tpl-card' + (tp === tplPicked ? ' active' : '');
+    card.dataset.tpl = tp.id;
+    const c = document.createElement('canvas');
+    const b = document.createElement('b');
+    b.textContent = localName(tp, lang);
+    const small = document.createElement('small');
+    small.textContent = sizeLabel(tp.room, lang, t('unit.m2'), t('unit.m'));
+    card.append(c, b, small);
+    return card;
+  }));
+  // canvases need their layout size before drawing
+  requestAnimationFrame(() => {
+    $('tplGrid').querySelectorAll('[data-tpl]').forEach(card =>
+      drawMiniPlan(card.querySelector('canvas'), list.find(x => x.id === card.dataset.tpl)));
+  });
 }

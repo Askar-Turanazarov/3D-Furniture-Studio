@@ -1,9 +1,10 @@
 // "Projects" dialog: open, create, rename, duplicate, delete, export / import a project file.
-import { t, getLang } from './i18n.js';
+import { t, getLang, onLangChange } from './i18n.js';
+import { loadTemplates, localName } from './templates.js';
 import {
   listProjects, loadProject, saveProjectNow, deleteProject, cloneProject, exportProject, importProject, flushSave
 } from './storage.js';
-import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderTabs } from './projects.js';
+import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderTabs, newProjectFromTemplates } from './projects.js';
 import { toast } from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -17,6 +18,18 @@ export function initProjectsDialog() {
     newProject();
     $('projectsDlg').close();
   });
+  $('aptList').addEventListener('click', async e => {
+    const b = e.target.closest('[data-apt]');
+    if (!b) return;
+    const d = await loadTemplates();
+    const apt = d.apartments.find(a => a.id === b.dataset.apt);
+    const name = localName(apt, getLang());
+    if (newProjectFromTemplates(name, apt.rooms.map(id => d.templates.find(x => x.id === id)))) {
+      $('projectsDlg').close();
+      toast(t('tpl.aptDone', { name }));
+    }
+  });
+  onLangChange(renderApartments);
   $('projImport').addEventListener('click', () => $('projFile').click());
   $('projFile').addEventListener('change', async e => {
     const file = e.target.files[0];
@@ -46,7 +59,24 @@ function show() {
   persist();
   flushSave();
   render();
+  renderApartments();
   if (!$('projectsDlg').open) $('projectsDlg').showModal();
+}
+
+function renderApartments() {
+  loadTemplates().then(d => {
+    const lang = getLang();
+    $('aptList').replaceChildren(...d.apartments.map(a => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.dataset.apt = a.id;
+      b.textContent = '🏠 ' + localName(a, lang);
+      b.title = a.rooms.map(id => localName(d.templates.find(x => x.id === id), lang)).join(' + ');
+      return b;
+    }));
+    $('aptRow').hidden = false;
+  }).catch(() => { $('aptRow').hidden = true; });
 }
 
 // The open project is edited in memory (persist() would overwrite a loaded copy).

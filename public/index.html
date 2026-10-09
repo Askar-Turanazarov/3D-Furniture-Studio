@@ -325,6 +325,10 @@
       <button type="button" class="btn" id="projImport">⬆ <span data-i18n="proj.import">Импорт из файла</span></button>
       <input type="file" id="projFile" accept=".json,application/json" hidden>
     </div>
+    <div class="apt-row" id="aptRow" hidden>
+      <span data-i18n="tpl.aptTitle">Новый проект из шаблона квартиры:</span>
+      <span class="apt-list" id="aptList"></span>
+    </div>
     <p class="hint" data-i18n="proj.hint">Проекты хранятся в этом браузере. Экспорт в файл — резервная копия и перенос на другое устройство.</p>
     <div class="proj-grid" id="projGrid"></div>
   </dialog>
@@ -332,6 +336,16 @@
   <dialog id="roomDlg">
     <form id="roomDlgForm" method="dialog">
       <h2 id="roomDlgTitle"></h2>
+      <div class="seg room-mode" id="roomDlgMode">
+        <button type="button" data-mode="empty" data-i18n="tpl.empty">Пустая</button>
+        <button type="button" data-mode="template" data-i18n="tpl.fromTemplate">Из шаблона</button>
+      </div>
+      <div id="tplPane" hidden>
+        <div class="seg" id="tplSets"></div>
+        <p class="hint" id="tplNote"></p>
+        <div class="tpl-grid" id="tplGrid"></div>
+        <p class="hint" data-i18n="tpl.hint">После создания размеры и мебель можно менять.</p>
+      </div>
       <label class="row"><span data-i18n="room.name">Название</span>
         <input name="name" maxlength="60"></label>
       <label class="row"><span data-i18n="room.purpose">Назначение</span>

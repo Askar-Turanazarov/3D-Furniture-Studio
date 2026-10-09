@@ -1,6 +1,6 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
 import { state, itemName } from './state.js';
-import { rectOf } from './geometry.js';
+import { rectOf, rayGaps } from './geometry.js';
 import { t } from './i18n.js';
 
 const COLORS = {
@@ -11,6 +11,7 @@ const COLORS = {
   plinth: '#f08c00',
   dim: '#6b7280',
   selected: '#3b5bdb',
+  toItem: '#9c36b5',
   bad: '#e03131',
   badFill: 'rgba(224, 49, 49, .28)',
   found: '#2f9e44',
@@ -215,37 +216,30 @@ function fit(text, maxW) {
   return s + '…';
 }
 
-// Distances (cm) from the selected item to the walls (inner faces).
+// Distances (cm) from the selected item to the walls (inner faces) and to neighbours in between.
 function drawClearances(it) {
-  const { L, W } = state.room;
-  const r = rectOf(it);
-  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-  const lines = [
-    [r.x, cy, 0, cy, r.x],
-    [r.x + r.w, cy, L, cy, L - r.x - r.w],
-    [cx, r.y, cx, 0, r.y],
-    [cx, r.y + r.h, cx, W, W - r.y - r.h]
-  ];
+  const others = state.items.filter(o => o !== it).map(o => rectOf(o));
+  const lines = rayGaps(rectOf(it), others, state.room);
   ctx.save();
-  ctx.strokeStyle = COLORS.selected;
-  ctx.fillStyle = COLORS.selected;
-  ctx.setLineDash([3, 3]);
   ctx.lineWidth = 1;
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const [x1, y1, x2, y2, d] of lines) {
+  for (const { x1, y1, x2, y2, d, kind } of lines) {
     if (d <= 0) continue;
+    const color = kind === 'item' ? COLORS.toItem : COLORS.selected;
     const [sx1, sy1] = toScreen(x1, y1);
     const [sx2, sy2] = toScreen(x2, y2);
     if (Math.hypot(sx2 - sx1, sy2 - sy1) < 22) continue;
+    ctx.strokeStyle = color;
+    ctx.setLineDash(kind === 'item' ? [5, 3] : [3, 3]);
     ctx.beginPath(); ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2); ctx.stroke();
     const label = String(Math.round(d * 10) / 10);
     const mx = (sx1 + sx2) / 2, my = (sy1 + sy2) / 2;
     const tw = ctx.measureText(label).width + 6;
     ctx.fillStyle = 'rgba(255,255,255,.9)';
     ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
-    ctx.fillStyle = COLORS.selected;
+    ctx.fillStyle = color;
     ctx.fillText(label, mx, my);
   }
   ctx.restore();

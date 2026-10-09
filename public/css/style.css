@@ -195,7 +195,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 #openForm.locked { opacity: .55; }
 .op-actions { grid-column: 1 / -1; display: flex; gap: 6px; }
 .op-actions .btn { flex: 1; }
-.stage-bar .btn-group { display: flex; gap: 6px; }
+.stage-bar .btn-group { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
 .canvas-wrap {
   flex: 1; min-width: 0; min-height: 300px;
@@ -302,7 +302,7 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 }
 
 /* ---------- 2D / 3D view ---------- */
-.stage-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.stage-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .seg { display: inline-flex; background: #e7e9f0; border-radius: 8px; padding: 3px; gap: 2px; }
 .seg button {
   font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--muted);
@@ -367,3 +367,9 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 .stage-body:fullscreen .canvas-wrap { border-radius: var(--radius); }
 .stage.is3d .stage-body:fullscreen { padding: 0; }
 .stage.is3d .stage-body:fullscreen .canvas-wrap { border-radius: 0; }
+
+/* Narrow phones: icon-only buttons in the plan toolbar. */
+@media (max-width: 600px) {
+  #fullscreenBtn span, .top-btn span { display: none; }
+  .zoom-val { min-width: 48px; }
+}

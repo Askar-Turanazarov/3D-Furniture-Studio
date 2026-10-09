@@ -26,7 +26,12 @@ const MARGIN = 44;   // px around the room for wall + dimension labels
 const WALL_PX = 8;
 
 let canvas, ctx, wrap;
-export const view = { scale: 1, ox: 0, oy: 0 };
+// zoom / pan are applied on top of the "fit the room" scale; they are view-only (not saved).
+export const view = { scale: 1, ox: 0, oy: 0, zoom: 1, panX: 0, panY: 0 };
+const ZOOM_MIN = 0.5, ZOOM_MAX = 8;
+let lastW = 0, lastH = 0;
+const zoomListeners = new Set();
+export function onZoom(fn) { zoomListeners.add(fn); }
 export const overlay = { marquee: null };   // world rect being dragged for box selection
 let errors = new Map();
 let pending = false;
@@ -49,13 +54,47 @@ export function requestDraw() {
 export const toScreen = (x, y) => [view.ox + x * view.scale, view.oy + y * view.scale];
 export const toWorld = (px, py) => [(px - view.ox) / view.scale, (py - view.oy) / view.scale];
 
-// Scale factor so the room fits into the container with margins.
+// Scale factor so the room fits into the container with margins, times the user zoom, plus pan.
 function computeView(cw, ch) {
   const { L, W } = state.room;
-  const scale = Math.max(0.05, Math.min((cw - 2 * MARGIN) / L, (ch - 2 * MARGIN) / W));
+  lastW = cw; lastH = ch;
+  const fit = Math.max(0.05, Math.min((cw - 2 * MARGIN) / L, (ch - 2 * MARGIN) / W));
+  const scale = fit * view.zoom;
   view.scale = scale;
-  view.ox = Math.round((cw - L * scale) / 2);
-  view.oy = Math.round((ch - W * scale) / 2);
+  view.ox = Math.round((cw - L * scale) / 2) + view.panX;
+  view.oy = Math.round((ch - W * scale) / 2) + view.panY;
+}
+
+// Zoom keeping the point (px, py) of the canvas under the cursor in place.
+export function zoomAt(px, py, factor) {
+  const [wx, wy] = toWorld(px, py);
+  const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, view.zoom * factor));
+  if (z === view.zoom) return;
+  view.zoom = z;
+  computeView(lastW, lastH);
+  const [nx, ny] = toScreen(wx, wy);
+  view.panX += px - nx;
+  view.panY += py - ny;
+  changed();
+}
+
+export function zoomStep(factor) { zoomAt(lastW / 2, lastH / 2, factor); }
+
+export function panBy(dx, dy) {
+  view.panX += dx;
+  view.panY += dy;
+  changed();
+}
+
+export function resetView() {
+  Object.assign(view, { zoom: 1, panX: 0, panY: 0 });
+  changed();
+}
+
+function changed() {
+  computeView(lastW, lastH);
+  requestDraw();
+  zoomListeners.forEach(fn => fn(view.zoom));
 }
 
 function draw() {

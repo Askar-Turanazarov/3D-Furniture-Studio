@@ -112,6 +112,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .btn.ghost { background: transparent; }
 .btn.icon { min-width: 34px; padding-left: 8px; padding-right: 8px; font-size: 16px; line-height: 1; }
 .btn:disabled { opacity: .4; cursor: default; }
+.zoom-group { display: inline-flex; }
+.zoom-group .btn { border-radius: 0; margin-left: -1px; }
+.zoom-group .btn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+.zoom-group .btn:last-child { border-radius: 0 8px 8px 0; }
+.zoom-val { min-width: 58px; font-variant-numeric: tabular-nums; padding-left: 6px; padding-right: 6px; }
+.stage.is3d .zoom-group { display: none; }
+#plan { touch-action: none; }
 .align-box { margin-top: 10px; }
 .align-box .sub { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; }
 .align-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }

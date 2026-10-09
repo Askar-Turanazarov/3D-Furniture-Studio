@@ -4,17 +4,35 @@ import { state, emit, select, selected, rotateItem, removeItems, moveItems, snap
   isSelected, selectedItems, toggleSelect, selectMany } from './state.js';
 import { rectOf, footprint, overlaps } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
-import { toWorld, view, overlay, requestDraw } from './renderer.js';
+import { toWorld, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom } from './renderer.js';
 import { history } from './history.js';
 import { duplicate } from './ui.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
+const PAN_PX = 4;      // a press on the empty floor becomes panning after this movement
 // { item, offX, offY, group: [{ it, dx, dy }], pointerId } | { opening, grab, pointerId } | { marquee, pointerId }
+// | { pan, sx, sy, moved, pointerId }
 let drag = null;
+let space = false;            // Space held: drag pans the plan
+const touches = new Map();    // active touch pointers → [x, y] (pinch zoom)
+let pinch = null;             // { d, mx, my }
 
 export function initInteraction(canvas) {
+  initZoom(canvas);
   canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') {
+      touches.set(e.pointerId, local(canvas, e));
+      if (touches.size === 2) return startPinch();
+      if (touches.size > 2) return;
+    }
+    // Middle button or Space+drag: pan anywhere.
+    if (e.button === 1 || space) {
+      drag = { pan: true, sx: e.clientX, sy: e.clientY, moved: true, pointerId: e.pointerId };
+      capture(canvas, e);
+      e.preventDefault();
+      return;
+    }
     const [wx, wy] = toWorld(...local(canvas, e));
     const hit = hitTest(wx, wy);
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
@@ -34,8 +52,9 @@ export function initInteraction(canvas) {
         canvas.setPointerCapture(e.pointerId);
         return;
       }
-      if (state.selectedId !== null || state.selectedIds.size) select(null);
-      else if (state.selectedOpening !== null) selectOpening(null);
+      // Empty floor: a click deselects, a drag pans the plan.
+      drag = { pan: true, sx: e.clientX, sy: e.clientY, moved: false, pointerId: e.pointerId };
+      capture(canvas, e);
       return;
     }
     if (additive) return toggleSelect(hit.id);
@@ -51,7 +70,19 @@ export function initInteraction(canvas) {
   });
 
   canvas.addEventListener('pointermove', e => {
+    if (touches.has(e.pointerId)) {
+      touches.set(e.pointerId, local(canvas, e));
+      if (pinch) return movePinch();
+    }
     const [wx, wy] = toWorld(...local(canvas, e));
+    if (drag?.pan && e.pointerId === drag.pointerId) {
+      const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (!drag.moved && Math.hypot(dx, dy) < PAN_PX) return;
+      drag.moved = true;
+      drag.sx = e.clientX; drag.sy = e.clientY;
+      canvas.style.cursor = 'grabbing';
+      return panBy(dx, dy);
+    }
     if (!drag) {
       canvas.style.cursor = hitTest(wx, wy) ? 'grab' : 'default';
       return;
@@ -80,7 +111,19 @@ export function initInteraction(canvas) {
   });
 
   const end = e => {
+    touches.delete(e.pointerId);
+    if (pinch) { if (touches.size < 2) pinch = null; return; }
     if (!drag || e.pointerId !== drag.pointerId) return;
+    if (drag.pan) {
+      const click = !drag.moved;
+      drag = null;
+      canvas.style.cursor = space ? 'grab' : 'default';
+      if (click) {
+        if (state.selectedId !== null || state.selectedIds.size) select(null);
+        else if (state.selectedOpening !== null) selectOpening(null);
+      }
+      return;
+    }
     if (drag.marquee) {
       const m = overlay.marquee;
       overlay.marquee = null;
@@ -124,6 +167,51 @@ export function initInteraction(canvas) {
     }
     e.preventDefault();
   });
+}
+
+function capture(canvas, e) {
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic or finished pointer */ }
+}
+
+// Wheel zoom around the cursor, +/−/fit buttons, Space for panning, two-finger pinch.
+function initZoom(canvas) {
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const [px, py] = local(canvas, e);
+    zoomAt(px, py, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015)));
+  }, { passive: false });
+  canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+  document.getElementById('zoomInBtn').addEventListener('click', () => zoomStep(1.25));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => zoomStep(0.8));
+  document.getElementById('zoomFitBtn').addEventListener('click', resetView);
+  onZoom(z => { document.getElementById('zoomFitBtn').textContent = Math.round(z * 100) + '%'; });
+  const typing = e => e.target instanceof Element && e.target.closest('input, textarea, select');
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !typing(e) && document.getElementById('view3d').hidden) {
+      if (!space) canvas.style.cursor = 'grab';
+      space = true;
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', e => { if (e.code === 'Space') { space = false; canvas.style.cursor = 'default'; } });
+  window.addEventListener('blur', () => { space = false; });
+}
+
+function startPinch() {
+  // The second finger cancels a drag of the first one.
+  if (drag && !drag.pan && !drag.marquee) history.end();
+  drag = null;
+  const [a, b] = [...touches.values()];
+  pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 };
+}
+
+function movePinch() {
+  const [a, b] = [...touches.values()];
+  const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+  panBy(mx - pinch.mx, my - pinch.my);
+  if (pinch.d > 10) zoomAt(mx, my, d / pinch.d);
+  Object.assign(pinch, { d, mx, my });
 }
 
 function local(canvas, e) {

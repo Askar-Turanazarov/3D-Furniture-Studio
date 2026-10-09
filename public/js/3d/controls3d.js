@@ -16,6 +16,8 @@ const WALK = 1.4, RUN = 3; // m/s
 
 let camera, container, orbit, plc, overlay;
 const keys = new Set();
+const downAt = new Map();
+// active = walking without pointer lock (touch, or a browser that refuses the lock).
 export const touchInput = { f: 0, r: 0, active: false };
 let room = null;           // result of buildRoom()
 let mode = 'orbit';
@@ -34,19 +36,40 @@ export function initControls(cam, dom, el) {
   plc = new PointerLockControls(camera, dom);
   overlay = el.querySelector('#walkOverlay');
   overlay.addEventListener('click', () => {
-    if (isTouch()) { touchInput.active = true; overlay.hidden = true; return; }
-    plc.lock();
+    if (isTouch()) return startFree();
+    try { plc.lock(); } catch { return startFree(); }
+    // No lock shortly after the click (denied / unsupported) → walk without it.
+    setTimeout(() => { if (mode === 'walk' && !plc.isLocked && !touchInput.active) startFree(); }, 400);
   });
-  plc.addEventListener('lock', () => { overlay.hidden = true; });
-  plc.addEventListener('unlock', () => { if (mode === 'walk') overlay.hidden = false; });
+  document.addEventListener('pointerlockerror', () => { if (mode === 'walk') startFree(); });
+  plc.addEventListener('lock', () => { document.activeElement?.blur(); touchInput.active = false; overlay.hidden = true; updateHint(); });
+  plc.addEventListener('unlock', () => { if (mode === 'walk' && !touchInput.active) overlay.hidden = false; });
+
+  // Mouse drag look when walking without pointer lock.
+  let drag = null;
+  dom.addEventListener('pointerdown', e => {
+    if (mode === 'walk' && touchInput.active && e.pointerType === 'mouse') drag = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    look(e.clientX - drag.x, e.clientY - drag.y);
+    drag = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('pointerup', () => { drag = null; });
 
   const typing = e => e.target instanceof Element && e.target.closest('input, textarea, select');
   window.addEventListener('keydown', e => {
     if (mode !== 'walk' || typing(e)) return;
+    if (e.code === 'Escape' && touchInput.active) { stopFree(); return; }
+    if (!keys.has(e.code)) downAt.set(e.code, performance.now());
     keys.add(e.code);
     if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
   });
-  window.addEventListener('keyup', e => keys.delete(e.code));
+  // A short tap still counts as a ~150 ms step.
+  window.addEventListener('keyup', e => {
+    const held = performance.now() - (downAt.get(e.code) || 0);
+    setTimeout(() => keys.delete(e.code), Math.max(0, 150 - held));
+  });
   window.addEventListener('blur', () => keys.clear());
 
   el.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
@@ -78,6 +101,7 @@ export function setMode(next) {
     overlay.hidden = true;
     overview();
   } else {
+    touchInput.active = false;
     spawn();
     overlay.hidden = false;
   }
@@ -85,8 +109,23 @@ export function setMode(next) {
 }
 
 export function updateHint() {
-  const key = mode === 'orbit' ? 'v3d.orbitHint' : isTouch() ? 'v3d.touchHint' : 'v3d.walkHint';
+  const key = mode === 'orbit' ? 'v3d.orbitHint' : isTouch() ? 'v3d.touchHint'
+    : touchInput.active ? 'v3d.dragHint' : 'v3d.walkHint';
   container.querySelector('#hint3d').textContent = t(key);
+}
+
+function startFree() {
+  document.activeElement?.blur();   // keys must not re-trigger HUD buttons
+  touchInput.active = true;
+  overlay.hidden = true;
+  updateHint();
+}
+
+function stopFree() {
+  touchInput.active = false;
+  touchInput.f = touchInput.r = 0;
+  keys.clear();
+  overlay.hidden = false;
 }
 
 export const isTouch = () => matchMedia('(pointer: coarse)').matches;
@@ -118,7 +157,10 @@ function spawn() {
   }
   const [x, z] = cands.find(([x, z]) => !blockedAt(x, z, obs)) || [L / 2, W / 2];
   camera.position.set(x, eyeHeight(), z);
-  camera.lookAt(L / 2, eyeHeight() * 0.85, W / 2);
+  // Look towards the room centre; from the centre itself look at the window (north).
+  let tx = L / 2 - x, tz = W / 2 - z;
+  if (Math.hypot(tx, tz) < 0.3) { tx = 0; tz = -1; }
+  camera.lookAt(x + tx, eyeHeight() * 0.9, z + tz);
 }
 
 // Move with sliding along obstacles: try X and Z separately.

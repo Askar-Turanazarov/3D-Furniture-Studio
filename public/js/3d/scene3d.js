@@ -110,7 +110,7 @@ function buildFurniture() {
 function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
-  controls.update(Math.min(clock.getDelta(), 0.1));
+  controls.update(Math.min(clock.getDelta(), 0.25));
   renderer.render(scene, camera);
 }
 

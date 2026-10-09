@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'v3d.dragHint': 'WASD / стрелки — ходьба · зажмите мышь и ведите — взгляд · Esc — выход',
     'view.plan': 'план', 'view.scene': 'сцена', 'view.fullscreen': 'Весь экран',
     'v3d.orbit': 'Обзор', 'v3d.walk': 'Прогулка', 'v3d.simple': 'Простые', 'v3d.photo': 'Фото-текстуры',
     'v3d.clickToWalk': 'Нажмите, чтобы войти в комнату',
@@ -44,6 +45,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'v3d.dragHint': 'WASD / strelkalar — yurish · sichqonchani bosib suring — qarash · Esc — chiqish',
     'view.plan': 'reja', 'view.scene': 'sahna', 'view.fullscreen': 'To‘liq ekran',
     'v3d.orbit': 'Ko‘rinish', 'v3d.walk': 'Sayr', 'v3d.simple': 'Oddiy', 'v3d.photo': 'Foto-teksturalar',
     'v3d.clickToWalk': 'Xonaga kirish uchun bosing',
@@ -87,6 +89,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'v3d.dragHint': 'WASD / arrows — move · drag with the mouse — look · Esc — exit',
     'view.plan': 'plan', 'view.scene': 'scene', 'view.fullscreen': 'Fullscreen',
     'v3d.orbit': 'Overview', 'v3d.walk': 'Walk', 'v3d.simple': 'Simple', 'v3d.photo': 'Photo textures',
     'v3d.clickToWalk': 'Click to enter the room',

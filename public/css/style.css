@@ -223,7 +223,29 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 
 /* ---------- room tabs ---------- */
 .room-tabs { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.proj-name { font-weight: 700; font-size: 13px; color: var(--muted); white-space: nowrap; max-width: 30%; overflow: hidden; text-overflow: ellipsis; }
+.proj-name {
+  font: inherit; font-weight: 700; font-size: 13px; color: var(--muted); white-space: nowrap; max-width: 30%;
+  overflow: hidden; text-overflow: ellipsis; border: 0; background: transparent; cursor: pointer; padding: 4px 6px; border-radius: 6px; flex: none;
+}
+.proj-name:hover { background: #e7e9f0; color: var(--text); }
+.top-btn {
+  margin-left: auto; margin-right: 12px; border: 1px solid #3d4466; background: transparent; color: #c5cae9;
+  padding: 4px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600;
+}
+.top-btn:hover { background: #2a3050; color: #fff; }
+dialog.wide { width: min(780px, 94vw); }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; }
+.dlg-head h2 { margin: 0; }
+.proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 12px; max-height: 60vh; overflow: auto; }
+.proj-card { border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.proj-card:hover { border-color: #c5cbd8; box-shadow: var(--shadow); }
+.proj-card.current { border-color: var(--primary); }
+.proj-preview { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; background: #f1f3f5; color: #ced4da; display: grid; place-items: center; font-size: 32px; }
+.proj-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-title-input { font-weight: 700; }
+.proj-meta { font-size: 12px; color: var(--muted); }
+.proj-tools { display: flex; gap: 4px; }
+.proj-tools .btn { flex: 1; min-width: 0; font-size: 14px; }
 .room-tabs-list { display: flex; gap: 4px; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
 .room-tab {
   display: inline-flex; align-items: center; gap: 2px; flex: none;

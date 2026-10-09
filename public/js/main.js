@@ -3,6 +3,7 @@ import { state, onChange, emit, itemName, docFromState, applyDoc } from './state
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
 import { initProjects, persist } from './projects.js';
+import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
 import { initTextures } from './textures.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
@@ -144,6 +145,7 @@ async function start() {
   initHistory();
   await loadCatalog();
   initProjects();
+  initProjectsDialog();
   fillCatalog();
   syncForms();
   onChange(update);

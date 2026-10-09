@@ -4,7 +4,7 @@ import { state, emit, applyDoc, docFromState } from './state.js';
 import { history } from './history.js';
 import {
   onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom, activeRoom, normalizeDoc,
-  makeVersion, versionGroup
+  makeVersion, versionGroup, saveProjectNow, setLastProject
 } from './storage.js';
 import { defaultOpenings } from './openings.js';
 import { resetView } from './renderer.js';
@@ -41,6 +41,39 @@ export function initProjects() {
   initRoomDialog();
   onLangChange(renderTabs);
   renderTabs();
+}
+
+// Switch to another project (already saved or new); the current one is saved first.
+export function openProject(p) {
+  if (project) { capturePreview(); persist(); flushSave(); }
+  histories.clear();
+  project = p;
+  setLastProject(p.id);
+  enterRoom();
+}
+
+export function newProject() {
+  const room = { L: 400, W: 300, H: 270, plinth: 2 };
+  const doc = normalizeDoc({ room, openings: defaultOpenings(room) });
+  const p = makeProject(t('project.new'), [makeRoom(t('room.default', { n: 1 }), doc)]);
+  if (saveProjectNow(p)) openProject(p);
+}
+
+// Forget the open project without saving it (it is being deleted).
+export function closeProject() { project = null; }
+
+// Small JPEG of the plan for the project card (only while the 2D plan is on screen).
+export function capturePreview() {
+  const src = document.getElementById('plan');
+  if (!project || !src.width || !document.getElementById('view3d').hidden) return;
+  const c = document.createElement('canvas');
+  c.width = 240;
+  c.height = Math.max(1, Math.round(240 * src.height / src.width));
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(src, 0, 0, c.width, c.height);
+  project.preview = c.toDataURL('image/jpeg', 0.7);
 }
 
 function applyRoom(r) {

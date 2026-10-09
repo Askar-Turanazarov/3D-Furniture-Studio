@@ -20,6 +20,7 @@
       <span class="logo">▦</span>
       <h1>Furniture Super Planner <span class="accent">3D</span></h1>
     </div>
+    <button type="button" class="top-btn" id="projectsBtn">📁 <span data-i18n="proj.title">Проекты</span></button>
     <div class="lang" role="group" aria-label="Language">
       <button data-lang="ru">RU</button>
       <button data-lang="uz">UZ</button>
@@ -156,7 +157,7 @@
 
     <main class="stage">
       <div class="room-tabs">
-        <span class="proj-name" id="projName"></span>
+        <button type="button" class="proj-name" id="projName" data-i18n-title="proj.title"></button>
         <div class="room-tabs-list" id="roomTabsList" role="tablist"></div>
         <button class="btn add-room" id="addRoomBtn" type="button">+ <span data-i18n="room.add">Комната</span></button>
       </div>
@@ -250,6 +251,20 @@
     <button type="button" data-act="version" data-i18n="room.versionMenu">Дублировать как версию</button>
     <button type="button" data-act="delete" class="danger" data-i18n="room.delete">Удалить комнату</button>
   </div>
+
+  <dialog id="projectsDlg" class="wide">
+    <div class="dlg-head">
+      <h2 data-i18n="proj.title">Проекты</h2>
+      <button type="button" class="btn icon ghost" id="projClose" aria-label="Close">✕</button>
+    </div>
+    <div class="btn-row">
+      <button type="button" class="btn accent" id="projNew">+ <span data-i18n="proj.new">Новый проект</span></button>
+      <button type="button" class="btn" id="projImport">⬆ <span data-i18n="proj.import">Импорт из файла</span></button>
+      <input type="file" id="projFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="hint" data-i18n="proj.hint">Проекты хранятся в этом браузере. Экспорт в файл — резервная копия и перенос на другое устройство.</p>
+    <div class="proj-grid" id="projGrid"></div>
+  </dialog>
 
   <dialog id="roomDlg">
     <form id="roomDlgForm" method="dialog">

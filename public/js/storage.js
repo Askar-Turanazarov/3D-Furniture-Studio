@@ -68,15 +68,16 @@ export function loadProject(id) {
 }
 
 // Write now; returns false (and reports) when the storage is full or unavailable.
-export function saveProjectNow(p) {
+// last: remember it as the project to open next time (false for copies and imports).
+export function saveProjectNow(p, { last = true } = {}) {
   if (pending === p) { clearTimeout(timer); pending = null; }
   p.updatedAt = Date.now();
   try {
     store().setItem(projectKey(p.id), JSON.stringify(p));
     const entry = { id: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt, rooms: p.rooms.length };
     const list = listProjects().filter(e => e.id !== p.id);
-    store().setItem(INDEX, JSON.stringify([entry, ...list]));
-    store().setItem(LAST, p.id);
+    store().setItem(INDEX, JSON.stringify([entry, ...list].sort((a, b) => b.updatedAt - a.updatedAt)));
+    if (last) store().setItem(LAST, p.id);
     return true;
   } catch (e) {
     onError(e);
@@ -125,6 +126,45 @@ export function openLastProject() {
 }
 
 export const activeRoom = p => p.rooms.find(r => r.id === p.activeRoomId) || p.rooms[0];
+
+export function setLastProject(id) {
+  try { store().setItem(LAST, id); } catch { /* ignore */ }
+}
+
+// Deep copy with new ids for the project and its rooms (version links follow the new ids).
+export function cloneProject(p, name = p.name) {
+  const ids = new Map(p.rooms.map(r => [r.id, newId()]));
+  const now = Date.now();
+  const rooms = p.rooms.map(r => ({ ...structuredClone(r), id: ids.get(r.id), versionOf: ids.get(r.versionOf) ?? null }));
+  return {
+    id: newId(), name, createdAt: now, updatedAt: now, preview: p.preview || null,
+    activeRoomId: ids.get(p.activeRoomId) || rooms[0].id, rooms
+  };
+}
+
+// ---- export / import of a project file ----
+export const FILE_FORMAT = 'fsp3d-project';
+
+export function exportProject(p) {
+  const { preview, ...rest } = p;
+  return { format: FILE_FORMAT, version: 2, exportedAt: new Date().toISOString(), project: rest };
+}
+
+const isSize = v => Number.isFinite(v) && v >= 50 && v <= 3000;
+
+// Check the structure and return a new project (new ids); throws Error('bad file') on anything odd.
+export function importProject(data) {
+  const p = data?.format === FILE_FORMAT ? data.project : null;
+  const ok = p && typeof p.name === 'string' && Array.isArray(p.rooms) && p.rooms.length > 0 && p.rooms.length <= 50 &&
+    p.rooms.every(r => r && r.room && isSize(r.room.L) && isSize(r.room.W) && Array.isArray(r.items ?? []) &&
+      (r.items ?? []).every(i => i && Number.isFinite(i.x) && Number.isFinite(i.y) && Number.isFinite(i.w) && Number.isFinite(i.d)));
+  if (!ok) throw new Error('bad file');
+  const rooms = p.rooms.map(r => ({
+    id: String(r.id || newId()), name: String(r.name || '').slice(0, 60), purpose: String(r.purpose || ''),
+    versionOf: r.versionOf ?? null, ...(r.variant ? { variant: +r.variant } : {}), ...normalizeDoc(r)
+  }));
+  return cloneProject({ name: p.name.slice(0, 100), activeRoomId: p.activeRoomId, rooms });
+}
 
 // Rooms of one version group: the original (variant 1) and its copies (versionOf = original id).
 export function versionGroup(p, room) {

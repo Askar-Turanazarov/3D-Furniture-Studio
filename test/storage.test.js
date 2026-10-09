@@ -2,7 +2,8 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeDoc, makeRoom, makeProject, listProjects, loadProject, saveProjectNow, deleteProject,
-  migrateV1, openLastProject, activeRoom, onSaveError, makeVersion, versionGroup
+  migrateV1, openLastProject, activeRoom, onSaveError, makeVersion, versionGroup,
+  cloneProject, exportProject, importProject
 } from '../public/js/storage.js';
 import { state, item } from './helpers.js';
 
@@ -106,4 +107,35 @@ test('versions: next free letter, placed after the group, copy of the source', (
   assert.equal(versionGroup(p, other).length, 1);
   saveProjectNow(p);
   assert.deepEqual(loadProject(p.id).rooms.map(r => r.variant), [1, 3, 2, undefined], 'variants survive save/load');
+});
+
+test('clone gets new ids and keeps version links inside the copy', () => {
+  const a = makeRoom('A', v1());
+  const p = makeProject('P', [a, makeRoom('K', {})]);
+  makeVersion(p, a.id, (n, i) => `${n} ${i}`);
+  const c = cloneProject(p, 'P (copy)');
+  assert.equal(c.name, 'P (copy)');
+  assert.notEqual(c.id, p.id);
+  assert.ok(c.rooms.every((r, i) => r.id !== p.rooms[i].id));
+  assert.equal(c.rooms[1].versionOf, c.rooms[0].id);
+  assert.equal(c.activeRoomId, c.rooms[0].id);
+  c.rooms[0].items[0].x = 999;
+  assert.notEqual(p.rooms[0].items[0].x, 999);
+});
+
+test('export → import round trip, bad files are rejected', () => {
+  const p = makeProject('P', [makeRoom('A', v1())]);
+  const file = JSON.parse(JSON.stringify(exportProject(p)));
+  const q = importProject(file);
+  assert.notEqual(q.id, p.id);
+  assert.equal(q.rooms[0].items.length, 2);
+  assert.equal(q.rooms[0].name, 'A');
+  assert.throws(() => importProject({ format: 'other', project: p }));
+  assert.throws(() => importProject(null));
+  const bad = structuredClone(file);
+  bad.project.rooms[0].room.L = 'big';
+  assert.throws(() => importProject(bad));
+  const bad2 = structuredClone(file);
+  bad2.project.rooms[0].items[0].x = null;
+  assert.throws(() => importProject(bad2));
 });

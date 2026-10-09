@@ -27,6 +27,7 @@ try { personH = Number(localStorage.getItem('fsp3d.height')) || 170; } catch { /
 const HEIGHTS = [120, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200];
 const PRESETS = { 120: 'v3d.child', 165: 'v3d.woman', 180: 'v3d.man' };
 let distAt = 0;
+let locked = false;         // pointer lock state, see the lock / unlock listeners
 
 export function initControls(cam, dom, el) {
   camera = cam;
@@ -47,8 +48,9 @@ export function initControls(cam, dom, el) {
     setTimeout(() => { if (mode === 'walk' && !plc.isLocked && !touchInput.active) startFree(); }, 400);
   });
   document.addEventListener('pointerlockerror', () => { if (mode === 'walk') startFree(); });
-  plc.addEventListener('lock', () => { document.activeElement?.blur(); touchInput.active = false; overlay.hidden = true; updateHint(); });
-  plc.addEventListener('unlock', () => { if (mode === 'walk' && !touchInput.active) overlay.hidden = false; updateHint(); });
+  // three.js fires lock/unlock before updating plc.isLocked, so the HUD uses its own flag.
+  plc.addEventListener('lock', () => { locked = true; document.activeElement?.blur(); touchInput.active = false; overlay.hidden = true; updateHint(); });
+  plc.addEventListener('unlock', () => { locked = false; if (mode === 'walk' && !touchInput.active) overlay.hidden = false; updateHint(); });
 
   // Mouse drag look when walking without pointer lock.
   let drag = null;
@@ -131,7 +133,7 @@ export function setMode(next) {
 export function updateHint() {
   fillHeights();
   container.querySelector('#heightBox').hidden = mode !== 'walk';
-  const walking = mode === 'walk' && (plc.isLocked || touchInput.active);
+  const walking = mode === 'walk' && (locked || touchInput.active);
   container.querySelector('#dist3d').hidden = !walking;
   container.querySelector('#cross3d').hidden = !walking;
   const key = mode === 'orbit' ? 'v3d.orbitHint' : isTouch() ? 'v3d.touchHint'

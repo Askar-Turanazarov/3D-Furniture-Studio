@@ -191,6 +191,8 @@
             <input type="number" name="plinth" min="0" max="10"></label>
           <label><span data-i18n="set.grid">Сетка</span>
             <select name="grid"><option>10</option><option>50</option></select></label>
+          <label><span data-i18n="set.minPassage">Проход от</span>
+            <input type="number" name="minPassage" min="45" max="90"></label>
         </form>
         <button class="btn ghost" id="clearBtn" data-i18n="set.clear">Очистить план</button>
       </section>
@@ -231,6 +233,7 @@
         <button class="btn icon" id="redoBtn" data-i18n-title="hist.redo" disabled>↷</button>
         <button class="btn lock-toggle" id="lockBtn2"></button>
         <button class="btn" id="zonesBtn"></button>
+        <button class="btn" id="passBtn"></button>
         <button class="btn" id="fullscreenBtn">⛶ <span data-i18n="view.fullscreen">Весь экран</span></button>
         </div>
       </div>
@@ -271,6 +274,10 @@
           <h3 data-i18n="notes.all">Все проблемы на плане</h3>
           <ul id="problemList"></ul>
         </section>
+        <details class="notes-all pass-group" id="passGroup" hidden>
+          <summary><span data-i18n="pass.group">Проходы</span> (<span id="passCount">0</span>)</summary>
+          <ul id="passList"></ul>
+        </details>
       </aside>
       </div>
       <div class="legend">

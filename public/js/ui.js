@@ -5,6 +5,7 @@ import { state, emit, addItem, removeItems, rotateItem, duplicateItems, select, 
   selectObstacle, selectedOb, addObstacle, addNiche, removeObstacle, updateObstacle } from './state.js';
 import { wallLen } from './openings.js';
 import { openSpec } from './zones.js';
+import { requestDraw, flash as drawFlash } from './renderer.js';
 
 import { rectOf } from './geometry.js';
 import { alignDeltas } from './align.js';
@@ -85,6 +86,7 @@ export function initUI({ autoPlace }) {
     state.settings.snap = num(f.snap.value, 1, 10);
     state.settings.grid = num(f.grid.value, 10, 50);
     if (f.gap.value !== '') state.settings.gap = num(f.gap.value, 0, 20);
+    if (Number(f.minPassage.value) >= 45) state.settings.minPassage = num(f.minPassage.value, 45, 90);
     if (f.plinth.value !== '') state.room.plinth = num(f.plinth.value, 0, 10);
     emit();
   });
@@ -142,12 +144,15 @@ export function syncForms() {
   const s = $('setForm').elements;
   s.snap.value = state.settings.snap; s.grid.value = state.settings.grid;
   s.gap.value = state.settings.gap; s.plinth.value = state.room.plinth;
+  s.minPassage.value = state.settings.minPassage || 60;
 }
 
 export function setErrors(map) { errors = map; }
 export function setWarnings(map) { warnings = map; }
 let obWarnings = new Map();
 export function setObWarnings(map) { obWarnings = map; }
+let passages = [];
+export function setPassages(list) { passages = list; }
 
 // ---- windows / doors panel + lock ----
 function initOpenings() {
@@ -155,6 +160,26 @@ function initOpenings() {
   $('lockBtn').addEventListener('click', toggleLock);
   $('lockBtn2').addEventListener('click', toggleLock);
   $('zonesBtn').addEventListener('click', cycleZones);
+  $('passBtn').addEventListener('click', togglePassages);
+  window.addEventListener('keydown', e => {
+    if (e.code !== 'KeyP' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
+    if (!$('view3d').hidden) return;
+    togglePassages();
+    e.preventDefault();
+  });
+  // Passages group: collapsed state is a per-browser convenience.
+  const group = $('passGroup');
+  try { group.open = localStorage.getItem('fsp3d.passOpen') !== '0'; } catch { group.open = true; }
+  group.addEventListener('toggle', () => { try { localStorage.setItem('fsp3d.passOpen', group.open ? '1' : '0'); } catch { /* ignore */ } });
+  $('passList').addEventListener('click', e => {
+    const li = e.target.closest('li[data-i]');
+    const p = li && passages[Number(li.dataset.i)];
+    if (!p) return;
+    drawFlash.passage = p;
+    drawFlash.until = performance.now() + 3000;
+    requestDraw();
+  });
   window.addEventListener('keydown', e => {
     if (e.code !== 'KeyZ' || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
@@ -229,6 +254,34 @@ function initObstacles() {
     updateObstacle(o, patch);
   });
   $('obDelBtn').addEventListener('click', () => { const o = selectedOb(); if (o) removeObstacle(o.id); });
+}
+
+// ↔ Passages: bands on the plan on / off. Warnings stay either way.
+export function togglePassages() {
+  state.settings.showPassages = state.settings.showPassages === false;
+  emit();
+  toast(t(state.settings.showPassages ? 'pass.on' : 'pass.off'));
+}
+
+function renderPassages() {
+  const on = state.settings.showPassages !== false;
+  const b = $('passBtn');
+  b.innerHTML = `↔ ${escapeHtml(t('pass.short'))}${passages.length ? ` <span class="badge">${passages.length}</span>` : ''}`;
+  b.title = `${t(on ? 'pass.on' : 'pass.off')} (P)`;
+  b.classList.toggle('active', on);
+  $('passGroup').hidden = passages.length === 0;
+  $('passCount').textContent = passages.length;
+  const min = state.settings.minPassage || 60;
+  $('passList').innerHTML = passages.map((p, i) => `<li data-i="${i}">
+      <b>${escapeHtml(refName(p.a))} ↔ ${escapeHtml(refName(p.b))}</b>
+      <i>⚠ ${escapeHtml(t('warn.passage', { n: p.n, min }))}</i>
+    </li>`).join('');
+}
+
+function refName(ref) {
+  if (ref.itemId) { const it = getItem(ref.itemId); return it ? itemName(it) : '?'; }
+  if (ref.kind) return t('ob.' + ref.kind);
+  return t('pass.wall', { wall: t('wallShort.' + ref.wall) });
 }
 
 // ⌓ Zones: selected → all → hidden → selected. A view setting: saved, not undone.
@@ -312,6 +365,7 @@ export function refresh() {
   renderOpenings();
   renderObstacles();
   renderZonesBtn();
+  renderPassages();
   renderNotes();
 }
 
@@ -356,7 +410,7 @@ function renderSelPanel() {
 // Notes column right of the canvas: the selected item's status + every problem item.
 function renderNotes() {
   renderBanner();
-  const errs = id => errors.get(id) || [], warns = id => warnings.get(id) || [];
+  const errs = id => errors.get(id) || [], warns = id => (warnings.get(id) || []).filter(w => w.key !== 'warn.passage');
   const bad = state.items.filter(i => errs(i.id).length || warns(i.id).length);
   const obs = (state.obstacles || []).filter(o => obWarnings.has(o.id));
   $('notesEmpty').hidden = !!selected() || bad.length > 0 || obs.length > 0;

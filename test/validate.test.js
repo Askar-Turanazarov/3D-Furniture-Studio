@@ -47,7 +47,9 @@ test('tall item in front of a window: a warning, not an error', () => {
   const win = { id: 1, kind: 'window', wall: 'north', offset: 100, width: 100, sill: 85, height: 140 };
   const tall = item({ x: 100, y: 2, h: 200 }), low = item({ x: 250, y: 2, h: 60 });
   const s = state({ items: [tall, low], openings: [win] });
-  assert.deepEqual(keys(validateWarnings(s), tall.id), ['warn.window']);
-  assert.deepEqual(keys(validateWarnings(s), low.id), []);
+  // (the 50 cm between them is also a narrow passage — see passages.test.js)
+  const win_ = id => keys(validateWarnings(s), id).filter(k => k !== 'warn.passage');
+  assert.deepEqual(win_(tall.id), ['warn.window']);
+  assert.deepEqual(win_(low.id), []);
   assert.equal(hasErrors(validateAll(s)), false);
 });

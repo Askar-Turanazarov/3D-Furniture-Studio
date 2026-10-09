@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'warn.passage': 'Узкий проход {n} см (норма от {min})', 'set.minPassage': 'Проход от', 'pass.group': 'Проходы', 'pass.short': 'Проходы', 'pass.on': 'Узкие проходы показаны на плане', 'pass.off': 'Узкие проходы скрыты (предупреждения остаются)', 'pass.wall': 'стена ({wall})',
     'err.openZone': 'Дверца/ящик не откроется: мешает «{name}» (не хватает {n} см)', 'err.openZoneWall': 'Дверца/ящик не откроется: мешает стена (не хватает {n} см)', 'warn.openZoneShared': 'Нельзя открыть одновременно с «{name}»', 'warn.openZoneDoor': 'Зона открывания пересекается с дверью комнаты', 'auto.foundSoft': '«{name}»: место найдено, но зона открывания перекрыта', 'open.kind': 'Открывание', 'open.auto': 'по типу', 'open.swing': 'распашные', 'open.slide': 'купе', 'open.drawer': 'ящики', 'open.pullout': 'раскладной', 'open.none': 'нет', 'open.doors': 'Дверей', 'zones.title': 'Зоны открывания', 'zones.mode': 'Зоны открывания: {mode}', 'zones.selected': 'только выбранный', 'zones.all': 'все', 'zones.none': 'скрыты', 'zones.short.selected': 'Зоны: выбр.', 'zones.short.all': 'Зоны: все', 'zones.short.none': 'Зоны: скрыты',
     'dim.elev': 'От пола',
     'err.obstacle': 'Пересечение с конструктивом «{name}»', 'warn.obDoor': 'Мешает открыванию двери', 'warn.obWindow': 'Закрывает окно',
@@ -77,6 +78,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'warn.passage': 'Tor o‘tish joyi {n} sm (me’yor {min} dan)', 'set.minPassage': 'O‘tish joyi', 'pass.group': 'O‘tish joylari', 'pass.short': 'O‘tishlar', 'pass.on': 'Tor o‘tish joylari rejada ko‘rsatilgan', 'pass.off': 'Tor o‘tish joylari yashirilgan (ogohlantirishlar qoladi)', 'pass.wall': 'devor ({wall})',
     'err.openZone': 'Eshikcha/tortma ochilmaydi: «{name}» xalaqit beradi ({n} sm yetmaydi)', 'err.openZoneWall': 'Eshikcha/tortma ochilmaydi: devor xalaqit beradi ({n} sm yetmaydi)', 'warn.openZoneShared': '«{name}» bilan bir vaqtda ochib bo‘lmaydi', 'warn.openZoneDoor': 'Ochilish zonasi xona eshigi bilan kesishadi', 'auto.foundSoft': '«{name}»: joy topildi, lekin ochilish zonasi to‘silgan', 'open.kind': 'Ochilishi', 'open.auto': 'turiga ko‘ra', 'open.swing': 'ochiladigan', 'open.slide': 'kupe', 'open.drawer': 'tortmalar', 'open.pullout': 'yoyiladigan', 'open.none': 'yo‘q', 'open.doors': 'Eshiklar', 'zones.title': 'Ochilish zonalari', 'zones.mode': 'Ochilish zonalari: {mode}', 'zones.selected': 'faqat tanlangan', 'zones.all': 'hammasi', 'zones.none': 'yashirin', 'zones.short.selected': 'Zonalar: tanl.', 'zones.short.all': 'Zonalar: hammasi', 'zones.short.none': 'Zonalar: yashirin',
     'dim.elev': 'Poldan',
     'err.obstacle': '«{name}» konstruktivi bilan kesishadi', 'warn.obDoor': 'Eshik ochilishiga xalaqit beradi', 'warn.obWindow': 'Derazani to‘sadi',
@@ -153,6 +155,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'warn.passage': 'Narrow passage {n} cm (should be {min}+)', 'set.minPassage': 'Passage from', 'pass.group': 'Passages', 'pass.short': 'Passages', 'pass.on': 'Narrow passages are shown on the plan', 'pass.off': 'Narrow passages are hidden (warnings stay)', 'pass.wall': 'wall ({wall})',
     'err.openZone': 'Door/drawer will not open: “{name}” is in the way ({n} cm short)', 'err.openZoneWall': 'Door/drawer will not open: the wall is in the way ({n} cm short)', 'warn.openZoneShared': 'Cannot be opened together with “{name}”', 'warn.openZoneDoor': 'Opening zone overlaps the room door', 'auto.foundSoft': '“{name}”: placed, but its opening zone is blocked', 'open.kind': 'Opening', 'open.auto': 'by type', 'open.swing': 'hinged', 'open.slide': 'sliding', 'open.drawer': 'drawers', 'open.pullout': 'pull-out', 'open.none': 'none', 'open.doors': 'Doors', 'zones.title': 'Opening zones', 'zones.mode': 'Opening zones: {mode}', 'zones.selected': 'selected only', 'zones.all': 'all', 'zones.none': 'hidden', 'zones.short.selected': 'Zones: sel.', 'zones.short.all': 'Zones: all', 'zones.short.none': 'Zones: off',
     'dim.elev': 'Above floor',
     'err.obstacle': 'Overlaps the structure “{name}”', 'warn.obDoor': 'Blocks the door swing', 'warn.obWindow': 'Covers the window',

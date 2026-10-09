@@ -92,6 +92,11 @@ label.row { margin-bottom: 8px; }
 .ob-add .btn.small { flex: 1 1 auto; font-size: 12px; padding: 5px 8px; }
 .niche-form { margin-top: 8px; padding: 8px; background: #f8f9fc; border-radius: 8px; }
 .niche-form .hint { grid-column: 1 / -1; margin: 0; }
+.btn .badge { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 2px; border-radius: 8px; background: #e67700; color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+.pass-group { margin-top: 8px; }
+.pass-group summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 700; }
+.pass-group ul { margin-top: 6px; }
+.pass-group li b { color: #a86200; }
 .ob-dot { background: repeating-linear-gradient(45deg, #868e96 0 2px, #dee2e6 2px 4px); }
 label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin: 4px 0; cursor: pointer; }
 label.check[hidden] { display: none; }

@@ -10,7 +10,7 @@ const LAST = 'fsp3d.lastProject';
 const projectKey = id => 'fsp3d.project.' + id;
 
 const DEFAULT_ROOM = { L: 400, W: 300, H: 270, plinth: 2 };
-const DEFAULT_SETTINGS = { snap: 5, gap: 3, grid: 10, showZones: 'selected' };
+const DEFAULT_SETTINGS = { snap: 5, gap: 3, grid: 10, showZones: 'selected', minPassage: 60, showPassages: true };
 
 let timer = null, pending = null;
 let onError = () => {};

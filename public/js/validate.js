@@ -2,6 +2,7 @@
 import { rectOf, wallViolations, overlaps, clearance, round1, zOverlaps, zRange } from './geometry.js';
 import { doorSwingRect, windowZoneRect } from './openings.js';
 import { openSpec, openZoneRect, freeDepth, wallDepth } from './zones.js';
+import { narrowPassages } from './passages.js';
 
 // → Map<itemId, [{ key, params }]>
 export function validateAll(state) {
@@ -123,5 +124,11 @@ export function validateWarnings(state) {
       result.get(it.id).push({ key: 'warn.openZoneShared', params: { otherId: o.id } });
     });
   });
+  const min = state.settings.minPassage || 60;
+  for (const p of narrowPassages(state)) {
+    for (const ref of [p.a, p.b]) {
+      if (ref.itemId && result.has(ref.itemId)) result.get(ref.itemId).push({ key: 'warn.passage', params: { n: p.n, min } });
+    }
+  }
   return result;
 }

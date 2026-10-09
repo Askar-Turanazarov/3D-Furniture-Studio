@@ -48,6 +48,10 @@ export function initRenderer(canvasEl, wrapEl) {
 export function setErrors(map) { errors = map; }
 let obWarnings = new Map();
 export function setObWarnings(map) { obWarnings = map; }
+let passages = [];
+export function setPassages(list) { passages = list; }
+// A passage clicked in the notes flashes for 3 s even when the bands are hidden.
+export const flash = { passage: null, until: 0 };
 
 export function requestDraw() {
   if (pending) return;
@@ -124,6 +128,7 @@ function draw() {
   if (sel) drawItem(sel, now);
   drawObstacles(true);    // ceiling ducts and other high structure over the furniture
   drawZones(sel);
+  drawPassages();
   drawOpenings();   // over the furniture: a blocked door swing stays visible
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
   if (overlay.marquee) drawMarquee(overlay.marquee);
@@ -184,6 +189,44 @@ function drawPlinth() {
   ctx.strokeRect(x, y, (L - 2 * p) * view.scale, (W - 2 * p) * view.scale);
   ctx.restore();
 }
+
+function drawPassages() {
+  const now = performance.now();
+  const list = state.settings.showPassages === false ? [] : [...passages];
+  const f = flash.passage && now < flash.until ? flash.passage : null;
+  if (f && !list.some(p => same(p, f))) list.push(f);
+  for (const p of list) {
+    const hot = f && same(p, f);
+    const [x, y] = toScreen(p.x, p.y);
+    const w = p.w * view.scale, h = p.h * view.scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = hot ? 'rgba(250, 176, 5, .45)' : 'rgba(255, 212, 59, .28)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(230, 119, 0, .55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let s = -h; s < w; s += 8) { ctx.moveTo(x + s, y); ctx.lineTo(x + s + h, y + h); }
+    ctx.stroke();
+    ctx.restore();
+    const label = `${p.n} ${t('unit.cm')}`;
+    ctx.save();
+    ctx.font = '700 11px system-ui, sans-serif';
+    const tw = ctx.measureText(label).width + 8;
+    const cx = x + w / 2, cy = y + h / 2;
+    ctx.fillStyle = '#e67700';
+    ctx.fillRect(cx - tw / 2, cy - 8, tw, 16);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, cy);
+    ctx.restore();
+  }
+  if (f) requestDraw();   // keep animating until the flash ends
+}
+const same = (a, b) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
 // Opening zones (dashed light blue; red when blocked). Mode: selected | all | none.
 // Hidden zones still validate; a selected item with a zone error shows its zone in any mode.

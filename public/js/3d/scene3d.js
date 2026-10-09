@@ -8,7 +8,7 @@ import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import { initTouch } from './touch3d.js';
-import { setQuality } from './textures3d.js';
+import { setQuality, resetPhoto } from './textures3d.js';
 import { toast } from '../ui.js';
 
 let renderer, scene, camera, container, clock;
@@ -46,6 +46,8 @@ function init(el) {
   let saved = 'simple';
   try { saved = localStorage.getItem('fsp3d.quality') || 'simple'; } catch { /* ignore */ }
   if (saved !== 'simple') applyQuality(saved);
+  // The texture panel changed the photo set: reload it and switch to Photo.
+  document.addEventListener('fsp3d:textures', () => { resetPhoto(); applyQuality('photo'); });
 
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });

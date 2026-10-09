@@ -3,6 +3,7 @@ import { state, onChange, emit, itemName } from './state.js';
 import { findSpot } from './autoplace.js';
 import { load, save } from './storage.js';
 import { initOrder } from './order.js';
+import { initTextures } from './textures.js';
 import { initRenderer, requestDraw, setErrors as setDrawErrors } from './renderer.js';
 import { validateAll } from './validate.js';
 import { initInteraction } from './interaction.js';
@@ -79,6 +80,7 @@ async function start() {
   initUI({ autoPlace });
   initOrder();
   initViewSwitch();
+  initTextures();
   await loadCatalog();
   load(state);
   fillCatalog();

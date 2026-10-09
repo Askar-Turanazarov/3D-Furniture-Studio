@@ -1,6 +1,13 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'tex.title': 'Фото-текстуры (3D)', 'tex.apply': 'Применить готовые', 'tex.pack': 'Скачать набор (ZIP)',
+    'tex.floor': 'Пол', 'tex.wall': 'Стены', 'tex.wood': 'Дерево мебели', 'tex.fabric': 'Обивка',
+    'tex.builtin': 'готовая CC0', 'tex.custom': 'своя', 'tex.download': 'Скачать готовую текстуру',
+    'tex.upload': 'Загрузить своё фото', 'tex.reset': 'Вернуть готовую',
+    'tex.hint': 'Готовые CC0-текстуры (ambientCG) можно сразу применить в 3D или скачать. Своё фото (JPG/PNG) заменит выбранную поверхность.',
+    'tex.applied': 'Фото-текстуры применены', 'tex.uploaded': 'Текстура «{name}» загружена',
+    'tex.resetDone': 'Возвращена готовая текстура', 'tex.fail': 'Не удалось загрузить изображение',
     'v3d.dragHint': 'WASD / стрелки — ходьба · зажмите мышь и ведите — взгляд · Esc — выход',
     'view.plan': 'план', 'view.scene': 'сцена', 'view.fullscreen': 'Весь экран',
     'v3d.orbit': 'Обзор', 'v3d.walk': 'Прогулка', 'v3d.simple': 'Простые', 'v3d.photo': 'Фото-текстуры',
@@ -45,6 +52,13 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'tex.title': 'Foto-teksturalar (3D)', 'tex.apply': 'Tayyorlarini qo‘llash', 'tex.pack': 'To‘plamni yuklab olish (ZIP)',
+    'tex.floor': 'Pol', 'tex.wall': 'Devorlar', 'tex.wood': 'Mebel yog‘ochi', 'tex.fabric': 'Qoplama',
+    'tex.builtin': 'tayyor CC0', 'tex.custom': 'o‘zingizniki', 'tex.download': 'Tayyor teksturani yuklab olish',
+    'tex.upload': 'O‘z rasmingizni yuklash', 'tex.reset': 'Tayyoriga qaytarish',
+    'tex.hint': 'Tayyor CC0 teksturalarni (ambientCG) darhol 3D’da qo‘llash yoki yuklab olish mumkin. O‘z rasmingiz (JPG/PNG) tanlangan sirtni almashtiradi.',
+    'tex.applied': 'Foto-teksturalar qo‘llandi', 'tex.uploaded': '«{name}» teksturasi yuklandi',
+    'tex.resetDone': 'Tayyor tekstura qaytarildi', 'tex.fail': 'Rasmni yuklab bo‘lmadi',
     'v3d.dragHint': 'WASD / strelkalar — yurish · sichqonchani bosib suring — qarash · Esc — chiqish',
     'view.plan': 'reja', 'view.scene': 'sahna', 'view.fullscreen': 'To‘liq ekran',
     'v3d.orbit': 'Ko‘rinish', 'v3d.walk': 'Sayr', 'v3d.simple': 'Oddiy', 'v3d.photo': 'Foto-teksturalar',
@@ -89,6 +103,13 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'tex.title': 'Photo textures (3D)', 'tex.apply': 'Apply built-in', 'tex.pack': 'Download set (ZIP)',
+    'tex.floor': 'Floor', 'tex.wall': 'Walls', 'tex.wood': 'Furniture wood', 'tex.fabric': 'Upholstery',
+    'tex.builtin': 'built-in CC0', 'tex.custom': 'custom', 'tex.download': 'Download built-in texture',
+    'tex.upload': 'Upload your photo', 'tex.reset': 'Back to built-in',
+    'tex.hint': 'Built-in CC0 textures (ambientCG) can be applied in 3D right away or downloaded. Your own photo (JPG/PNG) replaces the chosen surface.',
+    'tex.applied': 'Photo textures applied', 'tex.uploaded': 'Texture “{name}” uploaded',
+    'tex.resetDone': 'Built-in texture restored', 'tex.fail': 'Could not upload the image',
     'v3d.dragHint': 'WASD / arrows — move · drag with the mouse — look · Esc — exit',
     'view.plan': 'plan', 'view.scene': 'scene', 'view.fullscreen': 'Fullscreen',
     'v3d.orbit': 'Overview', 'v3d.walk': 'Walk', 'v3d.simple': 'Simple', 'v3d.photo': 'Photo textures',

@@ -115,6 +115,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .btn-row .btn { flex: 1; }
 .btn-row.end { justify-content: flex-end; }
 .btn-row.end .btn { flex: 0 0 auto; width: auto; }
+.btn-row a.btn { text-align: center; text-decoration: none; }
+.btn.sm { padding: 4px 9px; font-size: 13px; text-decoration: none; display: inline-block; line-height: 1.3; }
+
+/* ---------- photo textures panel ---------- */
+.tex-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.tex-row { display: flex; align-items: center; gap: 8px; }
+.tex-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--line); flex: none; }
+.tex-info { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.tex-badge { font-size: 11px; color: var(--muted); }
+.tex-badge.own { color: var(--accent); font-weight: 600; }
+.tex-actions { display: flex; gap: 4px; }
 
 /* ---------- items list ---------- */
 .items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }

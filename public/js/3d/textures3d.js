@@ -126,15 +126,27 @@ function textures() {
 }
 
 // ---------- photo textures ----------
-async function loadSet(name) {
+// Custom uploads (colour map only) from the server: { floor: url | null, ... }.
+async function customUrls() {
+  try {
+    const res = await fetch('/api/textures');
+    return res.ok ? (await res.json()).custom : {};
+  } catch { return {}; }
+}
+
+async function loadSet(name, customUrl) {
   const loader = new THREE.TextureLoader();
-  const load = async (file, srgb) => {
-    const t = await loader.loadAsync(`/textures/${name}/${file}.jpg`);
+  const load = async (file, srgb, url = `/textures/${name}/${file}.jpg`) => {
+    const t = await loader.loadAsync(url);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
     return t;
   };
+  if (customUrl) {
+    // The built-in normal/roughness maps do not match a foreign photo, so use the colour only.
+    try { return { map: await load('color', true, customUrl), custom: true }; } catch { /* fall back to built-in */ }
+  }
   try {
     const [map, normalMap, roughnessMap] = await Promise.all([
       load('color', true), load('normal', false), load('roughness', false)
@@ -170,7 +182,8 @@ function greyscale(t) {
 export async function setQuality(q) {
   let ok = true;
   if (q === 'photo' && !photo) {
-    const sets = await Promise.all(PHOTO_SETS.map(loadSet));
+    const custom = await customUrls();
+    const sets = await Promise.all(PHOTO_SETS.map(n => loadSet(n, custom[n])));
     photo = Object.fromEntries(PHOTO_SETS.map((n, i) => [n, sets[i]]));
     ok = sets.every(Boolean);
   } else if (q === 'photo') {
@@ -184,18 +197,25 @@ export async function setQuality(q) {
 
 export const getQuality = () => quality;
 
+/** Forget loaded photo textures (after an upload / reset) so the next setQuality reloads them. */
+export function resetPhoto() {
+  if (photo) for (const set of Object.values(photo)) if (set) for (const t of Object.values(set)) t?.isTexture && t.dispose();
+  photo = null;
+}
+
 // Texture set for a surface in the current quality (falls back to procedural).
 function surface(name) {
   const p = quality === 'photo' && photo && photo[name];
-  if (p) return { ...p, photo: true };
+  if (p) return { ...p, photo: true, custom: !!p.custom };
   const T = textures();
   const simple = { floor: T.parquet, wall: T.plaster, wood: T.wood, fabric: T.fabric }[name];
   return { ...simple, photo: false };
 }
 
-// Photo maps are already coloured: tint them only lightly with the item colour.
-function tint(color, isPhoto) {
-  return isPhoto ? new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.45) : new THREE.Color(color);
+// Photo maps are already coloured: tint them only lightly with the item colour (custom ones barely).
+function tint(color, isPhoto, isCustom = false) {
+  if (!isPhoto) return new THREE.Color(color);
+  return new THREE.Color(color).lerp(new THREE.Color('#ffffff'), isCustom ? 0.8 : 0.45);
 }
 
 const maps = ({ map, normalMap, roughnessMap }) => {
@@ -240,8 +260,8 @@ export function furnitureMat(kind, color, status = 'ok') {
   const wood = surface('wood'), fab = surface('fabric');
   let m;
   switch (kind) {
-    case 'wood': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: tint(color, wood.photo), roughness: 0.55 }); break;
-    case 'fabric': m = new THREE.MeshStandardMaterial({ ...maps(fab), color, roughness: 0.95 }); break;
+    case 'wood': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: tint(color, wood.photo, wood.custom), roughness: 0.55 }); break;
+    case 'fabric': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: fab.custom ? tint(color, true, true) : color, roughness: 0.95 }); break;
     case 'soft': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: '#f4f1ea', roughness: 0.95 }); break;
     case 'dark': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: wood.photo ? '#6b5442' : '#4a3a2c', roughness: 0.6 }); break;
     case 'plain': m = new THREE.MeshStandardMaterial({ color, roughness: 0.35 }); break;   // enamel, plastic, stone

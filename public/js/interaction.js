@@ -1,20 +1,23 @@
-// Pointer (mouse + touch) drag with snap, keyboard rotate / delete / nudge.
-import { state, emit, select, selected, rotateItem, removeItem, snapValue,
-  selectOpening, selectedOpening, removeOpening, updateOpening } from './state.js';
-import { rectOf, footprint } from './geometry.js';
+// Pointer (mouse + touch) drag with snap, multi-select, keyboard rotate / delete / nudge.
+import { state, emit, select, selected, rotateItem, removeItems, moveItems, snapValue,
+  selectOpening, selectedOpening, removeOpening, updateOpening,
+  isSelected, selectedItems, toggleSelect, selectMany } from './state.js';
+import { rectOf, footprint, overlaps } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
-import { toWorld, view } from './renderer.js';
+import { toWorld, view, overlay, requestDraw } from './renderer.js';
 import { history } from './history.js';
 import { duplicate } from './ui.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
-let drag = null;       // { item, offX, offY, pointerId } | { opening, grab, pointerId }
+// { item, offX, offY, group: [{ it, dx, dy }], pointerId } | { opening, grab, pointerId } | { marquee, pointerId }
+let drag = null;
 
 export function initInteraction(canvas) {
   canvas.addEventListener('pointerdown', e => {
     const [wx, wy] = toWorld(...local(canvas, e));
     const hit = hitTest(wx, wy);
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     if (hit?.opening) {
       const o = hit.opening;
       drag = { opening: o, grab: nearestWall(wx, wy, state.room).along - o.offset, pointerId: e.pointerId };
@@ -24,14 +27,27 @@ export function initInteraction(canvas) {
       return;
     }
     if (!hit) {
-      if (state.selectedId !== null) select(null);
+      if (e.shiftKey) {
+        // Rubber band selection.
+        drag = { marquee: true, pointerId: e.pointerId };
+        overlay.marquee = { x0: wx, y0: wy, x1: wx, y1: wy };
+        canvas.setPointerCapture(e.pointerId);
+        return;
+      }
+      if (state.selectedId !== null || state.selectedIds.size) select(null);
       else if (state.selectedOpening !== null) selectOpening(null);
       return;
     }
-    drag = { item: hit, offX: wx - hit.x, offY: wy - hit.y, pointerId: e.pointerId };
+    if (additive) return toggleSelect(hit.id);
+    // Dragging an item of a multi-selection moves the whole group.
+    const group = isSelected(hit.id) ? selectedItems().filter(it => it !== hit) : [];
+    if (!isSelected(hit.id)) select(hit.id);
+    drag = {
+      item: hit, offX: wx - hit.x, offY: wy - hit.y, pointerId: e.pointerId,
+      group: group.map(it => ({ it, dx: it.x - hit.x, dy: it.y - hit.y }))
+    };
     canvas.setPointerCapture(e.pointerId);
     history.begin();
-    if (state.selectedId !== hit.id) select(hit.id);
   });
 
   canvas.addEventListener('pointermove', e => {
@@ -41,24 +57,40 @@ export function initInteraction(canvas) {
       return;
     }
     if (e.pointerId !== drag.pointerId) return;
+    if (drag.marquee) {
+      Object.assign(overlay.marquee, { x1: wx, y1: wy });
+      return requestDraw();
+    }
     canvas.style.cursor = 'grabbing';
     if (drag.opening) return dragOpening(wx, wy);
     const it = drag.item;
     const f = footprint(it);
     const { L, W } = state.room;
+    const skip = new Set([it, ...drag.group.map(g => g.it)]);
     // Keep at least half of the item inside the room so it can't get lost.
     const rawX = clamp(wx - drag.offX, -f.w / 2, L - f.w / 2);
     const rawY = clamp(wy - drag.offY, -f.h / 2, W - f.h / 2);
-    const nx = magnet(rawX, f.w, 'x', it) ?? snapValue(rawX);
-    const ny = magnet(rawY, f.h, 'y', it) ?? snapValue(rawY);
+    const nx = magnet(rawX, f.w, 'x', skip) ?? snapValue(rawX);
+    const ny = magnet(rawY, f.h, 'y', skip) ?? snapValue(rawY);
     if (nx !== it.x || ny !== it.y) {
       it.x = nx; it.y = ny;
+      for (const g of drag.group) { g.it.x = nx + g.dx; g.it.y = ny + g.dy; }
       emit();
     }
   });
 
   const end = e => {
     if (!drag || e.pointerId !== drag.pointerId) return;
+    if (drag.marquee) {
+      const m = overlay.marquee;
+      overlay.marquee = null;
+      drag = null;
+      const box = { x: Math.min(m.x0, m.x1), y: Math.min(m.y0, m.y1), w: Math.abs(m.x1 - m.x0), h: Math.abs(m.y1 - m.y0) };
+      const ids = state.items.filter(it => overlaps(rectOf(it), box)).map(it => it.id);
+      const keep = selectedItems().map(it => it.id).filter(id => !ids.includes(id));
+      if (box.w > 1 || box.h > 1) selectMany([...keep, ...ids]);
+      return requestDraw();
+    }
     drag = null;
     canvas.style.cursor = 'grab';
     history.end();   // the whole drag is one undo step
@@ -69,20 +101,25 @@ export function initInteraction(canvas) {
   window.addEventListener('keydown', e => {
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
     if (!document.getElementById('view3d').hidden) return;   // keys belong to the 3D view
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.code === 'KeyA') {
+      selectMany(state.items.map(i => i.id));
+      return e.preventDefault();
+    }
     if (selectedOpening()) return openingKey(e);
-    const it = selected();
-    if (!it) return;
-    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') { duplicate(it); e.preventDefault(); return; }
-    if (e.ctrlKey || e.metaKey) return;
+    const items = selectedItems();
+    if (!items.length) return;
+    if (mod && e.code === 'KeyD') { duplicate(); return e.preventDefault(); }
+    if (mod) return;
     const step = state.settings.snap * (e.shiftKey ? 10 : 1);
     switch (e.key) {
-      case 'r': case 'R': case 'к': case 'К': rotateItem(it); break;
-      case 'Delete': case 'Backspace': removeItem(it.id); break;
+      case 'r': case 'R': case 'к': case 'К': if (items.length === 1) rotateItem(items[0]); break;
+      case 'Delete': case 'Backspace': removeItems(items.map(i => i.id)); break;
       case 'Escape': select(null); break;
-      case 'ArrowLeft': it.x -= step; emit(); break;
-      case 'ArrowRight': it.x += step; emit(); break;
-      case 'ArrowUp': it.y -= step; emit(); break;
-      case 'ArrowDown': it.y += step; emit(); break;
+      case 'ArrowLeft': moveItems(items, -step, 0); break;
+      case 'ArrowRight': moveItems(items, step, 0); break;
+      case 'ArrowUp': moveItems(items, 0, -step); break;
+      case 'ArrowDown': moveItems(items, 0, step); break;
       default: return;
     }
     e.preventDefault();
@@ -146,15 +183,15 @@ function openingKey(e) {
   e.preventDefault();
 }
 
-// Snap the item edge to the plinth line or to a neighbour edge (+gap).
-function magnet(raw, size, axis, self) {
+// Snap the item edge to the plinth line or to a neighbour edge (+gap); items in `skip` move together.
+function magnet(raw, size, axis, skip) {
   const tol = MAGNET_PX / view.scale;
   const { plinth: p } = state.room;
   const max = axis === 'x' ? state.room.L : state.room.W;
   const gap = state.settings.gap;
   const cands = [p, max - p - size];
   for (const o of state.items) {
-    if (o === self) continue;
+    if (skip.has(o)) continue;
     const r = rectOf(o);
     const [s, len] = axis === 'x' ? [r.x, r.w] : [r.y, r.h];
     cands.push(s + len + gap, s - gap - size, s, s + len - size);

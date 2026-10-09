@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'sel.many': 'Выбрано предметов: {n}', 'align.title': 'Выровнять', 'align.left': 'По левому краю', 'align.cx': 'По центру (гориз.)', 'align.right': 'По правому краю', 'align.top': 'По верхнему краю', 'align.cy': 'По центру (верт.)', 'align.bottom': 'По нижнему краю', 'align.distX': 'Распределить по горизонтали', 'align.distY': 'Распределить по вертикали', 'sel.multiHint': 'Shift/Ctrl+клик — добавить или убрать, Shift+протяжка — рамка, Ctrl+A — все',
     'sel.duplicate': 'Дублировать', 'dup.done': 'Копия «{name}» добавлена', 'dup.shifted': 'Рядом нет места — копия сдвинута, найдите ей место',
     'hist.undo': 'Отменить (Ctrl+Z)', 'hist.redo': 'Повторить (Ctrl+Y)', 'hist.undone': 'Отменено', 'hist.redone': 'Повторено',
     'v3d.height': 'Рост', 'v3d.child': 'ребёнок', 'v3d.woman': 'женщина', 'v3d.man': 'мужчина',
@@ -64,6 +65,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'sel.many': 'Tanlangan buyumlar: {n}', 'align.title': 'Tekislash', 'align.left': 'Chap chekka bo‘yicha', 'align.cx': 'Markaz bo‘yicha (gorizontal)', 'align.right': 'O‘ng chekka bo‘yicha', 'align.top': 'Yuqori chekka bo‘yicha', 'align.cy': 'Markaz bo‘yicha (vertikal)', 'align.bottom': 'Pastki chekka bo‘yicha', 'align.distX': 'Gorizontal teng taqsimlash', 'align.distY': 'Vertikal teng taqsimlash', 'sel.multiHint': 'Shift/Ctrl+bosish — qo‘shish yoki olib tashlash, Shift+tortish — ramka, Ctrl+A — hammasi',
     'sel.duplicate': 'Nusxalash', 'dup.done': '«{name}» nusxasi qo‘shildi', 'dup.shifted': 'Yonida joy yo‘q — nusxa surildi, unga joy toping',
     'hist.undo': 'Bekor qilish (Ctrl+Z)', 'hist.redo': 'Qaytarish (Ctrl+Y)', 'hist.undone': 'Bekor qilindi', 'hist.redone': 'Qaytarildi',
     'v3d.height': 'Bo‘y', 'v3d.child': 'bola', 'v3d.woman': 'ayol', 'v3d.man': 'erkak',
@@ -127,6 +129,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'sel.many': 'Items selected: {n}', 'align.title': 'Align', 'align.left': 'Align left edges', 'align.cx': 'Align horizontal centres', 'align.right': 'Align right edges', 'align.top': 'Align top edges', 'align.cy': 'Align vertical centres', 'align.bottom': 'Align bottom edges', 'align.distX': 'Distribute horizontally', 'align.distY': 'Distribute vertically', 'sel.multiHint': 'Shift/Ctrl+click — add or remove, Shift+drag — box select, Ctrl+A — all',
     'sel.duplicate': 'Duplicate', 'dup.done': 'Copy of “{name}” added', 'dup.shifted': 'No room next to it — the copy was shifted, find it a spot',
     'hist.undo': 'Undo (Ctrl+Z)', 'hist.redo': 'Redo (Ctrl+Y)', 'hist.undone': 'Undone', 'hist.redone': 'Redone',
     'v3d.height': 'Height', 'v3d.child': 'child', 'v3d.woman': 'woman', 'v3d.man': 'man',

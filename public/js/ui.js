@@ -1,7 +1,10 @@
 // Sidebar forms, item list, selection panel, notes column and toasts.
 import { t, getLang } from './i18n.js';
-import { state, emit, addItem, removeItem, rotateItem, duplicateItem, select, selected, getItem, itemName,
+import { state, emit, addItem, removeItems, rotateItem, duplicateItems, select, selected, selectedItems, getItem, itemName,
   selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked } from './state.js';
+
+import { rectOf } from './geometry.js';
+import { alignDeltas } from './align.js';
 
 const $ = id => document.getElementById(id);
 const num = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
@@ -49,8 +52,15 @@ export function initUI({ autoPlace }) {
     emit();
   });
   $('rotateBtn').addEventListener('click', () => { const it = selected(); if (it) rotateItem(it); });
-  $('deleteBtn').addEventListener('click', () => { const it = selected(); if (it) removeItem(it.id); });
-  $('dupBtn').addEventListener('click', () => { const it = selected(); if (it) duplicate(it); });
+  $('deleteBtn').addEventListener('click', () => removeItems(selectedItems().map(i => i.id)));
+  $('dupBtn').addEventListener('click', () => duplicate());
+  $('alignBox').addEventListener('click', e => {
+    const b = e.target.closest('[data-align]');
+    if (!b) return;
+    const items = selectedItems();
+    alignDeltas(items.map(i => rectOf(i)), b.dataset.align).forEach((d, i) => { items[i].x += d.dx; items[i].y += d.dy; });
+    emit();
+  });
   $('autoBtn').addEventListener('click', () => { const it = selected(); if (it) onAutoPlace(it, false); });
 
   // Settings.
@@ -83,8 +93,11 @@ export function initUI({ autoPlace }) {
   });
 }
 
-export function duplicate(it) {
-  const { item, placed } = duplicateItem(it);
+// Duplicate the selection (one item or a group).
+export function duplicate() {
+  const items = selectedItems();
+  if (!items.length) return;
+  const { item, placed } = duplicateItems(items);
   toast(placed ? t('dup.done', { name: itemName(item) }) : t('dup.shifted'), !placed);
 }
 
@@ -195,7 +208,7 @@ function renderList() {
   $('emptyHint').hidden = state.items.length > 0;
   list.innerHTML = state.items.map(it => {
     const bad = (errors.get(it.id) || []).length > 0;
-    const cls = [it.id === state.selectedId ? 'selected' : '', bad ? 'bad' : ''].join(' ');
+    const cls = [it.id === state.selectedId || state.selectedIds.has(it.id) ? 'selected' : '', bad ? 'bad' : ''].join(' ');
     return `<li data-id="${it.id}" class="${cls}">
       <i class="dot" style="background:${it.color}"></i>
       <span class="name">${escapeHtml(itemName(it))}</span>
@@ -207,9 +220,14 @@ function renderList() {
 
 function renderSelPanel() {
   const it = selected();
+  const many = selectedItems().length;
   $('selPanel').hidden = !it;
   if (!it) return;
-  $('selName').textContent = `${itemName(it)} · ${it.rot}° · x=${it.x}, y=${it.y}`;
+  const multi = many > 1;
+  $('alignBox').hidden = !multi;
+  $('selForm').hidden = multi;
+  $('rotateBtn').hidden = $('autoBtn').hidden = multi;
+  $('selName').textContent = multi ? t('sel.many', { n: many }) : `${itemName(it)} · ${it.rot}° · x=${it.x}, y=${it.y}`;
   const f = $('selForm').elements;
   for (const k of ['w', 'd', 'h']) {
     if (document.activeElement !== f[k]) f[k].value = it[k];

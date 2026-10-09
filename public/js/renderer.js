@@ -1,5 +1,5 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
-import { state, itemName } from './state.js';
+import { state, itemName, isSelected } from './state.js';
 import { rectOf, rayGaps } from './geometry.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
@@ -27,6 +27,7 @@ const WALL_PX = 8;
 
 let canvas, ctx, wrap;
 export const view = { scale: 1, ox: 0, oy: 0 };
+export const overlay = { marquee: null };   // world rect being dragged for box selection
 let errors = new Map();
 let pending = false;
 
@@ -77,7 +78,8 @@ function draw() {
   for (const it of state.items) if (it !== sel) drawItem(it, now);
   if (sel) drawItem(sel, now);
   drawOpenings();   // over the furniture: a blocked door swing stays visible
-  if (sel) drawClearances(sel);
+  if (sel && state.selectedIds.size === 0) drawClearances(sel);
+  if (overlay.marquee) drawMarquee(overlay.marquee);
 
   if (state.found && now < state.found.until) {
     setTimeout(requestDraw, state.found.until - now + 20);
@@ -248,7 +250,8 @@ function drawItem(it, now) {
   const r = rectOf(it);
   const [x, y] = toScreen(r.x, r.y);
   const w = r.w * view.scale, h = r.h * view.scale;
-  const isSel = it.id === state.selectedId;
+  const isSel = isSelected(it.id);
+  const isPrimary = it.id === state.selectedId;
   const isBad = (errors.get(it.id) || []).length > 0;
   const isFound = state.found && state.found.id === it.id && now < state.found.until;
 
@@ -260,12 +263,30 @@ function drawItem(it, now) {
   if (isBad) { ctx.fillStyle = COLORS.badFill; ctx.fillRect(x, y, w, h); }
   else if (isFound) { ctx.fillStyle = COLORS.foundFill; ctx.fillRect(x, y, w, h); }
 
-  ctx.lineWidth = isSel ? 3 : 1.5;
+  ctx.lineWidth = isPrimary ? 3 : isSel ? 2 : 1.5;
   ctx.strokeStyle = isBad ? COLORS.bad : isFound ? COLORS.found : isSel ? COLORS.selected : 'rgba(0,0,0,.45)';
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  if (isSel && isBad) {
+    // A selected problem item keeps its red outline plus a blue selection frame.
+    ctx.strokeStyle = COLORS.selected;
+    ctx.lineWidth = isPrimary ? 2 : 1.5;
+    ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+  }
 
   drawFront(it, x, y, w, h);
   drawLabel(it, x, y, w, h);
+  ctx.restore();
+}
+
+function drawMarquee(m) {
+  const [x0, y0] = toScreen(Math.min(m.x0, m.x1), Math.min(m.y0, m.y1));
+  const [x1, y1] = toScreen(Math.max(m.x0, m.x1), Math.max(m.y0, m.y1));
+  ctx.save();
+  ctx.fillStyle = 'rgba(59, 91, 219, .08)';
+  ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  ctx.strokeStyle = COLORS.selected;
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(x0 + 0.5, y0 + 0.5, x1 - x0, y1 - y0);
   ctx.restore();
 }
 

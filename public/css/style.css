@@ -112,6 +112,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .btn.ghost { background: transparent; }
 .btn.icon { min-width: 34px; padding-left: 8px; padding-right: 8px; font-size: 16px; line-height: 1; }
 .btn:disabled { opacity: .4; cursor: default; }
+.align-box { margin-top: 10px; }
+.align-box .sub { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; }
+.align-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.align-row .btn { min-width: 0; padding: 6px 0; }
 .btn.big { padding: 11px; font-size: 15px; }
 .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-row .btn { flex: 1; }

@@ -9,7 +9,8 @@ export const state = {
   settings: { snap: 5, gap: 3, grid: 10 },
   items: [],          // { id, type, w, d, h, x, y, rot, color }
   seq: 1,
-  selectedId: null,
+  selectedId: null,   // primary selected item
+  selectedIds: new Set(),   // more selected items (multi-select)
   openings: null,     // windows / doors, see openings.js (defaults are set after load)
   openingsLocked: false,
   opSeq: 3,
@@ -35,11 +36,39 @@ export function applyDoc(doc) {
     openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq
   });
   if (!getItem(state.selectedId)) state.selectedId = null;
+  state.selectedIds = new Set([...state.selectedIds].filter(id => getItem(id)));
   if (!getOpening(state.selectedOpening)) state.selectedOpening = null;
 }
 
 export const getItem = id => state.items.find(i => i.id === id) || null;
 export const selected = () => getItem(state.selectedId);
+
+// ---- multi-select: the primary item first, then the others ----
+export const isSelected = id => id === state.selectedId || state.selectedIds.has(id);
+export function selectedItems() {
+  const ids = state.selectedId !== null ? [state.selectedId] : [];
+  for (const id of state.selectedIds) if (id !== state.selectedId) ids.push(id);
+  return ids.map(getItem).filter(Boolean);
+}
+
+export function toggleSelect(id) {
+  if (id === state.selectedId) {
+    const rest = [...state.selectedIds];
+    state.selectedId = rest.shift() ?? null;
+    state.selectedIds = new Set(rest);
+  } else if (state.selectedIds.has(id)) state.selectedIds.delete(id);
+  else if (state.selectedId === null) state.selectedId = id;
+  else state.selectedIds.add(id);
+  state.selectedOpening = null;
+  emit();
+}
+
+export function selectMany(ids) {
+  state.selectedId = ids[0] ?? null;
+  state.selectedIds = new Set(ids.slice(1));
+  state.selectedOpening = null;
+  emit();
+}
 
 export function itemName(item) {
   const c = state.catalog.find(c => c.type === item.type);
@@ -68,9 +97,17 @@ export function addItem({ type, w, d, h }) {
   return item;
 }
 
-export function removeItem(id) {
-  state.items = state.items.filter(i => i.id !== id);
-  if (state.selectedId === id) state.selectedId = null;
+export function removeItem(id) { removeItems([id]); }
+
+export function removeItems(ids) {
+  state.items = state.items.filter(i => !ids.includes(i.id));
+  if (ids.includes(state.selectedId)) state.selectedId = null;
+  for (const id of ids) state.selectedIds.delete(id);
+  emit();
+}
+
+export function moveItems(items, dx, dy) {
+  for (const it of items) { it.x += dx; it.y += dy; }
   emit();
 }
 
@@ -99,8 +136,31 @@ export function duplicateItem(item) {
   }
   state.items.push(copy);
   state.selectedId = copy.id;
+  state.selectedIds = new Set();
   emit();
   return { item: copy, placed };
+}
+
+// Several items: the whole group is copied next to itself keeping the layout, else shifted by 20 cm.
+export function duplicateItems(items) {
+  if (items.length === 1) return duplicateItem(items[0]);
+  const { room, settings } = state;
+  const g = settings.gap;
+  const rs = items.map(i => rectOf(i));
+  const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y));
+  const bw = Math.max(...rs.map(r => r.x + r.w)) - x0, bh = Math.max(...rs.map(r => r.y + r.h)) - y0;
+  const others = state.items.map(i => rectOf(i))
+    .concat((state.openings || []).filter(o => o.kind === 'door').map(o => doorSwingRect(o, room)));
+  let shift = null;
+  for (const [dx, dy] of [[bw + g, 0], [0, bh + g], [-(bw + g), 0], [0, -(bh + g)]]) {
+    const moved = rs.map(r => ({ ...r, x: r.x + dx, y: r.y + dy }));
+    if (moved.every(r => insideRoom(r, room) && !blocked(r, others, g))) { shift = [dx, dy]; break; }
+  }
+  const [dx, dy] = shift || [20, 20];
+  const copies = items.map(it => ({ ...structuredClone(it), id: state.seq++, x: it.x + dx, y: it.y + dy }));
+  state.items.push(...copies);
+  selectMany(copies.map(c => c.id));
+  return { item: copies[0], items: copies, placed: !!shift };
 }
 
 // Rotate 90° clockwise around the footprint centre.
@@ -117,6 +177,7 @@ export function rotateItem(item) {
 
 export function select(id) {
   state.selectedId = id;
+  state.selectedIds = new Set();
   if (id !== null) state.selectedOpening = null;
   emit();
 }
@@ -127,7 +188,7 @@ export const selectedOpening = () => getOpening(state.selectedOpening);
 
 export function selectOpening(id) {
   state.selectedOpening = id;
-  if (id !== null) state.selectedId = null;
+  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); }
   emit();
 }
 

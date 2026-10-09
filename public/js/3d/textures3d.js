@@ -252,7 +252,8 @@ const HIGHLIGHT = {
 
 /**
  * Furniture material, cached by kind + colour + status.
- * kind: 'wood' | 'fabric' | 'soft' (light fabric) | 'dark' | 'plain' (untextured colour) | 'metal'
+ * kind: 'wood' | 'fabric' | 'soft' (light fabric) | 'dark' | 'plain' (untextured colour) | 'solid' | 'gloss' | 'metal'
+ * Materials are shared through the cache: disposeGroup frees geometry only.
  */
 export function furnitureMat(kind, color, status = 'ok') {
   const key = `${kind}|${color}|${status}`;
@@ -265,6 +266,8 @@ export function furnitureMat(kind, color, status = 'ok') {
     case 'soft': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: '#f4f1ea', roughness: 0.95 }); break;
     case 'dark': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: wood.photo ? '#6b5442' : '#4a3a2c', roughness: 0.6 }); break;
     case 'plain': m = new THREE.MeshStandardMaterial({ color, roughness: 0.35 }); break;   // enamel, plastic, stone
+    case 'solid': m = new THREE.MeshStandardMaterial({ color, roughness: 0.7 }); break;    // matte laminate / paint
+    case 'gloss': m = new THREE.MeshStandardMaterial({ color, roughness: 0.1, metalness: 0.05 }); break;
     default: m = new THREE.MeshStandardMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 0.9 });
   }
   const hl = HIGHLIGHT[status];

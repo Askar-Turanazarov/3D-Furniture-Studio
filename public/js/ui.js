@@ -9,6 +9,7 @@ import { requestDraw, flash as drawFlash } from './renderer.js';
 
 import { rectOf } from './geometry.js';
 import { alignDeltas } from './align.js';
+import { initMatPanel, renderMatPanel } from './matPanel.js';
 
 const $ = id => document.getElementById(id);
 const num = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
@@ -67,6 +68,7 @@ export function initUI({ autoPlace }) {
     }
     emit();
   });
+  initMatPanel();
   $('rotateBtn').addEventListener('click', () => { const it = selected(); if (it) rotateItem(it); });
   $('deleteBtn').addEventListener('click', () => removeItems(selectedItems().map(i => i.id)));
   $('dupBtn').addEventListener('click', () => duplicate());
@@ -393,6 +395,8 @@ function renderSelPanel() {
   const multi = many > 1;
   $('alignBox').hidden = !multi;
   $('selForm').hidden = multi;
+  $('matBox').hidden = multi;
+  if (!multi) renderMatPanel(it);
   $('rotateBtn').hidden = $('autoBtn').hidden = multi;
   $('selName').textContent = multi ? t('sel.many', { n: many }) : `${itemName(it)} · ${it.rot}° · x=${it.x}, y=${it.y}`;
   const f = $('selForm').elements;

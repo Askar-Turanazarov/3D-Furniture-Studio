@@ -152,6 +152,11 @@
           <label class="doors-field"><span data-i18n="open.doors">Дверей</span>
             <input type="number" name="doors" min="1" max="8"></label>
         </form>
+        <div class="mat-box" id="matBox">
+          <div class="mat-row"><span class="sub" id="matBodyLbl"></span><div class="swatches" data-role="body"></div></div>
+          <div class="mat-row" id="matFacadeRow"><span class="sub" data-i18n="mat.facade">Фасад</span><div class="swatches" data-role="facade"></div></div>
+          <label class="mat-own"><span data-i18n="mat.own">Свой цвет</span><input type="color" id="itemColor"></label>
+        </div>
         <div class="btn-row">
           <button class="btn" id="rotateBtn" title="R">⟳ <span data-i18n="sel.rotate">Повернуть</span></button>
           <button class="btn" id="dupBtn" title="Ctrl+D">⧉ <span data-i18n="sel.duplicate">Дублировать</span></button>

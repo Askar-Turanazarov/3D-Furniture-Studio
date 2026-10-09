@@ -112,7 +112,7 @@ function buildFurniture() {
   const found = state.found && now < state.found.until ? state.found : null;
   for (const it of state.items) {
     const status = (errors.get(it.id) || []).length ? 'bad' : found && found.id === it.id ? 'found' : 'ok';
-    furniture.add(buildItem(it, status));
+    furniture.add(buildItem(it, status, state.materials));
   }
   scene.add(furniture);
   clearTimeout(foundTimer);

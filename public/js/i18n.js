@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'mat.body': 'Корпус', 'mat.facade': 'Фасад', 'mat.material': 'Материал', 'mat.own': 'Свой цвет', 'mat.asBody': 'Как корпус',
     'snap.btn': 'Снимок', 'snap.title': 'Сохранить снимок 3D со сводкой (PNG)', 'snap.share': 'Поделиться', 'snap.plan': 'Сохранить снимок плана (PNG)', 'snap.items': 'Предметов: {n}', 'snap.brand': 'Мебель на заказ', 'snap.saved': 'Снимок сохранён: {name}', 'snap.fail': 'Не удалось сделать снимок',
     'tpl.empty': 'Пустая', 'tpl.fromTemplate': 'Из шаблона', 'tpl.pick': 'Выберите шаблон комнаты', 'tpl.loadError': 'Не удалось загрузить шаблоны', 'tpl.hint': 'После создания размеры и мебель можно менять.', 'tpl.aptTitle': 'Новый проект из шаблона квартиры:', 'tpl.aptDone': 'Создан проект «{name}» из шаблона', 'unit.m': 'м',
     'warn.passage': 'Узкий проход {n} см (норма от {min})', 'set.minPassage': 'Проход от', 'pass.group': 'Проходы', 'pass.short': 'Проходы', 'pass.on': 'Узкие проходы показаны на плане', 'pass.off': 'Узкие проходы скрыты (предупреждения остаются)', 'pass.wall': 'стена ({wall})',
@@ -80,6 +81,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'mat.body': 'Korpus', 'mat.facade': 'Fasad', 'mat.material': 'Material', 'mat.own': 'O‘z rangi', 'mat.asBody': 'Korpus kabi',
     'snap.btn': 'Surat', 'snap.title': '3D suratni xulosa bilan saqlash (PNG)', 'snap.share': 'Ulashish', 'snap.plan': 'Reja suratini saqlash (PNG)', 'snap.items': 'Buyumlar: {n}', 'snap.brand': 'Buyurtma asosida mebel', 'snap.saved': 'Surat saqlandi: {name}', 'snap.fail': 'Suratga olib bo‘lmadi',
     'tpl.empty': 'Bo‘sh', 'tpl.fromTemplate': 'Shablondan', 'tpl.pick': 'Xona shablonini tanlang', 'tpl.loadError': 'Shablonlarni yuklab bo‘lmadi', 'tpl.hint': 'Yaratilgandan keyin o‘lchamlar va mebelni o‘zgartirish mumkin.', 'tpl.aptTitle': 'Kvartira shablonidan yangi loyiha:', 'tpl.aptDone': 'Shablondan «{name}» loyihasi yaratildi', 'unit.m': 'm',
     'warn.passage': 'Tor o‘tish joyi {n} sm (me’yor {min} dan)', 'set.minPassage': 'O‘tish joyi', 'pass.group': 'O‘tish joylari', 'pass.short': 'O‘tishlar', 'pass.on': 'Tor o‘tish joylari rejada ko‘rsatilgan', 'pass.off': 'Tor o‘tish joylari yashirilgan (ogohlantirishlar qoladi)', 'pass.wall': 'devor ({wall})',
@@ -159,6 +161,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'mat.body': 'Body', 'mat.facade': 'Facade', 'mat.material': 'Material', 'mat.own': 'Own colour', 'mat.asBody': 'Same as body',
     'snap.btn': 'Snapshot', 'snap.title': 'Save a 3D snapshot with a summary (PNG)', 'snap.share': 'Share', 'snap.plan': 'Save a plan snapshot (PNG)', 'snap.items': 'Items: {n}', 'snap.brand': 'Custom-made furniture', 'snap.saved': 'Snapshot saved: {name}', 'snap.fail': 'Could not take a snapshot',
     'tpl.empty': 'Empty', 'tpl.fromTemplate': 'From a template', 'tpl.pick': 'Pick a room template', 'tpl.loadError': 'Could not load the templates', 'tpl.hint': 'Sizes and furniture can be changed after it is created.', 'tpl.aptTitle': 'New project from an apartment template:', 'tpl.aptDone': 'Project “{name}” created from a template', 'unit.m': 'm',
     'warn.passage': 'Narrow passage {n} cm (should be {min}+)', 'set.minPassage': 'Passage from', 'pass.group': 'Passages', 'pass.short': 'Passages', 'pass.on': 'Narrow passages are shown on the plan', 'pass.off': 'Narrow passages are hidden (warnings stay)', 'pass.wall': 'wall ({wall})',

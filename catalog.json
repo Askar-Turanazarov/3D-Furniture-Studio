@@ -1,8 +1,17 @@
 [
-  { "type": "wardrobe",   "name": { "ru": "Шкаф",    "uz": "Shkaf",       "en": "Wardrobe" },   "w": 120, "d": 60, "h": 220, "color": "#8d6e63" },
-  { "type": "table",      "name": { "ru": "Стол",    "uz": "Stol",        "en": "Table" },      "w": 120, "d": 70, "h": 75,  "color": "#a1887f" },
-  { "type": "sofa",       "name": { "ru": "Диван",   "uz": "Divan",       "en": "Sofa" },       "w": 200, "d": 90, "h": 85,  "color": "#5c6bc0" },
-  { "type": "nightstand", "name": { "ru": "Тумба",   "uz": "Tumba",       "en": "Nightstand" }, "w": 50,  "d": 40, "h": 55,  "color": "#bcaaa4" },
-  { "type": "bed",        "name": { "ru": "Кровать", "uz": "Karavot",     "en": "Bed" },        "w": 160, "d": 200, "h": 50, "color": "#7986cb" },
-  { "type": "chair",      "name": { "ru": "Стул",    "uz": "Stul",        "en": "Chair" },      "w": 45,  "d": 50, "h": 90,  "color": "#90a4ae" }
+  { "type": "wardrobe",    "name": { "ru": "Шкаф",               "uz": "Shkaf",              "en": "Wardrobe" },       "w": 120, "d": 60,  "h": 220, "color": "#8d6e63" },
+  { "type": "bed",         "name": { "ru": "Кровать",            "uz": "Karavot",            "en": "Bed" },            "w": 160, "d": 200, "h": 50,  "color": "#7986cb" },
+  { "type": "sofa",        "name": { "ru": "Диван",              "uz": "Divan",              "en": "Sofa" },           "w": 200, "d": 90,  "h": 85,  "color": "#5c6bc0" },
+  { "type": "armchair",    "name": { "ru": "Кресло",             "uz": "Kreslo",             "en": "Armchair" },       "w": 85,  "d": 85,  "h": 85,  "color": "#26a69a" },
+  { "type": "table",       "name": { "ru": "Стол",               "uz": "Stol",               "en": "Table" },          "w": 120, "d": 70,  "h": 75,  "color": "#a1887f" },
+  { "type": "desk",        "name": { "ru": "Письменный стол",    "uz": "Yozuv stoli",        "en": "Desk" },           "w": 120, "d": 60,  "h": 75,  "color": "#bcaaa4" },
+  { "type": "coffeetable", "name": { "ru": "Журнальный столик",  "uz": "Jurnal stolchasi",   "en": "Coffee table" },   "w": 90,  "d": 50,  "h": 45,  "color": "#8d6e63" },
+  { "type": "chair",       "name": { "ru": "Стул",               "uz": "Stul",               "en": "Chair" },          "w": 45,  "d": 50,  "h": 90,  "color": "#90a4ae" },
+  { "type": "nightstand",  "name": { "ru": "Тумба",              "uz": "Tumba",              "en": "Nightstand" },     "w": 50,  "d": 40,  "h": 55,  "color": "#bcaaa4" },
+  { "type": "dresser",     "name": { "ru": "Комод",              "uz": "Komod",              "en": "Dresser" },        "w": 100, "d": 45,  "h": 90,  "color": "#a1887f" },
+  { "type": "tvstand",     "name": { "ru": "ТВ-тумба",           "uz": "TV tumba",           "en": "TV stand" },       "w": 160, "d": 40,  "h": 50,  "color": "#6d4c41" },
+  { "type": "bookshelf",   "name": { "ru": "Стеллаж",            "uz": "Kitob javoni",       "en": "Bookshelf" },      "w": 80,  "d": 35,  "h": 200, "color": "#d7ccc8" },
+  { "type": "shoerack",    "name": { "ru": "Обувница",           "uz": "Poyabzal javoni",    "en": "Shoe cabinet" },   "w": 80,  "d": 30,  "h": 100, "color": "#efebe9" },
+  { "type": "kitchen",     "name": { "ru": "Кухонный гарнитур",  "uz": "Oshxona garnituri",  "en": "Kitchen set" },    "w": 240, "d": 60,  "h": 220, "color": "#eceff1" },
+  { "type": "fridge",      "name": { "ru": "Холодильник",        "uz": "Muzlatgich",         "en": "Fridge" },         "w": 60,  "d": 65,  "h": 185, "color": "#f5f5f5" }
 ]

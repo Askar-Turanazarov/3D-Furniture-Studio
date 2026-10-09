@@ -79,7 +79,7 @@ function table(w, d, h, c, s) {
   return g;
 }
 
-function sofa(w, d, h, c, s) {
+function sofa(w, d, h, c, s, seats) {
   const g = new THREE.Group();
   const fab = furnitureMat('fabric', c, s), dark = furnitureMat('dark', c, s);
   const legH = Math.min(0.08, h * 0.1), seatH = Math.min(0.45, h * 0.55);
@@ -93,7 +93,7 @@ function sofa(w, d, h, c, s) {
   const armH = Math.min(h, seatH + 0.2) - legH;
   for (const sx of [-1, 1]) g.add(box(arm, armH, d, fab, sx * (w / 2 - arm / 2), legH, 0));
   // Seat cushions.
-  const n = w - 2 * arm > 1.6 ? 3 : 2;
+  const n = seats || (w - 2 * arm > 1.6 ? 3 : 2);
   const cw = (w - 2 * arm) / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + arm + cw / 2 + i * cw;
@@ -159,7 +159,139 @@ function generic(w, d, h, c, s) {
   return g;
 }
 
-const BUILDERS = { wardrobe, table, sofa, nightstand, bed, chair };
+const armchair = (w, d, h, c, s) => sofa(w, d, h, c, s, 1);
+
+// Carcass on short legs with a column of drawers (dresser, shoe cabinet, desk pedestal).
+function drawers(w, d, h, c, s, rows) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s), metal = furnitureMat('metal', c, s), dark = furnitureMat('dark', c, s);
+  const legH = Math.min(0.08, h * 0.1), front = 0.018, gap = 0.008;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    g.add(box(0.035, legH, 0.035, dark, sx * (w / 2 - 0.04), 0, sz * (d / 2 - 0.04)));
+  }
+  g.add(box(w, h - legH, d - front, wood, 0, legH, -front / 2));
+  const n = rows || Math.max(1, Math.round((h - legH) / 0.2));
+  const fh = (h - legH - gap * (n + 1)) / n;
+  for (let i = 0; i < n; i++) {
+    const y = legH + gap + i * (fh + gap);
+    g.add(box(w - 2 * gap, fh, front, wood, 0, y, d / 2 - front / 2));
+    g.add(box(Math.min(0.16, w * 0.3), 0.015, 0.02, metal, 0, y + fh * 0.6, d / 2 + 0.01));
+  }
+  return g;
+}
+
+const dresser = (w, d, h, c, s) => drawers(w, d, h, c, s);
+const shoerack = (w, d, h, c, s) => drawers(w, d, h, c, s, Math.max(2, Math.round(h / 0.35)));
+
+// Low long cabinet: drawers on the sides, open niche in the middle.
+function tvstand(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s), dark = furnitureMat('dark', c, s);
+  const side = Math.min(0.45, w * 0.3);
+  g.add(drawers(side, d, h, c, s, 2).translateX(-w / 2 + side / 2));
+  g.add(drawers(side, d, h, c, s, 2).translateX(w / 2 - side / 2));
+  const mid = w - 2 * side, legH = Math.min(0.08, h * 0.1), t = 0.02;
+  g.add(box(mid, t, d, wood, 0, legH, 0));                                    // bottom
+  g.add(box(mid, t, d, wood, 0, h - t, 0));                                   // top
+  g.add(box(mid, h - legH - 2 * t, 0.01, dark, 0, legH + t, -d / 2 + 0.005)); // back
+  g.add(box(mid, t, d - 0.04, wood, 0, legH + (h - legH) / 2, -0.02));        // shelf
+  return g;
+}
+
+// Open shelving with books (deterministic colours).
+function bookshelf(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s);
+  const t = 0.02;
+  g.add(box(t, h, d, wood, -w / 2 + t / 2, 0, 0));
+  g.add(box(t, h, d, wood, w / 2 - t / 2, 0, 0));
+  g.add(box(w - 2 * t, h, 0.008, wood, 0, 0, -d / 2 + 0.004));               // back
+  const n = Math.max(2, Math.round(h / 0.38));
+  const step = (h - t) / n;
+  const colors = ['#8e3b46', '#2f5d8a', '#c9a227', '#3e7d4f', '#5b4a8a', '#d0d0d0', '#a0522d'];
+  let k = 7;
+  for (let i = 0; i <= n; i++) {
+    const y = i * step;
+    g.add(box(w - 2 * t, t, d - 0.01, wood, 0, y, 0.005));
+    if (i === n) break;
+    // Books, about 70 % of the shelf.
+    let x = -w / 2 + t + 0.01;
+    const maxX = w / 2 - t - (w - 2 * t) * 0.3;
+    const bh0 = step - t - 0.03;
+    while (x < maxX && bh0 > 0.08) {
+      k = (k * 31 + 17) % 97;
+      const bw = 0.02 + (k % 4) * 0.008, bh = Math.min(bh0, 0.18 + (k % 5) * 0.025);
+      g.add(box(bw, bh, Math.min(0.22, d - 0.04), furnitureMat('plain', colors[k % colors.length], s), x + bw / 2, y + t, 0));
+      x += bw + 0.002;
+    }
+  }
+  return g;
+}
+
+// Table with a lower shelf.
+function coffeetable(w, d, h, c, s) {
+  const g = table(w, d, h, c, s);
+  g.add(box(w - 0.1, 0.02, d - 0.1, furnitureMat('wood', c, s), 0, Math.min(0.12, h * 0.3), 0));
+  return g;
+}
+
+// Desk: top, drawer pedestal on the right, panel leg on the left.
+function desk(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const wood = furnitureMat('wood', c, s);
+  const top = 0.03, ped = Math.min(0.42, w * 0.35);
+  g.add(box(w, top, d, wood, 0, h - top, 0));
+  g.add(drawers(ped, d - 0.04, h - top, c, s, 3).translateX(w / 2 - ped / 2));
+  g.add(box(0.025, h - top, d - 0.04, wood, -w / 2 + 0.0125, 0, 0));
+  g.add(box(w - ped - 0.025, 0.25, 0.02, wood, -ped / 2, h - top - 0.25, -d / 2 + 0.03)); // modesty panel
+  return g;
+}
+
+// Kitchen: base cabinets with countertop, sink and hob; wall cabinets if tall enough.
+function kitchen(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const front = furnitureMat('plain', c, s), metal = furnitureMat('metal', c, s);
+  const counter = furnitureMat('plain', '#5d5f63', s), dark = furnitureMat('plain', '#202124', s);
+  const baseH = Math.min(0.86, h), plinth = 0.1, ct = 0.04;
+  g.add(box(w, plinth, d - 0.06, dark, 0, 0, -0.03));
+  g.add(box(w, baseH - plinth - ct, d - 0.04, front, 0, plinth, -0.02));
+  g.add(box(w, ct, d, counter, 0, baseH - ct, 0));
+  const n = Math.max(1, Math.round(w / 0.6)), dw = w / n;
+  for (let i = 0; i < n; i++) {
+    const x = -w / 2 + dw / 2 + i * dw;
+    g.add(box(dw - 0.006, baseH - plinth - ct - 0.01, 0.018, front, x, plinth + 0.005, d / 2 - 0.029));
+    g.add(box(Math.min(0.2, dw * 0.5), 0.012, 0.02, metal, x, baseH - ct - 0.06, d / 2 - 0.01));
+  }
+  g.add(box(Math.min(0.5, w * 0.25), 0.005, d * 0.6, metal, -w / 4, baseH, 0));   // sink
+  g.add(box(Math.min(0.58, w * 0.25), 0.006, d * 0.85, dark, w / 4, baseH, 0));   // hob
+  if (h > 1.6) {
+    const bottom = Math.max(baseH + 0.55, h - 0.75), ud = Math.min(0.35, d);
+    g.add(box(w, h - bottom, ud, front, 0, bottom, -d / 2 + ud / 2));
+    for (let i = 0; i < n; i++) {
+      const x = -w / 2 + dw / 2 + i * dw;
+      g.add(box(Math.min(0.2, dw * 0.5), 0.012, 0.02, metal, x, bottom + 0.06, -d / 2 + ud + 0.01));
+    }
+  }
+  return g;
+}
+
+// Fridge: enamel body, freezer door at the bottom, vertical handles.
+function fridge(w, d, h, c, s) {
+  const g = new THREE.Group();
+  const body = furnitureMat('plain', c, s), metal = furnitureMat('metal', c, s);
+  const door = 0.04, split = h * 0.36, lowH = Math.min(0.3, split * 0.6);
+  g.add(box(w, h, d - door, body, 0, 0, -door / 2));
+  g.add(box(w - 0.01, split - 0.01, door, body, 0, 0.005, d / 2 - door / 2));
+  g.add(box(w - 0.01, h - split - 0.01, door, body, 0, split + 0.005, d / 2 - door / 2));
+  g.add(box(0.02, lowH, 0.03, metal, w / 2 - 0.06, split - lowH - 0.05, d / 2 + 0.015));
+  g.add(box(0.02, 0.35, 0.03, metal, w / 2 - 0.06, split + 0.08, d / 2 + 0.015));
+  return g;
+}
+
+const BUILDERS = {
+  wardrobe, table, sofa, nightstand, bed, chair,
+  armchair, dresser, shoerack, tvstand, bookshelf, coffeetable, desk, kitchen, fridge
+};
 
 /**
  * Build a furniture object placed in the room.

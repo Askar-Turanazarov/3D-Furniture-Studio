@@ -5,19 +5,27 @@ import { state, itemName } from './state.js';
 import { validateAll, hasErrors } from './validate.js';
 import { currentProject, currentRoom, persist } from './projects.js';
 import { toast } from './ui.js';
+import { estimate, roomEstimate } from './pricing.js';
+import { configurable, sectionCount, drawerCount } from './config.js';
+import { priceCatalog } from './pricePanel.js';
 
 const $ = id => document.getElementById(id);
 
 // Room document → what the manager needs (no ids, names in the client's language).
 function roomPayload(r) {
+  const cat = priceCatalog();
   return {
     name: r.name,
     purpose: r.purpose || '',
     room: { ...r.room },
     openings: (r.openings || []).map(({ id, ...o }) => o),
     items: r.items.map(i => ({
-      type: i.type, name: itemName(i), w: i.w, d: i.d, h: i.h, x: i.x, y: i.y, rot: i.rot
-    }))
+      type: i.type, name: itemName(i), w: i.w, d: i.d, h: i.h, x: i.x, y: i.y, rot: i.rot,
+      elev: i.elev, open: i.open, materials: i.materials, color: i.color,
+      ...(configurable(i) ? { sections: sectionCount(i), drawers: drawerCount(i) } : {}),
+      price: estimate(i, cat)?.total ?? null
+    })),
+    estimate: roomEstimate(r.items, cat).total
   };
 }
 
@@ -77,6 +85,7 @@ export function initOrder() {
       room: cur.room,
       openings: cur.openings,
       items: cur.items,
+      estimate: rooms.reduce((s, r) => s + roomEstimate(r.items, priceCatalog()).total, 0),
       ...(rooms.length > 1 ? { rooms: rooms.map(roomPayload) } : {})
     };
     try {

@@ -37,5 +37,30 @@
     { "id": "fabric-beige", "name": { "ru": "Ткань бежевая", "uz": "Bej mato", "en": "Beige fabric" }, "kind": "fabric", "color": "#cdb99c", "priceRate": 150000 },
     { "id": "velour-blue", "name": { "ru": "Велюр синий", "uz": "Ko‘k velyur", "en": "Blue velour" }, "kind": "fabric", "color": "#3f5a8a", "priceRate": 190000 }
   ],
-  "pricing": {}
+  "pricing": {
+    "note": "TEST prices in sum (UZS) — replace with real ones before use",
+    "currency": "sum",
+    "defaultRate": 170000,
+    "types": {
+      "wardrobe": { "formula": "cabinet", "carcassPerM": 1400000, "refH": 220, "doorRate": 90000, "hinge": 30000, "hingesPerDoor": 4, "slideKit": 900000, "drawerRate": 200000, "sectionRate": 120000 },
+      "mezzanine": { "formula": "cabinet", "carcassPerM": 600000, "refH": 50, "doorRate": 60000, "hinge": 30000, "hingesPerDoor": 2 },
+      "wallcabinet": { "formula": "cabinet", "carcassPerM": 900000, "refH": 70, "doorRate": 60000, "hinge": 30000, "hingesPerDoor": 2 },
+      "tvpanel": { "formula": "cabinet", "carcassPerM": 800000, "refH": 40, "doorRate": 60000, "hinge": 45000, "hingesPerDoor": 2 },
+      "dresser": { "formula": "drawers", "carcassPerM": 900000, "refH": 90, "drawerRate": 170000 },
+      "nightstand": { "formula": "drawers", "carcassPerM": 800000, "refH": 55, "drawerRate": 150000 },
+      "shoerack": { "formula": "drawers", "carcassPerM": 700000, "refH": 100, "drawerRate": 120000 },
+      "tvstand": { "formula": "drawers", "carcassPerM": 800000, "refH": 50, "drawerRate": 150000 },
+      "kitchen": { "formula": "kitchen", "basePerM": 2000000, "upperPerM": 1300000, "counterPerM": 600000 },
+      "bed": { "price": 4200000 },
+      "sofa": { "price": 5800000 },
+      "armchair": { "price": 2300000 },
+      "table": { "price": 1700000 },
+      "desk": { "price": 1900000 },
+      "coffeetable": { "price": 850000 },
+      "chair": { "price": 600000 },
+      "bookshelf": { "price": 1400000 },
+      "wallshelf": { "price": 250000 },
+      "mirror": { "price": 600000 }
+    }
+  }
 }

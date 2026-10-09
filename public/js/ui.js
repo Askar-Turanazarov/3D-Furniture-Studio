@@ -11,6 +11,8 @@ import { rectOf } from './geometry.js';
 import { alignDeltas } from './align.js';
 import { initMatPanel, renderMatPanel } from './matPanel.js';
 import { initStylePanel, syncStylePanel } from './stylePanel.js';
+import { initPricePanel, renderPricePanel, renderPriceTotal } from './pricePanel.js';
+import { slideDoors } from './config.js';
 
 const $ = id => document.getElementById(id);
 const num = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
@@ -66,11 +68,13 @@ export function initUI({ autoPlace }) {
     else {
       it.open = { kind };
       if (kind === 'swing' && Number(f.doors.value) >= 1) it.open.doors = num(f.doors.value, 1, 8);
+      if (kind === 'slide' && Number(f.doors.value) >= 1) it.open.doors = num(f.doors.value, 2, 3);
     }
     emit();
   });
   initMatPanel();
   initStylePanel();
+  initPricePanel();
   $('rotateBtn').addEventListener('click', () => { const it = selected(); if (it) rotateItem(it); });
   $('deleteBtn').addEventListener('click', () => removeItems(selectedItems().map(i => i.id)));
   $('dupBtn').addEventListener('click', () => duplicate());
@@ -388,6 +392,7 @@ function renderList() {
       ${bad ? '<span class="flag">!</span>' : ''}
     </li>`;
   }).join('');
+  renderPriceTotal();
 }
 
 function renderSelPanel() {
@@ -399,7 +404,8 @@ function renderSelPanel() {
   $('alignBox').hidden = !multi;
   $('selForm').hidden = multi;
   $('matBox').hidden = multi;
-  if (!multi) renderMatPanel(it);
+  $('cfgBox').hidden = $('itemPrice').hidden = multi;
+  if (!multi) { renderMatPanel(it); renderPricePanel(it); }
   $('rotateBtn').hidden = $('autoBtn').hidden = multi;
   $('selName').textContent = multi ? t('sel.many', { n: many }) : `${itemName(it)} · ${it.rot}° · x=${it.x}, y=${it.y}`;
   const f = $('selForm').elements;
@@ -409,8 +415,11 @@ function renderSelPanel() {
   if (document.activeElement !== f.elev) f.elev.value = it.elev || 0;
   const spec = openSpec(it, state.catalog);
   if (document.activeElement !== f.openKind) f.openKind.value = it.open?.kind || '';
-  f.doors.closest('label').hidden = spec.kind !== 'swing';
-  if (document.activeElement !== f.doors) f.doors.value = spec.doors || 1;
+  const slide = spec.kind === 'slide' && it.open?.kind === 'slide';
+  f.doors.closest('label').hidden = spec.kind !== 'swing' && !slide;
+  f.doors.min = slide ? 2 : 1;
+  f.doors.max = slide ? 3 : 8;
+  if (document.activeElement !== f.doors) f.doors.value = slide ? slideDoors(it) : spec.doors || 1;
   f.openKind.title = t('open.' + spec.kind) + (spec.depth ? ` · ${spec.depth} ${t('unit.cm')}` : '');
 }
 

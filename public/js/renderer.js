@@ -5,6 +5,7 @@ import { openSpec, openZoneRect, frontFace } from './zones.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
 import { ruler, measure } from './ruler.js';
+import { CONFIG, sectionCount } from './config.js';
 
 const COLORS = {
   floor: '#fbfaf7',
@@ -476,6 +477,7 @@ function drawItem(it, now) {
   }
 
   ctx.setLineDash([]);
+  drawSections(it, x, y, w, h);
   drawFront(it, x, y, w, h);
   drawLabel(it, x, y, w, h);
   if (high) drawElevTag(it, x, y, w, h);
@@ -577,6 +579,24 @@ function drawMarquee(m) {
 }
 
 // Front side marker: rot 0 → front faces south (down), rotating clockwise.
+// Section partitions of a configurable wardrobe / kitchen: thin lines across the depth.
+function drawSections(it, x, y, w, h) {
+  if (!CONFIG[it.type]?.sections) return;
+  const n = sectionCount(it), along = it.rot % 180 === 0;
+  if (n < 2) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.7)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  for (let k = 1; k < n; k++) {
+    if (along) { const sx = Math.round(x + w * k / n) + 0.5; ctx.moveTo(sx, y + 2); ctx.lineTo(sx, y + h - 2); }
+    else { const sy = Math.round(y + h * k / n) + 0.5; ctx.moveTo(x + 2, sy); ctx.lineTo(x + w - 2, sy); }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawFront(it, x, y, w, h) {
   const t = Math.max(3, Math.min(6, Math.min(w, h) * 0.12));
   ctx.fillStyle = 'rgba(255,255,255,.85)';

@@ -427,3 +427,9 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
   #fullscreenBtn span, .top-btn span { display: none; }
   .zoom-val { min-width: 48px; }
 }
+.cfg-box[hidden], .cfg-box label[hidden], .price-line[hidden] { display: none; }
+.price-line { font-weight: 700; margin: 0 0 8px; cursor: help; }
+.price-line.muted { font-weight: 400; color: var(--muted); cursor: default; }
+.price-total { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--border, #e3e6ee); font-size: 13px; line-height: 1.45; }
+.price-total span { color: var(--muted); font-size: 12px; }
+.price-total[hidden] { display: none; }

@@ -169,6 +169,11 @@
           <label class="mat-own"><span data-i18n="mat.own">Свой цвет</span><input type="color" id="itemColor"></label>
           <label class="mat-own"><span data-i18n="style.furniture">Стиль мебели</span><select id="itemStyle"></select></label>
         </div>
+        <form class="cfg-box grid3" id="cfgBox" hidden>
+          <label><span data-i18n="cfg.sections">Секций</span><input type="number" name="sections" min="1" max="8"></label>
+          <label><span data-i18n="cfg.drawers">Ящиков</span><input type="number" name="drawers" min="0" max="8"></label>
+        </form>
+        <div class="price-line" id="itemPrice"></div>
         <div class="btn-row">
           <button class="btn" id="rotateBtn" title="R">⟳ <span data-i18n="sel.rotate">Повернуть</span></button>
           <button class="btn" id="dupBtn" title="Ctrl+D">⧉ <span data-i18n="sel.duplicate">Дублировать</span></button>
@@ -195,6 +200,7 @@
         <h2><span data-i18n="list.title">Мебель на плане</span> <span class="count" id="itemCount">0</span></h2>
         <ul class="items" id="itemList"></ul>
         <p class="hint" id="emptyHint" data-i18n="list.empty">Пока пусто — добавьте предмет</p>
+        <p class="price-total" id="priceTotal" hidden></p>
       </section>
 
       <section class="panel">

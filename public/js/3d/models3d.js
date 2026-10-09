@@ -5,6 +5,8 @@ import { furnitureMat } from './textures3d.js';
 import { rectOf } from '../geometry.js';
 import { itemLook } from '../materials.js';
 import { itemStyle } from '../style.js';
+import { openSpec } from '../zones.js';
+import { sectionCount, drawerCount, slideDoors } from '../config.js';
 
 // Furniture style of the item being built: 'modern' (as drawn) | 'classic' | 'loft'.
 // Only handles, legs and facade mouldings change; the overall size never does.
@@ -14,6 +16,8 @@ let sty = 'modern';
 // { obj, type: 'hinge' | 'flap' | 'slide', axis, max (rad or m), part: 'door' | 'drawer' }
 let movers = [];
 let openKind = null;      // item.open.kind: 'slide' turns wardrobe doors into sliding ones
+// Configuration of the item being built (config.js): sections, drawers, doors.
+let cfg = { sections: 1, drawers: 0, doors: 1 };
 
 // Door leaf turning on a vertical hinge line at (hx, hz); sign −1 = hinge on the left, +1 = on the right.
 function hinged(leaf, hx, hz, sign) {
@@ -144,20 +148,53 @@ function cushion(w, h, d, mat, x, y, z) {
 function wardrobe(w, d, h, c, s) {
   const g = new THREE.Group();
   const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s), dark = fm('dark', c, s);
-  const base = Math.min(0.08, h * 0.05), doorT = 0.018;
+  const base = Math.min(0.08, h * 0.05), doorT = 0.018, t = 0.018, cd = d - doorT;
   g.add(box(w - 0.02, base, d - 0.04, dark, 0, 0, -0.01));                 // recessed base
-  g.add(box(w, h - base, d - doorT, wood, 0, base, -doorT / 2));             // carcass
-  const n = w > 1.6 ? 3 : w > 0.7 ? 2 : 1;
-  const dw = (w - 0.006 * (n + 1)) / n;
+  // Hollow carcass: back, sides, top, bottom; inside — partitions between sections, shelves, a rail.
+  const zc = -doorT / 2, top = h - t;
+  g.add(box(w - 2 * t, h - base, 0.006, wood, 0, base, zc - cd / 2 + 0.003));        // back
+  for (const sx of [-1, 1]) g.add(box(t, h - base, cd, wood, sx * (w / 2 - t / 2), base, zc));
+  g.add(box(w - 2 * t, t, cd, wood, 0, base, zc));
+  g.add(box(w - 2 * t, t, cd, wood, 0, top, zc));
+  // Drawers at the bottom (cfg.drawers), the doors start above them.
+  const nd = cfg.drawers, dh = 0.17, dz = nd ? nd * dh + t : 0;
+  const ns = cfg.sections, inner = w - 2 * t, sw = (inner - (ns - 1) * t) / ns, y0 = base + t + dz;
+  for (let k = 0; k < ns; k++) {
+    const x0 = -w / 2 + t + k * (sw + t), xc = x0 + sw / 2;
+    if (k) g.add(box(t, top - base - t, cd - 0.01, wood, x0 - t / 2, base + t, zc - 0.005));
+    if (ns > 1 && k === 0 && sw > 0.4) {
+      // Hanging section: a shelf on top and a clothes rail under it.
+      g.add(box(sw, t, cd - 0.02, wood, xc, top - 0.3, zc - 0.01));
+      const rail = cyl(0.012, sw, metal, xc, 0, zc);
+      rail.rotation.z = Math.PI / 2;
+      rail.position.y = top - 0.36;
+      g.add(rail);
+      continue;
+    }
+    const nsh = Math.max(1, Math.floor((top - y0) / 0.38));
+    for (let m = 1; m <= nsh; m++) g.add(box(sw, t, cd - 0.02, wood, xc, y0 + m * (top - y0) / (nsh + 1), zc - 0.01));
+  }
+  if (nd) g.add(box(inner, t, cd, wood, 0, base + dz, zc));
   const face = fm('wood', c, s, 'facade');
+  for (let i = 0; i < nd; i++) {
+    const y = base + t / 2 + i * dh + 0.004, fh = dh - 0.008, hl = Math.min(0.2, w * 0.25);
+    const leaf = new THREE.Group();
+    leaf.add(box(w - 0.012, fh, doorT, face, 0, y, d / 2 - doorT / 2));
+    leaf.add(box(inner - 0.02, fh * 0.6, cd * 0.8, wood, 0, y + 0.01, d / 2 - doorT - cd * 0.4));   // drawer box
+    panel(leaf, w - 0.012, fh, 0, y, d / 2, face);
+    leaf.add(handle(box(hl, 0.015, 0.02, metal, 0, y + fh * 0.6, d / 2 + 0.01), 0, y + fh * 0.6, d / 2 + 0.01, hl, false, s));
+    g.add(slider(leaf, cd * 0.75));
+  }
+  const n = cfg.doors, yd = base + dz + 0.006, hd = h - base - dz - 0.012;
+  const dw = (w - 0.006 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + 0.006 + dw / 2 + i * (dw + 0.006);
     const leaf = new THREE.Group();
-    leaf.add(box(dw, h - base - 0.012, doorT, face, x, base + 0.006, d / 2 - doorT / 2));
-    panel(leaf, dw, h - base - 0.012, x, base + 0.006, d / 2, face);
+    leaf.add(box(dw, hd, doorT, face, x, yd, d / 2 - doorT / 2));
+    panel(leaf, dw, hd, x, yd, d / 2, face);
     const hx = n === 1 ? x + dw / 2 - 0.05 : x + (i % 2 === 0 ? 1 : -1) * (dw / 2 - 0.05);
-    const hl = Math.min(0.35, h * 0.2);
-    leaf.add(handle(box(0.015, hl, 0.02, metal, hx, base + h * 0.45, d / 2 + 0.01), hx, base + h * 0.45, d / 2 + 0.01, hl, true, s));
+    const hl = Math.min(0.35, hd * 0.2), hy = Math.max(yd + 0.05, base + h * 0.45);
+    leaf.add(handle(box(0.015, hl, 0.02, metal, hx, hy, d / 2 + 0.01), hx, hy, d / 2 + 0.01, hl, true, s));
     if (openKind === 'slide') {
       // Sliding doors: every second door runs on the front rail over its neighbour.
       if (i % 2) g.add(slider(leaf, -dw, 'x', 'door')); else g.add(leaf);
@@ -215,7 +252,7 @@ function nightstand(w, d, h, c, s) {
     g.add(leg(box(0.03, legH, 0.03, dark, x, 0, z), x, z, legH, 0.03, c, s));
   }
   g.add(box(w, h - legH, d - 0.015, wood, 0, legH, -0.0075));
-  const n = h - legH > 0.4 ? 2 : 1;
+  const n = cfg.drawers;
   const dh = (h - legH - 0.01 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const y = legH + 0.01 + i * (dh + 0.01);
@@ -280,7 +317,7 @@ function drawers(w, d, h, c, s, rows) {
     g.add(leg(box(0.035, legH, 0.035, dark, x, 0, z), x, z, legH, 0.035, c, s));
   }
   g.add(box(w, h - legH, d - front, wood, 0, legH, -front / 2));
-  const n = rows || Math.max(1, Math.round((h - legH) / 0.2));
+  const n = rows || cfg.drawers || Math.max(1, Math.round((h - legH) / 0.2));
   const fh = (h - legH - gap * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const y = legH + gap + i * (fh + gap);
@@ -296,7 +333,7 @@ function drawers(w, d, h, c, s, rows) {
 }
 
 const dresser = (w, d, h, c, s) => drawers(w, d, h, c, s);
-const shoerack = (w, d, h, c, s) => drawers(w, d, h, c, s, Math.max(2, Math.round(h / 0.35)));
+const shoerack = (w, d, h, c, s) => drawers(w, d, h, c, s);
 
 // Low long cabinet: drawers on the sides, open niche in the middle.
 function tvstand(w, d, h, c, s) {
@@ -371,7 +408,7 @@ function kitchen(w, d, h, c, s) {
   g.add(box(w, plinth, d - 0.06, dark, 0, 0, -0.03));
   g.add(box(w, baseH - plinth - ct, d - 0.04, body, 0, plinth, -0.02));
   g.add(box(w, ct, d, counter, 0, baseH - ct, 0));
-  const n = Math.max(1, Math.round(w / 0.6)), dw = w / n;
+  const n = cfg.sections, dw = w / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + dw / 2 + i * dw;
     const leaf = new THREE.Group();
@@ -527,12 +564,17 @@ const BUILDERS = {
  * Build a furniture object placed in the room.
  * @param item plan item (cm); status 'ok' | 'bad' | 'found'
  */
-export function buildItem(item, status, materials = [], roomStyle) {
+export function buildItem(item, status, materials = [], roomStyle, catalog = []) {
   const make = BUILDERS[item.type] || generic;
   look = itemLook(item, materials);
   sty = itemStyle(item, roomStyle);
   movers = [];
   openKind = item.open?.kind || null;
+  const spec = openSpec(item, catalog);
+  cfg = {
+    sections: sectionCount(item), drawers: drawerCount(item),
+    doors: openKind === 'slide' ? slideDoors(item) : spec.kind === 'swing' ? spec.doors : item.w > 160 ? 3 : item.w > 70 ? 2 : 1
+  };
   const obj = make(item.w / 100, item.d / 100, item.h / 100, item.color, status);
   look = { body: null, facade: null };
   sty = 'modern';

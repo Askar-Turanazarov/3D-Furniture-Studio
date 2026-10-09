@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'cfg.sections': 'Секций', 'cfg.drawers': 'Ящиков', 'unit.sum': 'сум', 'price.none': 'Не входит в заказ (без цены)', 'price.from': 'от {sum}', 'price.total': 'Итого ориентировочно от {sum}', 'price.skipped': 'без цены: {n} предм. (не входят в заказ)', 'price.note': 'Цены тестовые; точная цена после замера', 'price.l.carcass': 'Корпус', 'price.l.facade': 'Фасад', 'price.l.doors': 'Двери', 'price.l.hardware': 'Фурнитура', 'price.l.sections': 'Секции', 'price.l.drawers': 'Ящики', 'price.l.counter': 'Столешница', 'price.l.fixed': 'Готовое изделие',
     'anim.door0': 'Дверца не открывается — упирается в {name}', 'anim.drawer0': 'Ящик не выдвигается — упирается в {name}', 'anim.roomDoor0': 'Дверь комнаты не открывается — упирается в {name}',
     'anim.door': 'Дверца упирается в {name} на {deg}°', 'anim.drawer': 'Ящик упирается в {name}: выдвинут на {cm} см', 'anim.roomDoor': 'Дверь комнаты упирается в {name} на {deg}°', 'anim.wall': 'стену', 'anim.floor': 'пол', 'anim.openAll': '🚪 Открыть всё', 'anim.closeAll': '🚪 Закрыть всё', 'anim.hint': 'клик / E — открыть дверцы и ящики',
     'style.furniture': 'Стиль мебели', 'style.f.modern': 'Модерн', 'style.f.classic': 'Классика', 'style.f.loft': 'Лофт', 'style.asRoom': 'Как в комнате ({s})',
@@ -86,6 +87,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'cfg.sections': 'Seksiyalar', 'cfg.drawers': 'Tortmalar', 'unit.sum': 'so‘m', 'price.none': 'Buyurtmaga kirmaydi (narxsiz)', 'price.from': '{sum} dan', 'price.total': 'Jami taxminan {sum} dan', 'price.skipped': 'narxsiz: {n} ta buyum (buyurtmaga kirmaydi)', 'price.note': 'Narxlar sinov uchun; aniq narx o‘lchovdan keyin', 'price.l.carcass': 'Korpus', 'price.l.facade': 'Fasad', 'price.l.doors': 'Eshiklar', 'price.l.hardware': 'Furnitura', 'price.l.sections': 'Seksiyalar', 'price.l.drawers': 'Tortmalar', 'price.l.counter': 'Stoleshnitsa', 'price.l.fixed': 'Tayyor buyum',
     'anim.door0': 'Eshikcha ochilmaydi — {name}ga tegadi', 'anim.drawer0': 'Tortma chiqmaydi — {name}ga tegadi', 'anim.roomDoor0': 'Xona eshigi ochilmaydi — {name}ga tegadi',
     'anim.door': 'Eshikcha {name}ga tegadi: {deg}°', 'anim.drawer': 'Tortma {name}ga tegadi: {cm} sm chiqdi', 'anim.roomDoor': 'Xona eshigi {name}ga tegadi: {deg}°', 'anim.wall': 'devor', 'anim.floor': 'pol', 'anim.openAll': '🚪 Hammasini ochish', 'anim.closeAll': '🚪 Hammasini yopish', 'anim.hint': 'bosish / E — eshikcha va tortmalarni ochish',
     'style.furniture': 'Mebel uslubi', 'style.f.modern': 'Modern', 'style.f.classic': 'Klassika', 'style.f.loft': 'Loft', 'style.asRoom': 'Xonadagidek ({s})',
@@ -171,6 +173,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'cfg.sections': 'Sections', 'cfg.drawers': 'Drawers', 'unit.sum': 'sum', 'price.none': 'Not part of the order (no price)', 'price.from': 'from {sum}', 'price.total': 'Estimated total from {sum}', 'price.skipped': 'no price: {n} item(s) (not part of the order)', 'price.note': 'Test prices; the exact price after measuring', 'price.l.carcass': 'Carcass', 'price.l.facade': 'Facade', 'price.l.doors': 'Doors', 'price.l.hardware': 'Hardware', 'price.l.sections': 'Sections', 'price.l.drawers': 'Drawers', 'price.l.counter': 'Countertop', 'price.l.fixed': 'Ready-made item',
     'anim.door0': 'The door does not open — it hits {name}', 'anim.drawer0': 'The drawer does not open — it hits {name}', 'anim.roomDoor0': 'The room door does not open — it hits {name}',
     'anim.door': 'The door hits {name} at {deg}°', 'anim.drawer': 'The drawer hits {name} at {cm} cm out', 'anim.roomDoor': 'The room door hits {name} at {deg}°', 'anim.wall': 'the wall', 'anim.floor': 'the floor', 'anim.openAll': '🚪 Open all', 'anim.closeAll': '🚪 Close all', 'anim.hint': 'click / E — open doors and drawers',
     'style.furniture': 'Furniture style', 'style.f.modern': 'Modern', 'style.f.classic': 'Classic', 'style.f.loft': 'Loft', 'style.asRoom': 'As the room ({s})',

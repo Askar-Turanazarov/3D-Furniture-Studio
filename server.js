@@ -20,7 +20,7 @@ app.get('/api/catalog', async (req, res) => {
 });
 
 app.post('/api/order', async (req, res) => {
-  const { name, phone, comment, room, items, lang, openings } = req.body || {};
+  const { name, phone, comment, room, items, lang, openings, project, roomName, purpose, rooms } = req.body || {};
   if (!name || !phone || !room || !Array.isArray(items)) {
     return res.status(400).json({ error: 'invalid_order' });
   }
@@ -33,8 +33,22 @@ app.post('/api/order', async (req, res) => {
       name: String(name).slice(0, 100),
       phone: String(phone).slice(0, 30),
       comment: String(comment || '').slice(0, 1000),
-      lang, room, items, openings: Array.isArray(openings) ? openings : []
+      lang,
+      project: { name: String(project?.name || '').slice(0, 100) },
+      roomName: String(roomName || '').slice(0, 60),
+      purpose: String(purpose || '').slice(0, 30),
+      room, items, openings: Array.isArray(openings) ? openings : []
     };
+    // Several rooms of the project (strict validation comes with the admin page).
+    if (Array.isArray(rooms) && rooms.length) {
+      order.rooms = rooms.slice(0, 50).map(r => ({
+        name: String(r?.name || '').slice(0, 60),
+        purpose: String(r?.purpose || '').slice(0, 30),
+        room: r?.room || null,
+        openings: Array.isArray(r?.openings) ? r.openings : [],
+        items: Array.isArray(r?.items) ? r.items : []
+      }));
+    }
     orders.push(order);
     await fs.writeFile(ORDERS, JSON.stringify(orders, null, 2));
     res.json({ ok: true, id: order.id });

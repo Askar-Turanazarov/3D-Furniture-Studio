@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'order.allRooms': 'Отправить все комнаты проекта', 'order.summaryAll': 'Комнат: {r}, предметов всего: {n}', 'order.roomErrors': 'В комнате «{name}» есть ошибки размещения — исправьте их или отправьте только текущую комнату',
     'proj.title': 'Проекты', 'proj.new': 'Новый проект', 'proj.import': 'Импорт из файла', 'project.new': 'Новый проект', 'proj.hint': 'Проекты хранятся в этом браузере. Экспорт в файл — резервная копия и перенос на другое устройство.', 'proj.rooms': 'Комнат: {n}', 'proj.current': 'открыт', 'proj.rename': 'Переименовать', 'proj.duplicate': 'Дублировать', 'proj.export': 'Экспорт в файл (.json)', 'proj.delete': 'Удалить проект', 'proj.copyName': '{name} (копия)', 'proj.confirmDelete': 'Удалить проект «{name}» со всеми комнатами? Это нельзя отменить.', 'proj.imported': 'Проект «{name}» импортирован', 'proj.badFile': 'Файл не похож на проект планировщика',
     'room.versionMenu': 'Дублировать как версию', 'room.variant': 'вариант {v}', 'room.variantShort': 'вар. {v}', 'room.versionDone': 'Создана версия «{name}»',
     'unit.m2': 'м²',
@@ -72,6 +73,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'order.allRooms': 'Loyihaning barcha xonalarini yuborish', 'order.summaryAll': 'Xonalar: {r}, jami buyumlar: {n}', 'order.roomErrors': '«{name}» xonasida joylashtirish xatolari bor — ularni tuzating yoki faqat joriy xonani yuboring',
     'proj.title': 'Loyihalar', 'proj.new': 'Yangi loyiha', 'proj.import': 'Fayldan import', 'project.new': 'Yangi loyiha', 'proj.hint': 'Loyihalar shu brauzerda saqlanadi. Faylga eksport — zaxira nusxa va boshqa qurilmaga ko‘chirish uchun.', 'proj.rooms': 'Xonalar: {n}', 'proj.current': 'ochiq', 'proj.rename': 'Nomini o‘zgartirish', 'proj.duplicate': 'Nusxalash', 'proj.export': 'Faylga eksport (.json)', 'proj.delete': 'Loyihani o‘chirish', 'proj.copyName': '{name} (nusxa)', 'proj.confirmDelete': '«{name}» loyihasi barcha xonalari bilan o‘chirilsinmi? Buni qaytarib bo‘lmaydi.', 'proj.imported': '«{name}» loyihasi import qilindi', 'proj.badFile': 'Fayl rejalashtiruvchi loyihasiga o‘xshamaydi',
     'room.versionMenu': 'Versiya sifatida nusxalash', 'room.variant': 'variant {v}', 'room.variantShort': 'var. {v}', 'room.versionDone': '«{name}» versiyasi yaratildi',
     'unit.m2': 'm²',
@@ -143,6 +145,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'order.allRooms': 'Send all rooms of the project', 'order.summaryAll': 'Rooms: {r}, items in total: {n}', 'order.roomErrors': 'The room “{name}” has placement errors — fix them or send only the current room',
     'proj.title': 'Projects', 'proj.new': 'New project', 'proj.import': 'Import from file', 'project.new': 'New project', 'proj.hint': 'Projects are stored in this browser. Export to a file for a backup or to move to another device.', 'proj.rooms': 'Rooms: {n}', 'proj.current': 'open', 'proj.rename': 'Rename', 'proj.duplicate': 'Duplicate', 'proj.export': 'Export to file (.json)', 'proj.delete': 'Delete project', 'proj.copyName': '{name} (copy)', 'proj.confirmDelete': 'Delete the project “{name}” with all rooms? This can\'t be undone.', 'proj.imported': 'Project “{name}” imported', 'proj.badFile': 'This file doesn\'t look like a planner project',
     'room.versionMenu': 'Duplicate as a version', 'room.variant': 'variant {v}', 'room.variantShort': 'var. {v}', 'room.versionDone': 'Version “{name}” created',
     'unit.m2': 'm²',

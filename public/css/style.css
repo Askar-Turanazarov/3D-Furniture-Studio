@@ -88,6 +88,9 @@ body {
 /* ---------- forms ---------- */
 label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
 label.row { margin-bottom: 8px; }
+label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin: 4px 0; cursor: pointer; }
+label.check[hidden] { display: none; }
+label.check input { width: auto; margin: 0; }
 input, select, textarea {
   font: inherit; color: var(--text);
   border: 1px solid var(--line); border-radius: 7px;

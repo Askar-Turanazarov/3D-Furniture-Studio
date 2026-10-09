@@ -238,6 +238,8 @@
         <input name="phone" type="tel" required maxlength="30" placeholder="+998 __ ___ __ __"></label>
       <label class="row"><span data-i18n="order.comment">Комментарий</span>
         <textarea name="comment" rows="3" maxlength="1000"></textarea></label>
+      <label class="check" id="orderAllRow" hidden><input type="checkbox" id="orderAll">
+        <span><span data-i18n="order.allRooms">Отправить все комнаты проекта</span> (<span id="orderAllCount"></span>)</span></label>
       <p class="hint" id="orderSummary"></p>
       <div class="btn-row end">
         <button type="button" class="btn ghost" id="orderCancel" data-i18n="order.cancel">Отмена</button>

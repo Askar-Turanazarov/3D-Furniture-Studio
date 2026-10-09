@@ -84,6 +84,7 @@ export function buildRoom(room, openings = [], style) {
   // Holes per wall in the coordinates of each wall mesh (north/south: world x; west/east: world z).
   const holes = { north: [], south: [], west: [], east: [] };
   const windows = [];
+  const doors = [];          // hinge pivots of the room doors (userData.door = { id, max })
   for (const o of openings) {
     const lo = localOpening(o, L, W);
     const worldStart = o.offset / 100;
@@ -97,7 +98,11 @@ export function buildRoom(room, openings = [], style) {
     } else {
       // Hinge side in the wall's own frame (the frame runs backwards on south / west walls).
       const hingeAtStart = (o.hinge !== 'end') !== lo.f.flip;
-      g.add(...doorParts(lo, hingeAtStart, M));
+      const parts = doorParts(lo, hingeAtStart, M);
+      const pivot = parts[parts.length - 1];
+      pivot.userData.door.id = o.id;
+      doors.push(pivot);
+      g.add(...parts);
     }
     walls[o.wall].add(g);
   }
@@ -125,7 +130,7 @@ export function buildRoom(room, openings = [], style) {
   walls.east.add(at(box(p, PLINTH_H, W, M.plinth), L - p / 2, PLINTH_H / 2, W / 2));
 
   Object.values(walls).forEach(g => group.add(g));
-  return { group, walls, ceiling, windows, size: { L, W, H } };
+  return { group, walls, ceiling, windows, doors, size: { L, W, H } };
 }
 
 // Window centre on the inner wall face and the outward normal (for the sun direction).
@@ -165,14 +170,22 @@ function windowParts(win, M) {
 function doorParts(d, hingeAtStart, M) {
   const dw = d.w, dh = d.h - 0.01, dx = d.x + dw / 2;
   const parts = [];
-  parts.push(at(box(dw, dh, 0.04, M.door), dx, dh / 2, -T / 2));
+  // Leaf + handle turn on the hinge line at the inner face of the leaf, into the room.
+  const hx = hingeAtStart ? d.x : d.x + dw, hz = -T / 2 + 0.02;
+  const leaf = new THREE.Group(), pivot = new THREE.Group();
+  leaf.position.set(-hx, 0, -hz);
+  pivot.position.set(hx, 0, hz);
+  pivot.add(leaf);
+  pivot.userData.door = { max: hingeAtStart ? -Math.PI / 2 : Math.PI / 2 };
+  leaf.add(at(box(dw, dh, 0.04, M.door), dx, dh / 2, -T / 2));
   // Casing.
   parts.push(at(box(0.07, dh + 0.07, 0.02, M.frame), dx - dw / 2 - 0.035, (dh + 0.07) / 2, 0.01));
   parts.push(at(box(0.07, dh + 0.07, 0.02, M.frame), dx + dw / 2 + 0.035, (dh + 0.07) / 2, 0.01));
   parts.push(at(box(dw + 0.14, 0.07, 0.02, M.frame), dx, dh + 0.035, 0.01));
   // Handle.
-  const hx = hingeAtStart ? dx + dw / 2 - 0.12 : dx - dw / 2 + 0.12;
-  parts.push(at(box(0.12, 0.02, 0.04, M.metal), hx, Math.min(1.0, dh * 0.5), -T / 2 + 0.04));
+  const hdx = hingeAtStart ? dx + dw / 2 - 0.12 : dx - dw / 2 + 0.12;
+  leaf.add(at(box(0.12, 0.02, 0.04, M.metal), hdx, Math.min(1.0, dh * 0.5), -T / 2 + 0.04));
+  parts.push(pivot);
   return parts;
 }
 

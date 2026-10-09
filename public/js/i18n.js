@@ -1,6 +1,8 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'anim.door0': 'Дверца не открывается — упирается в {name}', 'anim.drawer0': 'Ящик не выдвигается — упирается в {name}', 'anim.roomDoor0': 'Дверь комнаты не открывается — упирается в {name}',
+    'anim.door': 'Дверца упирается в {name} на {deg}°', 'anim.drawer': 'Ящик упирается в {name}: выдвинут на {cm} см', 'anim.roomDoor': 'Дверь комнаты упирается в {name} на {deg}°', 'anim.wall': 'стену', 'anim.floor': 'пол', 'anim.openAll': '🚪 Открыть всё', 'anim.closeAll': '🚪 Закрыть всё', 'anim.hint': 'клик / E — открыть дверцы и ящики',
     'style.furniture': 'Стиль мебели', 'style.f.modern': 'Модерн', 'style.f.classic': 'Классика', 'style.f.loft': 'Лофт', 'style.asRoom': 'Как в комнате ({s})',
     'style.title': 'Отделка и стиль (3D)', 'style.walls': 'Стены', 'style.accent': 'Акцентная стена', 'style.floor': 'Пол', 'style.noAccent': 'Нет', 'style.w.north': 'Верхняя (север)', 'style.w.east': 'Правая (восток)', 'style.w.south': 'Нижняя (юг)', 'style.w.west': 'Левая (запад)', 'style.wall.paint': 'Покраска', 'style.wall.wallpaper': 'Обои', 'style.wall.brick': 'Кирпич', 'style.wall.panels': 'Панели', 'style.floor.parquet': 'Паркет', 'style.floor.laminate': 'Ламинат', 'style.floor.tile': 'Плитка', 'style.floor.carpet': 'Ковролин',
     'light.day': 'День', 'light.evening': 'Вечер', 'light.night': 'Ночь', 'light.ceiling': 'Свет', 'light.chandelier': 'Люстра', 'light.spots': 'Точечные', 'light.panel': 'Панель', 'light.none': 'Без потолочного',
@@ -84,6 +86,8 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'anim.door0': 'Eshikcha ochilmaydi — {name}ga tegadi', 'anim.drawer0': 'Tortma chiqmaydi — {name}ga tegadi', 'anim.roomDoor0': 'Xona eshigi ochilmaydi — {name}ga tegadi',
+    'anim.door': 'Eshikcha {name}ga tegadi: {deg}°', 'anim.drawer': 'Tortma {name}ga tegadi: {cm} sm chiqdi', 'anim.roomDoor': 'Xona eshigi {name}ga tegadi: {deg}°', 'anim.wall': 'devor', 'anim.floor': 'pol', 'anim.openAll': '🚪 Hammasini ochish', 'anim.closeAll': '🚪 Hammasini yopish', 'anim.hint': 'bosish / E — eshikcha va tortmalarni ochish',
     'style.furniture': 'Mebel uslubi', 'style.f.modern': 'Modern', 'style.f.classic': 'Klassika', 'style.f.loft': 'Loft', 'style.asRoom': 'Xonadagidek ({s})',
     'style.title': 'Pardoz va uslub (3D)', 'style.walls': 'Devorlar', 'style.accent': 'Urg‘u devori', 'style.floor': 'Pol', 'style.noAccent': 'Yo‘q', 'style.w.north': 'Yuqori (shimol)', 'style.w.east': 'O‘ng (sharq)', 'style.w.south': 'Pastki (janub)', 'style.w.west': 'Chap (g‘arb)', 'style.wall.paint': 'Bo‘yoq', 'style.wall.wallpaper': 'Gulqog‘oz', 'style.wall.brick': 'G‘isht', 'style.wall.panels': 'Panellar', 'style.floor.parquet': 'Parket', 'style.floor.laminate': 'Laminat', 'style.floor.tile': 'Kafel', 'style.floor.carpet': 'Gilam qoplama',
     'light.day': 'Kunduz', 'light.evening': 'Kechqurun', 'light.night': 'Tun', 'light.ceiling': 'Yorug‘lik', 'light.chandelier': 'Qandil', 'light.spots': 'Nuqtali', 'light.panel': 'Panel', 'light.none': 'Shiftsiz',
@@ -167,6 +171,8 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'anim.door0': 'The door does not open — it hits {name}', 'anim.drawer0': 'The drawer does not open — it hits {name}', 'anim.roomDoor0': 'The room door does not open — it hits {name}',
+    'anim.door': 'The door hits {name} at {deg}°', 'anim.drawer': 'The drawer hits {name} at {cm} cm out', 'anim.roomDoor': 'The room door hits {name} at {deg}°', 'anim.wall': 'the wall', 'anim.floor': 'the floor', 'anim.openAll': '🚪 Open all', 'anim.closeAll': '🚪 Close all', 'anim.hint': 'click / E — open doors and drawers',
     'style.furniture': 'Furniture style', 'style.f.modern': 'Modern', 'style.f.classic': 'Classic', 'style.f.loft': 'Loft', 'style.asRoom': 'As the room ({s})',
     'style.title': 'Finish and style (3D)', 'style.walls': 'Walls', 'style.accent': 'Accent wall', 'style.floor': 'Floor', 'style.noAccent': 'None', 'style.w.north': 'Top (north)', 'style.w.east': 'Right (east)', 'style.w.south': 'Bottom (south)', 'style.w.west': 'Left (west)', 'style.wall.paint': 'Paint', 'style.wall.wallpaper': 'Wallpaper', 'style.wall.brick': 'Brick', 'style.wall.panels': 'Panels', 'style.floor.parquet': 'Parquet', 'style.floor.laminate': 'Laminate', 'style.floor.tile': 'Tile', 'style.floor.carpet': 'Carpet',
     'light.day': 'Day', 'light.evening': 'Evening', 'light.night': 'Night', 'light.ceiling': 'Light', 'light.chandelier': 'Chandelier', 'light.spots': 'Spots', 'light.panel': 'Panel', 'light.none': 'No ceiling light',

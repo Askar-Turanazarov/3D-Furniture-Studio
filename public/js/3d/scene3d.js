@@ -8,6 +8,7 @@ import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS } fr
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
+import * as anim from './anim3d.js';
 import { initTouch } from './touch3d.js';
 import { setQuality, resetPhoto } from './textures3d.js';
 import { toast } from '../ui.js';
@@ -66,6 +67,8 @@ function init(el) {
   });
   fillCeilSel();
   onLangChange(fillCeilSel);
+  anim.initAnim(camera, renderer.domElement, el);
+  onLangChange(anim.onLang);
 
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });
@@ -133,6 +136,7 @@ function buildFurniture() {
     furniture.add(buildItem(it, status, state.materials, state.style));
   }
   applyFixtures(furniture, state.lighting);
+  anim.attach(furniture, room);
   scene.add(furniture);
   clearTimeout(foundTimer);
   if (found) foundTimer = setTimeout(() => { if (running) buildFurniture(); }, found.until - now + 20);
@@ -153,7 +157,9 @@ function syncLightHud() {
 function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
-  controls.update(Math.min(clock.getDelta(), 0.25));
+  const dt = Math.min(clock.getDelta(), 0.25);
+  controls.update(dt);
+  anim.update(dt);
   renderer.render(scene, camera);
 }
 

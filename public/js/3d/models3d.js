@@ -10,6 +10,37 @@ import { itemStyle } from '../style.js';
 // Only handles, legs and facade mouldings change; the overall size never does.
 let sty = 'modern';
 
+// Moving parts of the item being built (doors, flaps, drawers) for the 3D animation, see anim3d.js.
+// { obj, type: 'hinge' | 'flap' | 'slide', axis, max (rad or m), part: 'door' | 'drawer' }
+let movers = [];
+let openKind = null;      // item.open.kind: 'slide' turns wardrobe doors into sliding ones
+
+// Door leaf turning on a vertical hinge line at (hx, hz); sign −1 = hinge on the left, +1 = on the right.
+function hinged(leaf, hx, hz, sign) {
+  leaf.position.set(-hx, 0, -hz);
+  const pivot = new THREE.Group();
+  pivot.position.set(hx, 0, hz);
+  pivot.add(leaf);
+  movers.push({ obj: pivot, type: 'hinge', axis: 'y', max: sign * Math.PI / 2, part: 'door' });
+  return pivot;
+}
+
+// Fall-front flap hinged at the bottom edge (y = hy, z = hz).
+function flap(leaf, hy, hz) {
+  leaf.position.set(0, -hy, -hz);
+  const pivot = new THREE.Group();
+  pivot.position.set(0, hy, hz);
+  pivot.add(leaf);
+  movers.push({ obj: pivot, type: 'flap', axis: 'x', max: Math.PI / 2, part: 'door' });
+  return pivot;
+}
+
+// Drawer (front + box) pulled forward by dist, or a sliding door moved along x.
+function slider(leaf, dist, axis = 'z', part = 'drawer') {
+  movers.push({ obj: leaf, type: 'slide', axis, max: dist, part });
+  return leaf;
+}
+
 // Handle: modern keeps the original bar / knob, classic — a brass knob, loft — a black bar.
 // (x, y, z) — where the original was placed: y = its bottom, z = its centre.
 function handle(orig, x, y, z, len, vertical, s) {
@@ -121,11 +152,19 @@ function wardrobe(w, d, h, c, s) {
   const face = fm('wood', c, s, 'facade');
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + 0.006 + dw / 2 + i * (dw + 0.006);
-    g.add(box(dw, h - base - 0.012, doorT, face, x, base + 0.006, d / 2 - doorT / 2));
-    panel(g, dw, h - base - 0.012, x, base + 0.006, d / 2, face);
+    const leaf = new THREE.Group();
+    leaf.add(box(dw, h - base - 0.012, doorT, face, x, base + 0.006, d / 2 - doorT / 2));
+    panel(leaf, dw, h - base - 0.012, x, base + 0.006, d / 2, face);
     const hx = n === 1 ? x + dw / 2 - 0.05 : x + (i % 2 === 0 ? 1 : -1) * (dw / 2 - 0.05);
     const hl = Math.min(0.35, h * 0.2);
-    g.add(handle(box(0.015, hl, 0.02, metal, hx, base + h * 0.45, d / 2 + 0.01), hx, base + h * 0.45, d / 2 + 0.01, hl, true, s));
+    leaf.add(handle(box(0.015, hl, 0.02, metal, hx, base + h * 0.45, d / 2 + 0.01), hx, base + h * 0.45, d / 2 + 0.01, hl, true, s));
+    if (openKind === 'slide') {
+      // Sliding doors: every second door runs on the front rail over its neighbour.
+      if (i % 2) g.add(slider(leaf, -dw, 'x', 'door')); else g.add(leaf);
+      continue;
+    }
+    const left = n === 1 || i % 2 === 0;    // hinges opposite the handle
+    g.add(hinged(leaf, left ? x - dw / 2 : x + dw / 2, d / 2 - doorT / 2, left ? -1 : 1));
   }
   return g;
 }
@@ -180,10 +219,12 @@ function nightstand(w, d, h, c, s) {
   const dh = (h - legH - 0.01 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const y = legH + 0.01 + i * (dh + 0.01);
-    const face = fm('wood', c, s, 'facade');
-    g.add(box(w - 0.02, dh, 0.015, face, 0, y, d / 2 - 0.0075));
-    panel(g, w - 0.02, dh, 0, y, d / 2, face);
-    g.add(handle(cyl(0.012, 0.02, metal, 0, y + dh / 2 - 0.01, d / 2 + 0.005).rotateX(Math.PI / 2), 0, y + dh / 2 - 0.008, d / 2 + 0.01, 0.1, false, s));
+    const face = fm('wood', c, s, 'facade'), leaf = new THREE.Group();
+    leaf.add(box(w - 0.02, dh, 0.015, face, 0, y, d / 2 - 0.0075));
+    leaf.add(box(w - 0.06, dh * 0.6, d * 0.7, wood, 0, y + 0.01, d / 2 - 0.015 - d * 0.35));   // drawer box
+    panel(leaf, w - 0.02, dh, 0, y, d / 2, face);
+    leaf.add(handle(cyl(0.012, 0.02, metal, 0, y + dh / 2 - 0.01, d / 2 + 0.005).rotateX(Math.PI / 2), 0, y + dh / 2 - 0.008, d / 2 + 0.01, 0.1, false, s));
+    g.add(slider(leaf, d * 0.7));
   }
   return g;
 }
@@ -244,9 +285,12 @@ function drawers(w, d, h, c, s, rows) {
   for (let i = 0; i < n; i++) {
     const y = legH + gap + i * (fh + gap);
     const face = fm('wood', c, s, 'facade'), hl = Math.min(0.16, w * 0.3);
-    g.add(box(w - 2 * gap, fh, front, face, 0, y, d / 2 - front / 2));
-    panel(g, w - 2 * gap, fh, 0, y, d / 2, face);
-    g.add(handle(box(hl, 0.015, 0.02, metal, 0, y + fh * 0.6, d / 2 + 0.01), 0, y + fh * 0.6, d / 2 + 0.01, hl, false, s));
+    const leaf = new THREE.Group();
+    leaf.add(box(w - 2 * gap, fh, front, face, 0, y, d / 2 - front / 2));
+    leaf.add(box(w - 0.06, fh * 0.6, d * 0.75, wood, 0, y + 0.01, d / 2 - front - d * 0.375));   // drawer box
+    panel(leaf, w - 2 * gap, fh, 0, y, d / 2, face);
+    leaf.add(handle(box(hl, 0.015, 0.02, metal, 0, y + fh * 0.6, d / 2 + 0.01), 0, y + fh * 0.6, d / 2 + 0.01, hl, false, s));
+    g.add(slider(leaf, d * 0.75));
   }
   return g;
 }
@@ -330,10 +374,13 @@ function kitchen(w, d, h, c, s) {
   const n = Math.max(1, Math.round(w / 0.6)), dw = w / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + dw / 2 + i * dw;
-    g.add(box(dw - 0.006, baseH - plinth - ct - 0.01, 0.018, front, x, plinth + 0.005, d / 2 - 0.029));
-    panel(g, dw - 0.006, baseH - plinth - ct - 0.01, x, plinth + 0.005, d / 2 - 0.02, front);
+    const leaf = new THREE.Group();
+    leaf.add(box(dw - 0.006, baseH - plinth - ct - 0.01, 0.018, front, x, plinth + 0.005, d / 2 - 0.029));
+    panel(leaf, dw - 0.006, baseH - plinth - ct - 0.01, x, plinth + 0.005, d / 2 - 0.02, front);
     const hl = Math.min(0.2, dw * 0.5);
-    g.add(handle(box(hl, 0.012, 0.02, metal, x, baseH - ct - 0.06, d / 2 - 0.01), x, baseH - ct - 0.06, d / 2 - 0.01, hl, false, s));
+    leaf.add(handle(box(hl, 0.012, 0.02, metal, x, baseH - ct - 0.06, d / 2 - 0.01), x, baseH - ct - 0.06, d / 2 - 0.01, hl, false, s));
+    const left = i % 2 === 0;
+    g.add(hinged(leaf, left ? x - dw / 2 + 0.003 : x + dw / 2 - 0.003, d / 2 - 0.029, left ? -1 : 1));
   }
   g.add(box(Math.min(0.5, w * 0.25), 0.005, d * 0.6, metal, -w / 4, baseH, 0));   // sink
   g.add(box(Math.min(0.58, w * 0.25), 0.006, d * 0.85, dark, w / 4, baseH, 0));   // hob
@@ -355,10 +402,12 @@ function fridge(w, d, h, c, s) {
   const body = fm('plain', c, s), metal = furnitureMat('metal', c, s);
   const door = 0.04, split = h * 0.36, lowH = Math.min(0.3, split * 0.6);
   g.add(box(w, h, d - door, body, 0, 0, -door / 2));
-  g.add(box(w - 0.01, split - 0.01, door, body, 0, 0.005, d / 2 - door / 2));
-  g.add(box(w - 0.01, h - split - 0.01, door, body, 0, split + 0.005, d / 2 - door / 2));
-  g.add(box(0.02, lowH, 0.03, metal, w / 2 - 0.06, split - lowH - 0.05, d / 2 + 0.015));
-  g.add(box(0.02, 0.35, 0.03, metal, w / 2 - 0.06, split + 0.08, d / 2 + 0.015));
+  const low = new THREE.Group(), up = new THREE.Group();
+  low.add(box(w - 0.01, split - 0.01, door, body, 0, 0.005, d / 2 - door / 2));
+  up.add(box(w - 0.01, h - split - 0.01, door, body, 0, split + 0.005, d / 2 - door / 2));
+  low.add(box(0.02, lowH, 0.03, metal, w / 2 - 0.06, split - lowH - 0.05, d / 2 + 0.015));
+  up.add(box(0.02, 0.35, 0.03, metal, w / 2 - 0.06, split + 0.08, d / 2 + 0.015));
+  g.add(hinged(low, -w / 2 + 0.005, d / 2 - door / 2, -1), hinged(up, -w / 2 + 0.005, d / 2 - door / 2, -1));
   return g;
 }
 
@@ -374,10 +423,12 @@ function wallcabinet(w, d, h, c, s) {
   const dw = (w - gap * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + gap + dw / 2 + i * (dw + gap);
-    const face = fm('wood', c, s, 'facade'), hl = Math.min(0.12, dw * 0.4);
-    g.add(box(dw, h - 2 * gap, front, face, x, gap, d / 2 - front / 2));
-    panel(g, dw, h - 2 * gap, x, gap, d / 2, face);
-    g.add(handle(box(hl, 0.012, 0.02, metal, x, gap + 0.03, d / 2 + 0.01), x, gap + 0.03, d / 2 + 0.01, hl, false, s));
+    const face = fm('wood', c, s, 'facade'), hl = Math.min(0.12, dw * 0.4), leaf = new THREE.Group();
+    leaf.add(box(dw, h - 2 * gap, front, face, x, gap, d / 2 - front / 2));
+    panel(leaf, dw, h - 2 * gap, x, gap, d / 2, face);
+    leaf.add(handle(box(hl, 0.012, 0.02, metal, x, gap + 0.03, d / 2 + 0.01), x, gap + 0.03, d / 2 + 0.01, hl, false, s));
+    const left = n === 1 || i % 2 === 0;
+    g.add(hinged(leaf, left ? x - dw / 2 : x + dw / 2, d / 2 - front / 2, left ? -1 : 1));
   }
   return g;
 }
@@ -402,8 +453,10 @@ function tvpanel(w, d, h, c, s) {
   const dw = (w - 0.004 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + 0.004 + dw / 2 + i * (dw + 0.004), face = fm('wood', c, s, 'facade');
-    g.add(box(dw, h - 0.008, front, face, x, 0.004, d / 2 - front / 2));
-    panel(g, dw, h - 0.008, x, 0.004, d / 2, face);
+    const leaf = new THREE.Group();
+    leaf.add(box(dw, h - 0.008, front, face, x, 0.004, d / 2 - front / 2));
+    panel(leaf, dw, h - 0.008, x, 0.004, d / 2, face);
+    g.add(flap(leaf, 0.004, d / 2 - front / 2));
   }
   g.add(box(w * 0.98, 0.006, 0.002, dark, 0, h * 0.5, d / 2 + 0.001));
   return g;
@@ -478,9 +531,12 @@ export function buildItem(item, status, materials = [], roomStyle) {
   const make = BUILDERS[item.type] || generic;
   look = itemLook(item, materials);
   sty = itemStyle(item, roomStyle);
+  movers = [];
+  openKind = item.open?.kind || null;
   const obj = make(item.w / 100, item.d / 100, item.h / 100, item.color, status);
   look = { body: null, facade: null };
   sty = 'modern';
+  obj.userData.movers = movers;
   const r = rectOf(item);
   obj.position.set((r.x + r.w / 2) / 100, (item.elev || 0) / 100, (r.y + r.h / 2) / 100);
   // Same direction as the 2D front marker: 0° → +Z (south), clockwise on the plan.

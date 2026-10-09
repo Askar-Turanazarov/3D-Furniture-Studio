@@ -365,6 +365,11 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 .mat-own { flex-direction: row; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .mat-own input { width: 44px; height: 26px; padding: 0 2px; }
 .hud-btn[hidden] { display: none; }
+.hud-anim {
+  top: 56px; left: 50%; transform: translateX(-50%); max-width: 92%;
+  background: rgba(201, 42, 42, .9); color: #fff; font-weight: 700; font-size: 14px; padding: 6px 14px; border-radius: 8px;
+}
+.hud-anim[hidden] { display: none; }
 .style-box { margin-top: 8px; }
 .style-box summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
 .style-form { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }

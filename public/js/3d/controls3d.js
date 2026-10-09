@@ -139,7 +139,7 @@ export function updateHint() {
   container.querySelector('#cross3d').hidden = !walking;
   const key = mode === 'orbit' ? 'v3d.orbitHint' : isTouch() ? 'v3d.touchHint'
     : touchInput.active ? 'v3d.dragHint' : 'v3d.walkHint';
-  container.querySelector('#hint3d').textContent = t(key);
+  container.querySelector('#hint3d').textContent = t(key) + ' · ' + t('anim.hint');
 }
 
 function startFree() {

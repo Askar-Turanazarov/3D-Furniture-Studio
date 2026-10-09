@@ -48,7 +48,7 @@ export function initInteraction(canvas) {
   canvas.addEventListener('pointercancel', end);
 
   window.addEventListener('keydown', e => {
-    if (e.target.closest('input, textarea, select, dialog')) return;
+    if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
     const it = selected();
     if (!it) return;
     const step = state.settings.snap * (e.shiftKey ? 10 : 1);

@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'unit.cm': 'см',
     'room.title': 'Комната', 'room.length': 'Длина', 'room.width': 'Ширина', 'room.height': 'Высота',
     'units': 'Все размеры в сантиметрах (см)',
     'add.title': 'Добавить мебель', 'add.type': 'Тип', 'add.btn': '+ Добавить на план',
@@ -34,6 +35,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'unit.cm': 'sm',
     'room.title': 'Xona', 'room.length': 'Uzunligi', 'room.width': 'Kengligi', 'room.height': 'Balandligi',
     'units': 'Barcha o‘lchamlar santimetrda (sm)',
     'add.title': 'Mebel qo‘shish', 'add.type': 'Turi', 'add.btn': '+ Rejaga qo‘shish',
@@ -67,6 +69,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'unit.cm': 'cm',
     'room.title': 'Room', 'room.length': 'Length', 'room.width': 'Width', 'room.height': 'Height',
     'units': 'All dimensions in centimetres (cm)',
     'add.title': 'Add furniture', 'add.type': 'Type', 'add.btn': '+ Add to plan',

@@ -10,6 +10,7 @@ import { requestDraw, flash as drawFlash } from './renderer.js';
 import { rectOf } from './geometry.js';
 import { alignDeltas } from './align.js';
 import { initMatPanel, renderMatPanel } from './matPanel.js';
+import { initStylePanel, syncStylePanel } from './stylePanel.js';
 
 const $ = id => document.getElementById(id);
 const num = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
@@ -69,6 +70,7 @@ export function initUI({ autoPlace }) {
     emit();
   });
   initMatPanel();
+  initStylePanel();
   $('rotateBtn').addEventListener('click', () => { const it = selected(); if (it) rotateItem(it); });
   $('deleteBtn').addEventListener('click', () => removeItems(selectedItems().map(i => i.id)));
   $('dupBtn').addEventListener('click', () => duplicate());
@@ -147,6 +149,7 @@ export function syncForms() {
   s.snap.value = state.settings.snap; s.grid.value = state.settings.grid;
   s.gap.value = state.settings.gap; s.plinth.value = state.room.plinth;
   s.minPassage.value = state.settings.minPassage || 60;
+  syncStylePanel();
 }
 
 export function setErrors(map) { errors = map; }

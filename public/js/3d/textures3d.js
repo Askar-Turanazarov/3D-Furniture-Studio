@@ -6,6 +6,7 @@ import * as THREE from 'three';
 const SIZE = 512;
 let mats = null;
 const furnCache = new Map();
+const finishCache = new Map();
 let tex = null;
 let photo = null;          // { floor, wall, wood, fabric } → { map, normalMap, roughnessMap } | null
 let quality = 'simple';
@@ -120,9 +121,119 @@ function fabric() {
   return { map: toTexture(c) };
 }
 
+// Laminate: long planks 20 cm wide, greyish oak.
+function laminate() {
+  const [c, g] = canvas('#b9a58a');
+  const r = rng(41);
+  const rowH = SIZE / 5;
+  for (let row = 0; row < 5; row++) {
+    const y = row * rowH, seam = r() * SIZE, tone = 0.9 + r() * 0.2;
+    g.fillStyle = `rgb(${185 * tone | 0}, ${165 * tone | 0}, ${138 * tone | 0})`;
+    g.fillRect(0, y, SIZE, rowH);
+    grainLines(g, r, 0, y, SIZE, rowH, '#4d3b28', 18);
+    g.fillStyle = 'rgba(50,35,20,.5)';
+    g.fillRect(seam, y, 1.5, rowH);
+    g.fillRect(0, y, SIZE, 1.5);
+  }
+  return { map: toTexture(c) };
+}
+
+// Ceramic tile 50×50 cm with grout.
+function tile() {
+  const [c, g] = canvas('#bdb9b2');
+  const r = rng(53);
+  const s = SIZE / 2;
+  for (let i = 0; i < 2; i++) {
+    for (let j = 0; j < 2; j++) {
+      const tone = 0.96 + r() * 0.06;
+      g.fillStyle = `rgb(${232 * tone | 0}, ${229 * tone | 0}, ${223 * tone | 0})`;
+      g.fillRect(i * s + 2, j * s + 2, s - 4, s - 4);
+      for (let k = 0; k < 500; k++) {
+        g.fillStyle = `rgba(120,110,100,${r() * 0.08})`;
+        g.fillRect(i * s + 2 + r() * (s - 4), j * s + 2 + r() * (s - 4), 2, 2);
+      }
+    }
+  }
+  return { map: toTexture(c) };
+}
+
+// Short-pile carpet: dense noise.
+function carpet() {
+  const [c, g] = canvas('#b3a692');
+  const r = rng(61);
+  for (let i = 0; i < 40000; i++) {
+    g.fillStyle = r() > 0.5 ? `rgba(255,255,255,${r() * 0.1})` : `rgba(60,50,40,${r() * 0.12})`;
+    g.fillRect(r() * SIZE, r() * SIZE, 1 + r() * 2, 1 + r() * 2);
+  }
+  return { map: toTexture(c) };
+}
+
+// Wallpaper: soft vertical stripes with a small diamond print (neutral, tinted by the wall colour).
+function wallpaper() {
+  const [c, g] = canvas('#f4f1ec');
+  const step = SIZE / 8;
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = i % 2 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.05)';
+    g.fillRect(i * step, 0, step, SIZE);
+  }
+  g.fillStyle = 'rgba(120,100,80,.12)';
+  for (let x = step / 2; x < SIZE; x += step) {
+    for (let y = step / 4; y < SIZE; y += step / 2) {
+      g.beginPath();
+      g.moveTo(x, y - 6); g.lineTo(x + 4, y); g.lineTo(x, y + 6); g.lineTo(x - 4, y);
+      g.fill();
+    }
+  }
+  return { map: toTexture(c) };
+}
+
+// Brick 25 cm × ~7 cm in half-bond (light neutral, tinted by the wall colour); mortar is lighter.
+function brick() {
+  const [c, g] = canvas('#f2eee8');
+  const r = rng(71);
+  const rows = 14, bw = SIZE / 4, bh = SIZE / rows;
+  for (let row = 0; row < rows; row++) {
+    const off = row % 2 ? bw / 2 : 0;
+    for (let i = -1; i < 4; i++) {
+      const tone = 0.78 + r() * 0.2;
+      g.fillStyle = `rgb(${230 * tone | 0}, ${222 * tone | 0}, ${214 * tone | 0})`;
+      g.fillRect(i * bw + off + 2, row * bh + 2, bw - 4, bh - 4);
+    }
+  }
+  for (let k = 0; k < 6000; k++) {
+    g.fillStyle = `rgba(70,50,40,${r() * 0.07})`;
+    g.fillRect(r() * SIZE, r() * SIZE, 2, 2);
+  }
+  return { map: toTexture(c) };
+}
+
+// Wall panels: vertical boards ≈ 17 cm with grooves.
+function panels() {
+  const [c, g] = canvas('#ece6dc');
+  const r = rng(83);
+  const n = 6, pw = SIZE / n;
+  for (let i = 0; i < n; i++) {
+    g.fillStyle = `rgba(255,255,255,${r() * 0.08})`;
+    g.fillRect(i * pw, 0, pw, SIZE);
+    grainLines(g, r, i * pw, 0, pw, SIZE, '#8a7a66', 6, true);
+    g.fillStyle = 'rgba(60,45,30,.35)';
+    g.fillRect(i * pw, 0, 2, SIZE);
+  }
+  return { map: toTexture(c) };
+}
+
+const EXTRA = { laminate, tile, carpet, wallpaper, brick, panels };
+
 function textures() {
   if (!tex) tex = { parquet: parquet(), plaster: plaster(), wood: woodGrain(), fabric: fabric() };
   return tex;
+}
+
+// Extra finishes are generated on first use.
+function extra(name) {
+  const T = textures();
+  if (!T[name]) T[name] = EXTRA[name]();
+  return T[name];
 }
 
 // ---------- photo textures ----------
@@ -192,6 +303,7 @@ export async function setQuality(q) {
   quality = q;
   mats = null;              // rebuilt on next getMats()
   furnCache.clear();
+  finishCache.clear();
   return ok;
 }
 
@@ -242,6 +354,28 @@ export function getMats() {
     lampShade: new THREE.MeshStandardMaterial({ color: '#fff7e0', emissive: '#ffe9b0', emissiveIntensity: 2 })
   };
   return mats;
+}
+
+/**
+ * Floor and wall materials for a room style (see style.js); accent — the accent-wall material.
+ * Parquet and paint use the photo set in Photo quality, the other finishes are procedural.
+ */
+export function finishMats(style) {
+  const key = JSON.stringify(style);
+  if (finishCache.has(key)) return finishCache.get(key);
+  const floorTex = style.floor === 'parquet' ? surface('floor') : { ...extra(style.floor), photo: false };
+  const ROUGH = { parquet: null, laminate: 0.55, tile: 0.25, carpet: 1 };
+  const floor = new THREE.MeshStandardMaterial({
+    ...maps(floorTex), roughness: style.floor === 'parquet' ? (floorTex.photo ? 1 : 0.75) : ROUGH[style.floor]
+  });
+  const wm = style.wall.material;
+  const wallTex = wm === 'paint' ? surface('wall') : { ...extra(wm), photo: false };
+  const wallMat = color => new THREE.MeshStandardMaterial({
+    ...maps(wallTex), color: tint(color, wallTex.photo, wallTex.custom), roughness: wm === 'panels' ? 0.6 : 0.95
+  });
+  const res = { floor, wall: wallMat(style.wall.color), accent: style.accentWall ? wallMat(style.accentColor) : null };
+  finishCache.set(key, res);
+  return res;
 }
 
 const HIGHLIGHT = {

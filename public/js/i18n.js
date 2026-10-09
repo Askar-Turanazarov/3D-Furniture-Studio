@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'style.title': 'Отделка и стиль (3D)', 'style.walls': 'Стены', 'style.accent': 'Акцентная стена', 'style.floor': 'Пол', 'style.noAccent': 'Нет', 'style.w.north': 'Верхняя (север)', 'style.w.east': 'Правая (восток)', 'style.w.south': 'Нижняя (юг)', 'style.w.west': 'Левая (запад)', 'style.wall.paint': 'Покраска', 'style.wall.wallpaper': 'Обои', 'style.wall.brick': 'Кирпич', 'style.wall.panels': 'Панели', 'style.floor.parquet': 'Паркет', 'style.floor.laminate': 'Ламинат', 'style.floor.tile': 'Плитка', 'style.floor.carpet': 'Ковролин',
     'light.day': 'День', 'light.evening': 'Вечер', 'light.night': 'Ночь', 'light.ceiling': 'Свет', 'light.chandelier': 'Люстра', 'light.spots': 'Точечные', 'light.panel': 'Панель', 'light.none': 'Без потолочного',
     'mat.body': 'Корпус', 'mat.facade': 'Фасад', 'mat.material': 'Материал', 'mat.own': 'Свой цвет', 'mat.asBody': 'Как корпус',
     'snap.btn': 'Снимок', 'snap.title': 'Сохранить снимок 3D со сводкой (PNG)', 'snap.share': 'Поделиться', 'snap.plan': 'Сохранить снимок плана (PNG)', 'snap.items': 'Предметов: {n}', 'snap.brand': 'Мебель на заказ', 'snap.saved': 'Снимок сохранён: {name}', 'snap.fail': 'Не удалось сделать снимок',
@@ -82,6 +83,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'style.title': 'Pardoz va uslub (3D)', 'style.walls': 'Devorlar', 'style.accent': 'Urg‘u devori', 'style.floor': 'Pol', 'style.noAccent': 'Yo‘q', 'style.w.north': 'Yuqori (shimol)', 'style.w.east': 'O‘ng (sharq)', 'style.w.south': 'Pastki (janub)', 'style.w.west': 'Chap (g‘arb)', 'style.wall.paint': 'Bo‘yoq', 'style.wall.wallpaper': 'Gulqog‘oz', 'style.wall.brick': 'G‘isht', 'style.wall.panels': 'Panellar', 'style.floor.parquet': 'Parket', 'style.floor.laminate': 'Laminat', 'style.floor.tile': 'Kafel', 'style.floor.carpet': 'Gilam qoplama',
     'light.day': 'Kunduz', 'light.evening': 'Kechqurun', 'light.night': 'Tun', 'light.ceiling': 'Yorug‘lik', 'light.chandelier': 'Qandil', 'light.spots': 'Nuqtali', 'light.panel': 'Panel', 'light.none': 'Shiftsiz',
     'mat.body': 'Korpus', 'mat.facade': 'Fasad', 'mat.material': 'Material', 'mat.own': 'O‘z rangi', 'mat.asBody': 'Korpus kabi',
     'snap.btn': 'Surat', 'snap.title': '3D suratni xulosa bilan saqlash (PNG)', 'snap.share': 'Ulashish', 'snap.plan': 'Reja suratini saqlash (PNG)', 'snap.items': 'Buyumlar: {n}', 'snap.brand': 'Buyurtma asosida mebel', 'snap.saved': 'Surat saqlandi: {name}', 'snap.fail': 'Suratga olib bo‘lmadi',
@@ -163,6 +165,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'style.title': 'Finish and style (3D)', 'style.walls': 'Walls', 'style.accent': 'Accent wall', 'style.floor': 'Floor', 'style.noAccent': 'None', 'style.w.north': 'Top (north)', 'style.w.east': 'Right (east)', 'style.w.south': 'Bottom (south)', 'style.w.west': 'Left (west)', 'style.wall.paint': 'Paint', 'style.wall.wallpaper': 'Wallpaper', 'style.wall.brick': 'Brick', 'style.wall.panels': 'Panels', 'style.floor.parquet': 'Parquet', 'style.floor.laminate': 'Laminate', 'style.floor.tile': 'Tile', 'style.floor.carpet': 'Carpet',
     'light.day': 'Day', 'light.evening': 'Evening', 'light.night': 'Night', 'light.ceiling': 'Light', 'light.chandelier': 'Chandelier', 'light.spots': 'Spots', 'light.panel': 'Panel', 'light.none': 'No ceiling light',
     'mat.body': 'Body', 'mat.facade': 'Facade', 'mat.material': 'Material', 'mat.own': 'Own colour', 'mat.asBody': 'Same as body',
     'snap.btn': 'Snapshot', 'snap.title': 'Save a 3D snapshot with a summary (PNG)', 'snap.share': 'Share', 'snap.plan': 'Save a plan snapshot (PNG)', 'snap.items': 'Items: {n}', 'snap.brand': 'Custom-made furniture', 'snap.saved': 'Snapshot saved: {name}', 'snap.fail': 'Could not take a snapshot',

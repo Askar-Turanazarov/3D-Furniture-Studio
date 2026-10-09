@@ -4,6 +4,7 @@ import { findSpot } from './autoplace.js';
 import { getLang } from './i18n.js';
 import { newOpening, clampOpening, doorSwingRect } from './openings.js';
 import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
+import { styleOf } from './style.js';
 
 export const state = {
   room: { L: 400, W: 300, H: 270, plinth: 2 },
@@ -20,6 +21,7 @@ export const state = {
   obSeq: 1,
   selectedObstacle: null,
   lighting: { scene: 'day', ceiling: 'chandelier' },   // 3D light: see 3d/lights3d.js
+  style: styleOf(),   // walls, floor, furniture style: see style.js
   catalog: [],        // furniture types (catalog.json → items)
   materials: [],      // catalog.json → materials (phase 6)
   pricing: {},        // catalog.json → pricing (phase 7)
@@ -34,8 +36,8 @@ export function emit() { listeners.forEach(fn => fn(state)); }
 
 // The room document: everything that is saved and undone (not selection or highlights).
 export function docFromState() {
-  const { room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting } = state;
-  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting });
+  const { room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting, style } = state;
+  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting, style });
 }
 
 export function applyDoc(doc) {
@@ -44,7 +46,8 @@ export function applyDoc(doc) {
     room: d.room, settings: d.settings, items: d.items, seq: d.seq,
     openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq,
     obstacles: d.obstacles || [], obSeq: d.obSeq || 1,
-    lighting: { ...DEFAULT_LIGHTING, ...d.lighting }
+    lighting: { ...DEFAULT_LIGHTING, ...d.lighting },
+    style: styleOf(d.style)
   });
   if (!getObstacle(state.selectedObstacle)) state.selectedObstacle = null;
   if (!getItem(state.selectedId)) state.selectedId = null;

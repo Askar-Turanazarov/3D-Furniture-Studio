@@ -3,7 +3,9 @@
 //   fsp3d.project.<id>     — the whole project: { id, name, createdAt, updatedAt, activeRoomId, rooms: [roomDoc] }
 //   fsp3d.lastProject      — id of the project opened last
 //   fsp3d.plan.v1          — old single-room plan; migrated once and kept as a spare copy
-// roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting }
+// roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting, style }
+import { styleOf } from './style.js';
+
 const V1 = 'fsp3d.plan.v1';
 const INDEX = 'fsp3d.projects.v2';
 const LAST = 'fsp3d.lastProject';
@@ -43,7 +45,8 @@ export function normalizeDoc(d = {}) {
     opSeq: Math.max(d.opSeq || 1, ...(openings || []).map(o => o.id + 1)),
     obstacles,
     obSeq: Math.max(d.obSeq || 1, ...obstacles.map(o => o.id + 1)),
-    lighting: { ...DEFAULT_LIGHTING, ...d.lighting }
+    lighting: { ...DEFAULT_LIGHTING, ...d.lighting },
+    style: styleOf(d.style)
   };
 }
 

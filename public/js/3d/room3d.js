@@ -1,7 +1,8 @@
 // Room shell: floor, ceiling, 4 walls with window / door openings from the plan, plinths.
 // Interior: x ∈ [0, L], z ∈ [0, W], y ∈ [0, H] in metres.
 import * as THREE from 'three';
-import { getMats } from './textures3d.js';
+import { getMats, finishMats } from './textures3d.js';
+import { styleOf } from '../style.js';
 
 const T = 0.1;          // wall thickness, m
 const PLINTH_H = 0.08;  // plinth height, m
@@ -58,15 +59,16 @@ function localOpening(o, L, W) {
  * @param room { L, W, H, plinth } in cm; openings — windows / doors (see openings.js)
  * @returns { group, walls: { north, south, west, east }, ceiling, windows: [{ cx, cz, nx, nz }] }
  */
-export function buildRoom(room, openings = []) {
-  const M = getMats();
+export function buildRoom(room, openings = [], style) {
+  const M = getMats(), st = styleOf(style), F = finishMats(st);
+  const wallOf = name => st.accentWall === name ? F.accent : F.wall;
   const L = room.L / 100, W = room.W / 100, H = room.H / 100;
   const p = Math.max(room.plinth, 1) / 100;
   const group = new THREE.Group();
   group.name = 'room';
 
   // Floor + ceiling.
-  const floor = mesh(scaleUV(new THREE.PlaneGeometry(L, W), L, W), M.floor, { cast: false });
+  const floor = mesh(scaleUV(new THREE.PlaneGeometry(L, W), L, W), F.floor, { cast: false });
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(L / 2, 0, W / 2);
   group.add(floor);
@@ -100,18 +102,18 @@ export function buildRoom(room, openings = []) {
     walls[o.wall].add(g);
   }
   // North (z = 0, extruded to -T).
-  const north = wallMesh(-T, L + T, H, holes.north, M.wall);
+  const north = wallMesh(-T, L + T, H, holes.north, wallOf('north'));
   north.position.z = -T;
   walls.north.add(north);
   // South (z = W, extruded to W + T).
-  const south = wallMesh(-T, L + T, H, holes.south, M.wall);
+  const south = wallMesh(-T, L + T, H, holes.south, wallOf('south'));
   south.position.z = W;
   walls.south.add(south);
   // West / east: local X → world Z, extrusion → world −X.
-  const west = wallMesh(0, W, H, holes.west, M.wall);
+  const west = wallMesh(0, W, H, holes.west, wallOf('west'));
   west.rotation.y = -Math.PI / 2;
   walls.west.add(west);
-  const east = wallMesh(0, W, H, holes.east, M.wall);
+  const east = wallMesh(0, W, H, holes.east, wallOf('east'));
   east.rotation.y = -Math.PI / 2;
   east.position.x = L + T;
   walls.east.add(east);

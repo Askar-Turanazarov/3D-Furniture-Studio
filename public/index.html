@@ -41,6 +41,16 @@
             <input type="number" name="H" min="150" max="600" step="1" value="270"></label>
         </form>
         <p class="hint" data-i18n="units">Все размеры в сантиметрах</p>
+        <details class="style-box" id="styleBox">
+          <summary data-i18n="style.title">Отделка и стиль (3D)</summary>
+          <form id="styleForm" class="style-form">
+            <label><span data-i18n="style.walls">Стены</span>
+              <span class="row"><select name="wallMat"></select><input type="color" name="wallColor"></span></label>
+            <label><span data-i18n="style.accent">Акцентная стена</span>
+              <span class="row"><select name="accentWall"></select><input type="color" name="accentColor"></span></label>
+            <label><span data-i18n="style.floor">Пол</span><select name="floor"></select></label>
+          </form>
+        </details>
       </section>
 
       <section class="panel" id="openPanel">

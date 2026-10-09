@@ -97,12 +97,12 @@ function rebuild() {
   const { L, W, H, plinth } = state.room;
   let roomChanged = false;
   const sizeKey = [L, W, H, plinth].join('x');
-  const key = sizeKey + JSON.stringify(state.openings) + JSON.stringify(state.obstacles);
+  const key = sizeKey + JSON.stringify(state.openings) + JSON.stringify(state.obstacles) + JSON.stringify(state.style);
   if (key !== roomKey) {
     roomChanged = roomKey === '' ? !room : !roomKey.startsWith(sizeKey + '[');
     roomKey = key;
     if (room) disposeGroup(room.group);
-    room = buildRoom(state.room, state.openings || []);
+    room = buildRoom(state.room, state.openings || [], state.style);
     room.group.add(buildObstacles(state.obstacles));
     scene.add(room.group);
     lightKey = '';

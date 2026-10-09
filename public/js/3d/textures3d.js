@@ -1,10 +1,16 @@
-// Materials for the room and furniture. Procedural Canvas textures (1 tile = 1 m).
+// Materials for the room and furniture.
+// Quality 'simple': procedural Canvas textures; 'photo': CC0 photo textures from /textures (fallback to simple).
+// 1 texture tile = 1 m.
 import * as THREE from 'three';
 
 const SIZE = 512;
 let mats = null;
 const furnCache = new Map();
 let tex = null;
+let photo = null;          // { floor, wall, wood, fabric } → { map, normalMap, roughnessMap } | null
+let quality = 'simple';
+
+const PHOTO_SETS = ['floor', 'wall', 'wood', 'fabric'];
 
 // ---------- procedural generators ----------
 function canvas(fill) {
@@ -119,19 +125,78 @@ function textures() {
   return tex;
 }
 
+// ---------- photo textures ----------
+async function loadSet(name) {
+  const loader = new THREE.TextureLoader();
+  const load = async (file, srgb) => {
+    const t = await loader.loadAsync(`/textures/${name}/${file}.jpg`);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.anisotropy = 8;
+    return t;
+  };
+  try {
+    const [map, normalMap, roughnessMap] = await Promise.all([
+      load('color', true), load('normal', false), load('roughness', false)
+    ]);
+    return { map, normalMap, roughnessMap };
+  } catch {
+    return null;
+  }
+}
+
+/** Switch texture quality. Resolves to false if photo textures are missing. */
+export async function setQuality(q) {
+  let ok = true;
+  if (q === 'photo' && !photo) {
+    const sets = await Promise.all(PHOTO_SETS.map(loadSet));
+    photo = Object.fromEntries(PHOTO_SETS.map((n, i) => [n, sets[i]]));
+    ok = sets.every(Boolean);
+  } else if (q === 'photo') {
+    ok = Object.values(photo).every(Boolean);
+  }
+  quality = q;
+  mats = null;              // rebuilt on next getMats()
+  furnCache.clear();
+  return ok;
+}
+
+export const getQuality = () => quality;
+
+// Texture set for a surface in the current quality (falls back to procedural).
+function surface(name) {
+  const p = quality === 'photo' && photo && photo[name];
+  if (p) return { ...p, photo: true };
+  const T = textures();
+  const simple = { floor: T.parquet, wall: T.plaster, wood: T.wood, fabric: T.fabric }[name];
+  return { ...simple, photo: false };
+}
+
+// Photo maps are already coloured: tint them only lightly with the item colour.
+function tint(color, isPhoto) {
+  return isPhoto ? new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.45) : new THREE.Color(color);
+}
+
+const maps = ({ map, normalMap, roughnessMap }) => {
+  const m = { map };
+  if (normalMap) m.normalMap = normalMap;
+  if (roughnessMap) m.roughnessMap = roughnessMap;
+  return m;
+};
+
 // ---------- materials ----------
 export function getMats() {
   if (mats) return mats;
-  const T = textures();
+  const floor = surface('floor'), wall = surface('wall'), wood = surface('wood');
   mats = {
-    floor: new THREE.MeshStandardMaterial({ ...T.parquet, roughness: 0.75 }),
-    wall: new THREE.MeshStandardMaterial({ ...T.plaster, roughness: 0.95 }),
+    floor: new THREE.MeshStandardMaterial({ ...maps(floor), roughness: floor.photo ? 1 : 0.75 }),
+    wall: new THREE.MeshStandardMaterial({ ...maps(wall), color: wall.photo ? '#f3eee6' : '#ffffff', roughness: 0.95 }),
     ceiling: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 }),
     plinth: new THREE.MeshStandardMaterial({ color: '#f7f5f0', roughness: 0.5 }),
     frame: new THREE.MeshStandardMaterial({ color: '#fafafa', roughness: 0.4 }),
     glass: new THREE.MeshStandardMaterial({ color: '#cfe8ff', roughness: 0.05, transparent: true, opacity: 0.25 }),
     sky: new THREE.MeshBasicMaterial({ color: '#bfe3ff' }),
-    door: new THREE.MeshStandardMaterial({ ...T.wood, color: '#d9c7ad', roughness: 0.6 }),
+    door: new THREE.MeshStandardMaterial({ ...maps(wood), color: tint('#d9c7ad', wood.photo), roughness: 0.6 }),
     metal: new THREE.MeshStandardMaterial({ color: '#c0c4cc', roughness: 0.3, metalness: 0.9 }),
     lampShade: new THREE.MeshStandardMaterial({ color: '#fff7e0', emissive: '#ffe9b0', emissiveIntensity: 2 })
   };
@@ -151,13 +216,13 @@ const HIGHLIGHT = {
 export function furnitureMat(kind, color, status = 'ok') {
   const key = `${kind}|${color}|${status}`;
   if (furnCache.has(key)) return furnCache.get(key);
-  const T = textures();
+  const wood = surface('wood'), fab = surface('fabric');
   let m;
   switch (kind) {
-    case 'wood': m = new THREE.MeshStandardMaterial({ ...T.wood, color, roughness: 0.55 }); break;
-    case 'fabric': m = new THREE.MeshStandardMaterial({ ...T.fabric, color, roughness: 0.95 }); break;
-    case 'soft': m = new THREE.MeshStandardMaterial({ ...T.fabric, color: '#f4f1ea', roughness: 0.95 }); break;
-    case 'dark': m = new THREE.MeshStandardMaterial({ ...T.wood, color: '#4a3a2c', roughness: 0.6 }); break;
+    case 'wood': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: tint(color, wood.photo), roughness: 0.55 }); break;
+    case 'fabric': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: tint(color, fab.photo), roughness: 0.95 }); break;
+    case 'soft': m = new THREE.MeshStandardMaterial({ ...maps(fab), color: '#f4f1ea', roughness: 0.95 }); break;
+    case 'dark': m = new THREE.MeshStandardMaterial({ ...maps(wood), color: wood.photo ? '#6b5442' : '#4a3a2c', roughness: 0.6 }); break;
     default: m = new THREE.MeshStandardMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 0.9 });
   }
   const hl = HIGHLIGHT[status];

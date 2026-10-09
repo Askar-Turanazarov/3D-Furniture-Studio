@@ -8,6 +8,8 @@ import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import { initTouch } from './touch3d.js';
+import { setQuality } from './textures3d.js';
+import { toast } from '../ui.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
@@ -40,6 +42,10 @@ function init(el) {
   clock = new THREE.Clock();
   controls.initControls(camera, renderer.domElement, el);
   initTouch(el, renderer.domElement);
+  el.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => applyQuality(b.dataset.quality)));
+  let saved = 'simple';
+  try { saved = localStorage.getItem('fsp3d.quality') || 'simple'; } catch { /* ignore */ }
+  if (saved !== 'simple') applyQuality(saved);
 
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });
@@ -55,12 +61,23 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 
+// Simple (procedural) / Photo (CC0) textures; the whole scene is rebuilt with new materials.
+async function applyQuality(q) {
+  const ok = await setQuality(q);
+  container.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === q));
+  try { localStorage.setItem('fsp3d.quality', q); } catch { /* ignore */ }
+  if (!ok) toast(t('v3d.photoFail'), true);
+  roomKey = '';
+  if (running) rebuild();
+}
+
 // Rebuild the room only when its size changes; furniture on every change.
 function rebuild() {
   const { L, W, H, plinth } = state.room;
   let roomChanged = false;
   const key = [L, W, H, plinth].join('x');
   if (key !== roomKey) {
+    roomChanged = roomKey === '' ? !room : true;
     roomKey = key;
     if (room) disposeGroup(room.group);
     room = buildRoom(state.room);
@@ -68,7 +85,6 @@ function rebuild() {
     if (lights) disposeGroup(lights);
     lights = buildLights(room.size, room.window);
     scene.add(lights);
-    roomChanged = true;
   }
   controls.setRoom(room, roomChanged);
   buildFurniture();

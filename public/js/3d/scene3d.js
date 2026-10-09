@@ -4,12 +4,16 @@ import { t, onLangChange } from '../i18n.js';
 import { state, onChange } from '../state.js';
 import { buildRoom, disposeGroup } from './room3d.js';
 import { buildLights, setupEnvironment } from './lights3d.js';
+import { buildItem } from './models3d.js';
+import { validateAll } from '../validate.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
 let roomKey = '';
 let room = null;
 let lights = null;
+let furniture = null;
+let foundTimer = null;
 
 export const CM = 0.01;
 
@@ -64,6 +68,24 @@ function rebuild() {
     camera.position.set(L * CM / 2, H * CM * 1.6, W * CM * 1.9);
     camera.lookAt(L * CM / 2, 0, W * CM / 2);
   }
+  buildFurniture();
+}
+
+// Furniture: red tint for items with errors, green for a freshly auto-placed one.
+function buildFurniture() {
+  if (furniture) disposeGroup(furniture);
+  furniture = new THREE.Group();
+  furniture.name = 'furniture';
+  const errors = validateAll(state);
+  const now = performance.now();
+  const found = state.found && now < state.found.until ? state.found : null;
+  for (const it of state.items) {
+    const status = (errors.get(it.id) || []).length ? 'bad' : found && found.id === it.id ? 'found' : 'ok';
+    furniture.add(buildItem(it, status));
+  }
+  scene.add(furniture);
+  clearTimeout(foundTimer);
+  if (found) foundTimer = setTimeout(() => { if (running) buildFurniture(); }, found.until - now + 20);
 }
 
 function updateHint() {

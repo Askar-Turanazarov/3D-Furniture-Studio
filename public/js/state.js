@@ -21,6 +21,22 @@ const listeners = new Set();
 export function onChange(fn) { listeners.add(fn); }
 export function emit() { listeners.forEach(fn => fn(state)); }
 
+// The room document: everything that is saved and undone (not selection or highlights).
+export function docFromState() {
+  const { room, settings, items, seq, openings, openingsLocked, opSeq } = state;
+  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq });
+}
+
+export function applyDoc(doc) {
+  const d = structuredClone(doc);
+  Object.assign(state, {
+    room: d.room, settings: d.settings, items: d.items, seq: d.seq,
+    openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq
+  });
+  if (!getItem(state.selectedId)) state.selectedId = null;
+  if (!getOpening(state.selectedOpening)) state.selectedOpening = null;
+}
+
 export const getItem = id => state.items.find(i => i.id === id) || null;
 export const selected = () => getItem(state.selectedId);
 

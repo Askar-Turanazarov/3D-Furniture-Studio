@@ -4,6 +4,7 @@ import { state, emit, select, selected, rotateItem, removeItem, snapValue,
 import { rectOf, footprint } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
 import { toWorld, view } from './renderer.js';
+import { history } from './history.js';
 
 const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen distance
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
@@ -17,6 +18,7 @@ export function initInteraction(canvas) {
       const o = hit.opening;
       drag = { opening: o, grab: nearestWall(wx, wy, state.room).along - o.offset, pointerId: e.pointerId };
       canvas.setPointerCapture(e.pointerId);
+      history.begin();
       if (state.selectedOpening !== o.id) selectOpening(o.id);
       return;
     }
@@ -27,6 +29,7 @@ export function initInteraction(canvas) {
     }
     drag = { item: hit, offX: wx - hit.x, offY: wy - hit.y, pointerId: e.pointerId };
     canvas.setPointerCapture(e.pointerId);
+    history.begin();
     if (state.selectedId !== hit.id) select(hit.id);
   });
 
@@ -57,6 +60,7 @@ export function initInteraction(canvas) {
     if (!drag || e.pointerId !== drag.pointerId) return;
     drag = null;
     canvas.style.cursor = 'grab';
+    history.end();   // the whole drag is one undo step
   };
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);

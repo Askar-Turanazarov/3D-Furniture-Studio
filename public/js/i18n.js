@@ -1,6 +1,7 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 const dict = {
   ru: {
+    'hist.undo': 'Отменить (Ctrl+Z)', 'hist.redo': 'Повторить (Ctrl+Y)', 'hist.undone': 'Отменено', 'hist.redone': 'Повторено',
     'v3d.height': 'Рост', 'v3d.child': 'ребёнок', 'v3d.woman': 'женщина', 'v3d.man': 'мужчина',
     'v3d.distItem': 'До «{name}»: {m} м', 'v3d.distWall': 'До стены ({wall}): {m} м', 'wallShort.north': 'северная', 'wallShort.south': 'южная', 'wallShort.west': 'левая', 'wallShort.east': 'правая', 'v3d.distTouch': 'вплотную', 'v3d.fromFeet': 'от ног, по полу',
     'op.title': 'Окна и двери', 'op.addWindow': '+ Окно', 'op.addDoor': '+ Дверь', 'op.lock': '🔓 Заблокировать', 'op.unlock': '🔒 Заблокировано',
@@ -62,6 +63,7 @@ const dict = {
     'catalog.fail': 'Не удалось загрузить каталог'
   },
   uz: {
+    'hist.undo': 'Bekor qilish (Ctrl+Z)', 'hist.redo': 'Qaytarish (Ctrl+Y)', 'hist.undone': 'Bekor qilindi', 'hist.redone': 'Qaytarildi',
     'v3d.height': 'Bo‘y', 'v3d.child': 'bola', 'v3d.woman': 'ayol', 'v3d.man': 'erkak',
     'v3d.distItem': '«{name}»gacha: {m} m', 'v3d.distWall': 'Devorgacha ({wall}): {m} m', 'wallShort.north': 'shimoliy', 'wallShort.south': 'janubiy', 'wallShort.west': 'chap', 'wallShort.east': 'o‘ng', 'v3d.distTouch': 'yonma-yon', 'v3d.fromFeet': 'oyoqdan, pol bo‘ylab',
     'op.title': 'Derazalar va eshiklar', 'op.addWindow': '+ Deraza', 'op.addDoor': '+ Eshik', 'op.lock': '🔓 Qulflash', 'op.unlock': '🔒 Qulflangan',
@@ -123,6 +125,7 @@ const dict = {
     'catalog.fail': 'Katalogni yuklab bo‘lmadi'
   },
   en: {
+    'hist.undo': 'Undo (Ctrl+Z)', 'hist.redo': 'Redo (Ctrl+Y)', 'hist.undone': 'Undone', 'hist.redone': 'Redone',
     'v3d.height': 'Height', 'v3d.child': 'child', 'v3d.woman': 'woman', 'v3d.man': 'man',
     'v3d.distItem': 'To “{name}”: {m} m', 'v3d.distWall': 'To the wall ({wall}): {m} m', 'wallShort.north': 'north', 'wallShort.south': 'south', 'wallShort.west': 'left', 'wallShort.east': 'right', 'v3d.distTouch': 'touching', 'v3d.fromFeet': 'from the feet, along the floor',
     'op.title': 'Windows & doors', 'op.addWindow': '+ Window', 'op.addDoor': '+ Door', 'op.lock': '🔓 Lock', 'op.unlock': '🔒 Locked',
@@ -215,6 +218,7 @@ export function onLangChange(fn) { listeners.add(fn); }
 export function applyStatic() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
   document.querySelectorAll('.lang button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
 }
 

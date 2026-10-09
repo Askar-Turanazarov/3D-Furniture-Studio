@@ -1,5 +1,6 @@
 import { t, initLangSwitcher, onLangChange } from './i18n.js';
-import { state, onChange, emit, itemName } from './state.js';
+import { state, onChange, emit, itemName, docFromState, applyDoc } from './state.js';
+import { history } from './history.js';
 import { findSpot } from './autoplace.js';
 import { load, save } from './storage.js';
 import { initOrder } from './order.js';
@@ -19,6 +20,61 @@ function update() {
   requestDraw();
   refresh();
   save(state);
+  closeStaleField();
+  history.record(snapshot());
+  syncUndo();
+}
+
+// ---- undo / redo ----
+const snapshot = () => JSON.stringify(docFromState());
+
+function step(dir) {
+  closeStaleField();
+  const snap = dir < 0 ? history.undo() : history.redo();
+  if (!snap) return;
+  applyDoc(JSON.parse(snap));
+  syncForms();
+  emit();
+  toast(t(dir < 0 ? 'hist.undone' : 'hist.redone'));
+}
+
+function syncUndo() {
+  document.getElementById('undoBtn').disabled = !history.canUndo();
+  document.getElementById('redoBtn').disabled = !history.canRedo();
+}
+
+// Editing one field (all its keystrokes) is a single step: focus opens it, blur closes it.
+let field = null;
+function closeStaleField() {
+  if (field && document.activeElement !== field) { field = null; history.end(); }
+}
+
+function initHistory() {
+  history.setSource(snapshot);
+  document.getElementById('undoBtn').addEventListener('click', () => step(-1));
+  document.getElementById('redoBtn').addEventListener('click', () => step(1));
+  window.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.target instanceof Element && e.target.closest('input, textarea, select')) return;
+    if (e.code === 'KeyZ') step(e.shiftKey ? 1 : -1);
+    else if (e.code === 'KeyY') step(1);
+    else return;
+    e.preventDefault();
+  });
+  const sidebar = document.querySelector('.sidebar') || document.body;
+  const open = e => {
+    if (!e.target.matches('input, select') || field === e.target) return;
+    if (field) history.end();
+    field = e.target;
+    history.begin();
+  };
+  sidebar.addEventListener('focusin', open);
+  sidebar.addEventListener('input', open, true);   // capture: before the form handler changes state
+  sidebar.addEventListener('focusout', e => {
+    if (e.target !== field) return;
+    field = null;
+    history.end();
+  });
 }
 
 // Move the item to the first free spot and flash it green, or explain why not.
@@ -85,6 +141,7 @@ async function start() {
   initOrder();
   initViewSwitch();
   initTextures();
+  initHistory();
   await loadCatalog();
   load(state);
   state.openings ??= defaultOpenings(state.room);

@@ -110,6 +110,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .btn.accent { color: var(--accent); border-color: #96f2d7; }
 .btn.danger { color: var(--danger); border-color: #ffc9c9; }
 .btn.ghost { background: transparent; }
+.btn.icon { min-width: 34px; padding-left: 8px; padding-right: 8px; font-size: 16px; line-height: 1; }
+.btn:disabled { opacity: .4; cursor: default; }
 .btn.big { padding: 11px; font-size: 15px; }
 .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-row .btn { flex: 1; }

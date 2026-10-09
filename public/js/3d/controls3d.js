@@ -12,6 +12,7 @@ const NORMALS = {
 };
 
 const RADIUS = 0.25;       // player radius, m
+const FEET = 50;           // cm: structure lower than this is "in front of the feet" for the distance HUD
 const WALK = 1.4, RUN = 3; // m/s
 
 let camera, container, orbit, plc, overlay;
@@ -160,12 +161,16 @@ export const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
 const eyeHeight = () => Math.min(personH * 0.93 / 100, room.size.H - 0.15);
 
-// Furniture footprints in metres.
+// Furniture and structure footprints in metres. Structure above the head (a ceiling duct) does not block.
 function obstacles() {
-  return state.items.map(it => {
+  const out = state.items.map(it => {
     const r = rectOf(it);
     return { x: r.x / 100, z: r.y / 100, w: r.w / 100, d: r.h / 100 };
   });
+  for (const o of state.obstacles || []) {
+    if (o.elev < personH) out.push({ x: o.x / 100, z: o.y / 100, w: o.w / 100, d: o.d / 100 });
+  }
+  return out;
 }
 
 function blockedAt(x, z, obs) {
@@ -274,10 +279,18 @@ function showDistance() {
     const d = rayBox(ox, oz, fwd.x, fwd.z, r.x / 100, r.y / 100, (r.x + r.w) / 100, (r.y + r.h) / 100);
     if (d !== null && d < best.d) best = { d, wall: null, item: it };
   });
+  // Structure at foot level (≤ 50 cm), e.g. a column or a radiator, not a ceiling duct.
+  for (const o of state.obstacles || []) {
+    if (o.elev > FEET) continue;
+    const d = rayBox(ox, oz, fwd.x, fwd.z, o.x / 100, o.y / 100, (o.x + o.w) / 100, (o.y + o.d) / 100);
+    if (d !== null && d < best.d) best = { d, wall: null, item: null, ob: o };
+  }
   if (!isFinite(best.d)) return;
   const m = best.d < 0.01 ? t('v3d.distTouch') : best.d.toLocaleString(getLang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const cm = Math.round(best.d * 100);
-  const text = best.item ? t('v3d.distItem', { name: itemName(best.item), m }) : t('v3d.distWall', { wall: t('wallShort.' + best.wall), m });
+  const text = best.item ? t('v3d.distItem', { name: itemName(best.item), m })
+    : best.ob ? t('v3d.distItem', { name: t('ob.' + best.ob.kind), m })
+    : t('v3d.distWall', { wall: t('wallShort.' + best.wall), m });
   el.innerHTML = '';
   el.append(text, Object.assign(document.createElement('small'), { textContent: `${cm} ${t('unit.cm')} · ${t('v3d.fromFeet')}` }));
 }

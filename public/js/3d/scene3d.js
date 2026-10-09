@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { t, onLangChange } from '../i18n.js';
 import { state, onChange } from '../state.js';
 import { buildRoom, disposeGroup } from './room3d.js';
+import { buildObstacles } from './obstacles3d.js';
 import { buildLights, setupEnvironment } from './lights3d.js';
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
@@ -79,12 +80,13 @@ function rebuild() {
   const { L, W, H, plinth } = state.room;
   let roomChanged = false;
   const sizeKey = [L, W, H, plinth].join('x');
-  const key = sizeKey + JSON.stringify(state.openings);
+  const key = sizeKey + JSON.stringify(state.openings) + JSON.stringify(state.obstacles);
   if (key !== roomKey) {
     roomChanged = roomKey === '' ? !room : !roomKey.startsWith(sizeKey + '[');
     roomKey = key;
     if (room) disposeGroup(room.group);
     room = buildRoom(state.room, state.openings || []);
+    room.group.add(buildObstacles(state.obstacles));
     scene.add(room.group);
     if (lights) disposeGroup(lights);
     lights = buildLights(room.size, room.windows[0] || null);

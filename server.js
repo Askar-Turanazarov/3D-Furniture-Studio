@@ -8,17 +8,10 @@ const CATALOG = path.join(__dirname, 'catalog.json');
 const ORDERS = path.join(__dirname, 'order.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
 const ORDER_FILES = path.join(__dirname, 'orders');
-const MAX_PICTURE = 2 * 1024 * 1024;
-
-// dataURL → Buffer if it is a PNG/JPEG of at most 2 MB (checked by the signature), else null.
-function picture(dataUrl, type) {
-  const m = typeof dataUrl === 'string' && dataUrl.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
-  if (!m || m[1] !== type) return null;
-  const buf = Buffer.from(m[2], 'base64');
-  const sig = type === 'png' ? [0x89, 0x50, 0x4e, 0x47] : [0xff, 0xd8, 0xff];
-  if (buf.length > MAX_PICTURE || !sig.every((b, i) => buf[i] === b)) return null;
-  return buf;
-}
+const { validateOrder } = require('./server/validateOrder');
+const { createStore, createRateLimit } = require('./server/orderStore');
+const store = createStore(ORDERS);
+const orderLimit = createRateLimit({ max: 5, windowMs: 10 * 60 * 1000 });
 
 app.use(express.json({ limit: '6mb' }));   // the order carries the drawing PNG (≤ 2 MB) and a 3D picture
 app.use(express.static(path.join(__dirname, 'public')));
@@ -41,47 +34,28 @@ app.get('/api/templates', async (req, res) => {
 });
 
 app.post('/api/order', async (req, res) => {
-  const { name, phone, comment, room, items, lang, openings, project, roomName, purpose, rooms, estimate, drawing, snapshot3d } = req.body || {};
-  if (!name || !phone || !room || !Array.isArray(items)) {
-    return res.status(400).json({ error: 'invalid_order' });
-  }
+  const body = req.body || {};
+  // Honeypot: people never see the "website" field; a filled one means a bot. Answer "ok", save nothing.
+  if (body.website) return res.json({ ok: true, id: Date.now() });
+  if (!orderLimit(req.ip)) return res.status(429).json({ error: 'too_many' });
+  const v = validateOrder(body);
+  if (!v.ok) return res.status(400).json({ error: v.error, field: v.field });
   try {
-    let orders = [];
-    try { orders = JSON.parse(await fs.readFile(ORDERS, 'utf8')); } catch { orders = []; }
-    const order = {
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-      name: String(name).slice(0, 100),
-      phone: String(phone).slice(0, 30),
-      comment: String(comment || '').slice(0, 1000),
-      lang,
-      project: { name: String(project?.name || '').slice(0, 100) },
-      roomName: String(roomName || '').slice(0, 60),
-      purpose: String(purpose || '').slice(0, 30),
-      room, items, openings: Array.isArray(openings) ? openings : [],
-      estimate: Number.isFinite(estimate) ? estimate : null
-    };
-    // Drawing and 3D picture → orders/<id>/plan.png, 3d.jpg; order.json keeps the paths.
-    const files = [['plan.png', picture(drawing, 'png')], ['3d.jpg', picture(snapshot3d, 'jpeg')]].filter(f => f[1]);
-    if (files.length) {
-      const dir = path.join(ORDER_FILES, String(order.id));
-      await fs.mkdir(dir, { recursive: true });
-      for (const [f, buf] of files) await fs.writeFile(path.join(dir, f), buf);
-      order.files = files.map(([f]) => `orders/${order.id}/${f}`);
-    }
-    // Several rooms of the project (strict validation comes with the admin page).
-    if (Array.isArray(rooms) && rooms.length) {
-      order.rooms = rooms.slice(0, 50).map(r => ({
-        name: String(r?.name || '').slice(0, 60),
-        purpose: String(r?.purpose || '').slice(0, 30),
-        room: r?.room || null,
-        openings: Array.isArray(r?.openings) ? r.openings : [],
-        items: Array.isArray(r?.items) ? r.items : []
-      }));
-    }
-    orders.push(order);
-    await fs.writeFile(ORDERS, JSON.stringify(orders, null, 2));
-    res.json({ ok: true, id: order.id });
+    const id = await store.update(async orders => {
+      let id = Date.now();
+      while (orders.some(o => o.id === id)) id++;
+      const order = { id, createdAt: new Date().toISOString(), status: 'new', ...v.order };
+      // Drawing and 3D picture → orders/<id>/plan.png, 3d.jpg; order.json keeps the paths.
+      if (v.files.length) {
+        const dir = path.join(ORDER_FILES, String(id));
+        await fs.mkdir(dir, { recursive: true });
+        for (const [f, buf] of v.files) await fs.writeFile(path.join(dir, f), buf);
+        order.files = v.files.map(([f]) => `orders/${id}/${f}`);
+      }
+      orders.push(order);
+      return id;
+    });
+    res.json({ ok: true, id });
   } catch (e) {
     res.status(500).json({ error: 'save_failed' });
   }

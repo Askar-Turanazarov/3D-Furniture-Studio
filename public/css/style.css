@@ -449,3 +449,4 @@ dialog.compare-dlg { width: min(1100px, 96vw); }
 .cmp-info { font-size: 13px; color: var(--muted); }
 .cmp-info.bad { color: #c92a2a; }
 @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }

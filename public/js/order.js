@@ -20,6 +20,7 @@ function roomPayload(r) {
     purpose: r.purpose || '',
     room: { ...r.room },
     openings: (r.openings || []).map(({ id, ...o }) => o),
+    obstacles: (r.obstacles || []).map(({ id, ...o }) => o),
     items: r.items.map(i => ({
       type: i.type, name: itemName(i), w: i.w, d: i.d, h: i.h, x: i.x, y: i.y, rot: i.rot,
       elev: i.elev, open: i.open, materials: i.materials, color: i.color,
@@ -112,6 +113,7 @@ export function initOrder() {
       name: f.name.value.trim(),
       phone: f.phone.value.trim(),
       comment: f.comment.value.trim(),
+      website: f.website.value,
       lang: getLang(),
       project: { name: currentProject().name },
       roomName: cur.name,
@@ -129,7 +131,9 @@ export function initOrder() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429) return toast(t('order.tooMany'), true);
+      if (res.status === 400) return toast(t('order.invalid', { field: data.field || '?' }), true);
       if (!res.ok || !data.ok) throw new Error(data.error);
       lastSent = { id: data.id, key: roomsKey(rooms) };
       dlg.close();

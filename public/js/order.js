@@ -8,6 +8,7 @@ import { toast } from './ui.js';
 import { estimate, roomEstimate } from './pricing.js';
 import { configurable, sectionCount, drawerCount } from './config.js';
 import { priceCatalog } from './pricePanel.js';
+import { renderDrawing, printData } from './drawing.js';
 
 const $ = id => document.getElementById(id);
 
@@ -41,6 +42,38 @@ function check() {
   return { rooms };
 }
 
+// Drawing of the current room for the manager (PNG dataURL) and, with the 3D view open, a 3D picture (JPEG).
+async function pictures() {
+  const out = { drawing: renderDrawing(currentRoom()).canvas.toDataURL('image/png') };
+  if (document.querySelector('.stage.is3d')) {
+    try {
+      const { snapshotCanvas } = await import('./3d/scene3d.js');
+      const src = snapshotCanvas(), k = Math.min(1, 1600 / src.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(src.width * k);
+      c.height = Math.round(src.height * k);
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+      out.snapshot3d = c.toDataURL('image/jpeg', 0.85);
+    } catch { /* the drawing is enough */ }
+  }
+  return out;
+}
+
+// The last sent order: its number goes into the stamp while the rooms stay unchanged.
+let lastSent = null;
+const roomsKey = rooms => JSON.stringify(rooms.map(roomPayload));
+
+function openPrint() {
+  persist();
+  const rooms = allRooms() ? currentProject().rooms : [currentRoom()];
+  const orderId = lastSent?.key === roomsKey(rooms) ? lastSent.id : null;
+  window.__printData = { lang: getLang(), pages: rooms.map(r => printData(r, { orderId })) };
+  // sessionStorage is copied to the new tab and survives a same-tab open; the opener is the fallback.
+  try { sessionStorage.setItem('fsp3d.print', JSON.stringify(window.__printData)); } catch { /* too big: opener only */ }
+  const w = window.open('/print.html' + (orderId ? '?order=' + orderId : ''), '_blank');
+  if (!w) toast(t('drw.blocked'), true);
+}
+
 function summary() {
   const { L, W, H } = state.room;
   const p = currentProject();
@@ -66,6 +99,7 @@ export function initOrder() {
     dlg.showModal();
   });
   $('orderAll').addEventListener('change', summary);
+  $('orderPrint').addEventListener('click', openPrint);
   $('orderCancel').addEventListener('click', () => dlg.close());
 
   form.addEventListener('submit', async e => {
@@ -86,7 +120,8 @@ export function initOrder() {
       openings: cur.openings,
       items: cur.items,
       estimate: rooms.reduce((s, r) => s + roomEstimate(r.items, priceCatalog()).total, 0),
-      ...(rooms.length > 1 ? { rooms: rooms.map(roomPayload) } : {})
+      ...(rooms.length > 1 ? { rooms: rooms.map(roomPayload) } : {}),
+      ...(await pictures())
     };
     try {
       const res = await fetch('/api/order', {
@@ -96,6 +131,7 @@ export function initOrder() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error);
+      lastSent = { id: data.id, key: roomsKey(rooms) };
       dlg.close();
       form.reset();
       toast(t('order.ok', { id: data.id }));

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Чертёж и спецификация</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; background: #e9ecef; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #212529; }
+    .bar { position: sticky; top: 0; display: flex; gap: 8px; justify-content: flex-end; padding: 10px 16px; background: #fff; border-bottom: 1px solid #dee2e6; }
+    .bar button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid #ced4da; background: #fff; cursor: pointer; }
+    .bar button.primary { background: #3b5bdb; border-color: #3b5bdb; color: #fff; }
+    .sheet { background: #fff; max-width: 1100px; margin: 16px auto; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+    .sheet img { display: block; width: 100%; height: auto; }
+    h2 { font-size: 16px; margin: 14px 0 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #adb5bd; padding: 4px 6px; text-align: left; vertical-align: top; }
+    th { background: #f1f3f5; }
+    td.num { text-align: right; white-space: nowrap; }
+    .total { margin-top: 8px; font-weight: 700; }
+    .note { color: #6b7280; font-size: 12px; }
+    .empty { max-width: 600px; margin: 60px auto; text-align: center; color: #495057; }
+    @page { size: A4 landscape; margin: 8mm; }
+    @media print {
+      body { background: #fff; }
+      .bar { display: none; }
+      .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+      .sheet + .sheet { break-before: page; }
+      .spec { break-before: page; }
+      img { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar" id="bar" hidden>
+    <button type="button" id="closeBtn"></button>
+    <button type="button" class="primary" id="printBtn"></button>
+  </div>
+  <main id="pages"></main>
+  <script>
+    // Data comes from the planner (order.js): sessionStorage, else window.opener.__printData.
+    const data = (() => {
+      try { const s = sessionStorage.getItem('fsp3d.print'); if (s) return JSON.parse(s); } catch { /* fall through */ }
+      try { return window.opener && window.opener.__printData; } catch { return null; }
+    })();
+    const main = document.getElementById('pages');
+    const el = (tag, props = {}, ...kids) => {
+      const e = Object.assign(document.createElement(tag), props);
+      e.append(...kids);
+      return e;
+    };
+    if (!data || !data.pages || !data.pages.length) {
+      main.append(el('p', { className: 'empty', textContent:
+        'Откройте эту страницу из планировщика (Заявка → Чертёж / PDF). · Rejalashtiruvchidan oching. · Open this page from the planner.' }));
+    } else {
+      document.documentElement.lang = data.lang;
+      document.title = data.pages.map(p => p.title).join(' · ');
+      const first = data.pages[0];
+      document.getElementById('printBtn').textContent = first.print;
+      document.getElementById('closeBtn').textContent = first.close;
+      document.getElementById('bar').hidden = false;
+      for (const p of data.pages) {
+        const table = el('table', {},
+          el('thead', {}, el('tr', {}, ...p.head.map(h => el('th', { textContent: h })))),
+          el('tbody', {}, ...p.rows.map(r => el('tr', {}, ...r.map((v, i) =>
+            el('td', { textContent: v, className: i === 0 || i === 5 ? 'num' : '' }))))));
+        main.append(el('section', { className: 'sheet' },
+          el('img', { src: p.png, alt: p.title }),
+          el('div', { className: 'spec' },
+            el('h2', { textContent: p.title }), table,
+            el('p', { className: 'total', textContent: p.total }),
+            el('p', { className: 'note', textContent: p.note }))));
+      }
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+      document.getElementById('closeBtn').addEventListener('click', () => {
+        window.close();
+        setTimeout(() => history.back(), 150);   // opened in the same tab: back to the planner
+      });
+    }
+  </script>
+</body>
+</html>

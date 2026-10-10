@@ -34,7 +34,12 @@ A web app for custom furniture: the client enters the room size and the furnitur
 - **Room templates:** + Room → **From a template**: a *Soviet-era building* set (panel / brick 1960–90s, ceiling ≈ 2.8 m) or a *New build* set (monolithic frame 2015+, ceiling ≈ 3.0 m) — bedroom, kids room, kitchen-living room, master bedroom, living room (the Soviet one is walk-through with two doors), large bedroom, study, kitchen. Each card shows a mini plan and "12 m² · 4×3 m". A template brings windows with radiators under them, doors, structure (risers, a ledge, a column) and furniture placed without errors; afterwards everything can be changed. 📁 Projects → **New project from an apartment template**: "2-room (Soviet)" = living room + bedroom + kitchen, "3-room (new build)" = kitchen-living room + master bedroom + kids room, one tab per room. Sizes are typical for Tashkent housing; templates live in `templates.json` (`GET /api/templates`).
 - **3D look:** 📷 *Snapshot* saves a PNG (2× resolution) with a summary plate — project, room, purpose, size and area, item count, date; ⤴ *Share* on phones; 📷 next to the ruler saves the plan. Each item gets a **material** from the catalogue (oak, walnut, white ash, matte white, graphite, sage, gloss, fabrics, velour) — for wardrobes, dressers, kitchens etc. separately for the **body and the facade** — or its own colour. **Light:** ☀ day / 🌇 evening (low warm sun, lamps on) / 🌙 night (dark window, only lamps) and the ceiling light: chandelier, spots, LED panel or none; the catalogue has a floor lamp and a wall sconce with their own light. **Finish** (Room → *Finish and style*): walls — paint, wallpaper, brick, panels + colour, an accent wall in its own colour, floor — parquet, laminate, tile, carpet; **furniture style** modern / classic (brass knobs, turned legs, moulded fronts) / loft (black steel) for the room or a single item — sizes and collisions do not change. Lighting and finish are saved with the room and can be undone.
 - **Opening in 3D:** click a wardrobe, dresser, kitchen, fridge or a room door (or `E` while walking) — doors swing, drawers slide out, flaps fall open; 🚪 *Open all* / *Close all*. Every frame the moving part is checked against other furniture, structure and walls: on contact it turns red, stops and the HUD says "The door hits «Bed» at 64°".
-- **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors).
+- **Configurator and price estimate:** wardrobes, dressers, nightstands, shoe cabinets and kitchens get *Sections* and *Drawers* (sliding wardrobes — 2–3 doors); the 3D model follows (hollow carcass, partitions, shelves, a rail, drawers), the plan shows sections as dashed lines. The selected item shows "≈ 2 310 000 sum" (hover — breakdown: carcass, facade, doors, hardware…), the furniture list — "Estimated total from …"; the total also goes onto the snapshot plate and into the order. **Prices in `catalog.json` → `pricing` and `materials[].priceRate` are TEST values — replace them with real ones before going live.**
+- **Fill a niche** (📐): hover near a wall — a green ghost of the largest wardrobe that fits there (keeps the plinth and gaps, leaves the passage in front, stops 5 cm below the ceiling or a ceiling duct); click — pick it, choose sliding or hinged doors with prices, *Apply* adds the configured wardrobe as one undo step.
+- **Compare variants:** room tab ⋯ → *Compare with…* — two rooms of the project side by side (read only) with size, item count, errors and price; by default another version of the same room.
+- **Order drawing:** the order carries a drawing — the plan at a standard scale 1:N on a white A4 sheet (2400 px) with numbered items, their sizes and distances to the walls, windows, doors, structure and a stamp (project, room, size, scale, price, order №, date) — plus a 3D picture if the 3D view is open. The server stores them in `orders/<id>/plan.png` (`3d.jpg`). **🖨 Drawing / PDF** in the order form opens `print.html`: the drawing and the specification (№, item, size, height above the floor, material and configuration, price) → *Print / PDF* → "Save as PDF", no libraries.
+- **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors). The server checks every order (`server/validateOrder.js`: field whitelist, ranges — sizes 50–3000 cm, ≤ 200 items, ≤ 50 openings / structure, phone mask, PNG signature and ≤ 2 MB for the drawing), allows 5 orders per IP in 10 minutes ("Too many orders" otherwise), silently drops bots that fill the hidden `website` field and writes `order.json` through a queue (temp file + rename), so parallel orders are never lost.
+- **Manager page** `/admin.html` (see below): orders table — №, date, name, phone (`tel:` link), project / room, total, status; filter by status and search; statuses **new → in progress → measuring → done** (+ cancelled) with a dated history; the order card shows the drawing, 3D picture, specification, client comment and manager notes.
 - **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
 
 ### Tech stack
@@ -47,6 +52,11 @@ npm start
 ```
 Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 
+**Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
+1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
+2. Restart `npm start`, open http://localhost:3000/admin.html and enter the token (kept only in this browser tab). Requests go with `Authorization: Bearer <token>`.
+3. Without `ADMIN_TOKEN` the API answers 503 and the page says it is disabled.
+
 ### Controls
 | Where | Action | How |
 |---|---|---|
@@ -58,6 +68,7 @@ Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 | 2D | Multi-select | `Shift`/`Ctrl`+click, `Shift`+drag on the empty floor |
 | 2D | Zoom / pan | wheel, pinch / drag the empty floor, `Space`+drag, middle button |
 | 2D | Ruler | `M` or 📏; `Shift` — straight line; `Esc` — exit |
+| 2D | Fill a niche | 📐, hover a wall, click; `Esc` — exit |
 | 3D Overview | Rotate / zoom / pan | left mouse / wheel / right mouse |
 | 3D Walk | Move | `W A S D` / arrows, `Shift` — faster |
 | 3D Walk | Look | mouse (after click), or drag with the mouse if pointer lock is unavailable |
@@ -67,15 +78,18 @@ Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 
 ### Project structure
 ```
-server.js            Express: static, catalog, templates, orders, textures (list / upload / reset / ZIP)
+server.js            Express: static, catalog, templates, orders (+ drawing files), manager API, textures (list / upload / reset / ZIP)
+server/              validateOrder (order check), orderStore (write queue, rate limit)
+orders/<id>/         order drawings plan.png / 3d.jpg (not in git)
+.env.example         ADMIN_TOKEN for the manager page (copy to .env)
 catalog.json         furniture catalogue (types, default sizes, names in 3 languages)
 templates.json       room templates (Soviet-era / new build) and apartment sets
 order.json           saved orders
-public/index.html    layout
+public/index.html    layout; print.html — drawing + specification for printing / PDF; admin.html — manager page
 public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages, templates,
-                     snapshot, materials, matPanel, style, stylePanel
+                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
 test/                unit tests (node:test): npm test
@@ -121,7 +135,12 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **Xona shablonlari:** + Xona → **Shablondan**: *Sovet davri uyi* to‘plami (panel / g‘isht 1960–90-yillar, shift ≈ 2,8 m) yoki *Yangi bino* (monolit/karkas 2015+, shift ≈ 3,0 m) — yotoqxona, bolalar xonasi, oshxona-mehmonxona, asosiy yotoqxona, zal (sovet uyida ikki eshikli o‘tish xona), katta yotoqxona, ish xonasi, oshxona. Har bir kartada kichik reja va «12 m² · 4×3 m». Shablonda derazalar (tagida radiator), eshiklar, konstruktiv (stoyak, devor chiqig‘i, kolonna) va xatosiz joylashtirilgan mebel bor; keyin hammasini o‘zgartirish mumkin. 📁 Loyihalar → **Kvartira shablonidan yangi loyiha**: «2 xonali (sovet)» = zal + yotoqxona + oshxona, «3 xonali (yangi bino)» = oshxona-mehmonxona + asosiy yotoqxona + bolalar xonasi, har bir xona alohida yorliqda. O‘lchamlar Toshkent uylari uchun odatiy; shablonlar `templates.json` da (`GET /api/templates`).
 - **3D ko‘rinish:** 📷 *Surat* PNG (2× aniqlik) ni xulosa plashkasi bilan saqlaydi — loyiha, xona, vazifasi, o‘lcham va maydon, buyumlar soni, sana; telefonda ⤴ *Ulashish*; chizg‘ich yonidagi 📷 rejani saqlaydi. Har bir buyumga katalogdan **material** (eman, yong‘oq, oq shumtol, oq mat, grafit, shalfey, yaltiroq, matolar, velyur) — shkaf, komod, oshxona va h.k. uchun **korpus va fasad** alohida — yoki o‘z rangi. **Yorug‘lik:** ☀ kunduz / 🌇 kechqurun (past iliq quyosh, chiroqlar yoniq) / 🌙 tun (qorong‘i deraza, faqat chiroqlar) va shift chirog‘i: qandil, nuqtali, LED panel yoki yo‘q; katalogda o‘z yorug‘ligi bor torsher va devor chirog‘i. **Pardoz** (Xona → *Pardoz va uslub*): devorlar — bo‘yoq, gulqog‘oz, g‘isht, panellar + rang, alohida rangdagi urg‘u devori, pol — parket, laminat, kafel, gilam qoplama; **mebel uslubi** modern / klassika (latun tutqichlar, yo‘nilgan oyoqlar, naqshli fasadlar) / loft (qora po‘lat) butun xona yoki bitta buyum uchun — o‘lchamlar va to‘qnashuvlar o‘zgarmaydi. Yorug‘lik va pardoz xona bilan saqlanadi va bekor qilinadi.
 - **3D da ochish:** shkaf, komod, oshxona, muzlatgich yoki xona eshigini bosing (yurishda `E`) — eshikchalar ochiladi, tortmalar chiqadi, qopqoqlar tushadi; 🚪 *Hammasini ochish* / *yopish*. Har kadrda harakatlanuvchi qism boshqa mebel, konstruktiv va devorlar bilan tekshiriladi: tegsa qizaradi, to‘xtaydi va HUD «Eshikcha «Karavot»ga tegadi: 64°» deb yozadi.
-- **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak).
+- **Konfigurator va taxminiy narx:** shkaf, komod, tumba, poyabzal javoni va oshxonada *Seksiyalar* va *Tortmalar* bor (kupe shkafda — 2–3 eshik); 3D model ularga mos quriladi (ichi bo‘sh korpus, to‘siqlar, javonlar, ilgich, tortmalar), rejada seksiyalar shtrix chiziq bilan ko‘rsatiladi. Tanlangan buyumda «≈ 2 310 000 so‘m» (ustiga olib boring — tafsilot: korpus, fasad, eshiklar, furnitura…), mebel ro‘yxatida — «Jami taxminan … dan»; jami surat plashkasiga va buyurtmaga ham tushadi. **`catalog.json` → `pricing` va `materials[].priceRate` dagi narxlar SINOV uchun — ishga tushirishdan oldin haqiqiylariga almashtiring.**
+- **Tokchani to‘ldirish** (📐): devorga olib boring — u yerga sig‘adigan eng katta shkafning yashil «sharpasi» (plintus va oraliqlar hisobga olinadi, oldida o‘tish joyi qoladi, shift yoki shift ostidagi qutidan 5 sm past); bosing — tanlang, kupe yoki ochiladigan eshiklarni narxi bilan tanlang, *Qo‘llash* sozlangan shkafni bitta bekor qilish qadami sifatida qo‘shadi.
+- **Variantlarni solishtirish:** xona yorlig‘i ⋯ → *Solishtirish…* — loyihaning ikki xonasi yonma-yon (faqat ko‘rish) o‘lcham, buyumlar soni, xatolar va narx bilan; standart bo‘yicha — shu xonaning boshqa varianti.
+- **Buyurtma chizmasi:** buyurtmaga chizma qo‘shiladi — reja standart masshtabda 1:N oq A4 varag‘ida (2400 px): raqamlangan buyumlar, ularning o‘lchamlari va devorlargacha masofalar, derazalar, eshiklar, konstruktiv va shtamp (loyiha, xona, o‘lchamlar, masshtab, narx, buyurtma №, sana); 3D ko‘rinish ochiq bo‘lsa — 3D surat ham. Server ularni `orders/<id>/plan.png` (`3d.jpg`) ga saqlaydi. Buyurtma formasidagi **🖨 Chizma / PDF** `print.html` ni ochadi: chizma va spetsifikatsiya (№, nomi, gabarit, poldan balandlik, material va konfiguratsiya, narx) → *Chop etish / PDF* → «PDF sifatida saqlash», kutubxonalarsiz.
+- **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak). Server har bir buyurtmani tekshiradi (`server/validateOrder.js`: maydonlar oq ro‘yxati, diapazonlar — o‘lchamlar 50–3000 sm, ≤ 200 buyum, ≤ 50 ochiq joy / konstruktiv, telefon niqobi, chizma uchun PNG imzosi va ≤ 2 MB), bitta IP dan 10 daqiqada 5 ta buyurtmaga ruxsat beradi (aks holda «Juda tez-tez»), yashirin `website` maydonini to‘ldirgan botlarni jimgina tashlab yuboradi va `order.json` ni navbat orqali yozadi (vaqtinchalik fayl + rename) — parallel buyurtmalar yo‘qolmaydi.
+- **Menejer sahifasi** `/admin.html` (pastga qarang): buyurtmalar jadvali — №, sana, ism, telefon (`tel:` havola), loyiha / xona, summa, holat; holat bo‘yicha filtr va qidiruv; holatlar **yangi → ishda → o‘lchov → tayyor** (+ bekor qilingan) sanali tarix bilan; buyurtma kartasida chizma, 3D surat, spetsifikatsiya, mijoz izohi va menejer izohlari.
 - **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
 
 ### Texnologiyalar
@@ -134,6 +153,11 @@ npm start
 ```
 http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 
+**ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
+1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
+2. `npm start` ni qayta ishga tushiring, http://localhost:3000/admin.html ni oching va tokenni kiriting (faqat shu brauzer yorlig‘ida saqlanadi). So‘rovlar `Authorization: Bearer <token>` bilan yuboriladi.
+3. `ADMIN_TOKEN` bo‘lmasa API 503 qaytaradi, sahifa o‘chirilganini aytadi.
+
 ### Boshqaruv
 | Qayerda | Amal | Qanday |
 |---|---|---|
@@ -145,6 +169,7 @@ http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 | 2D | Bir nechta tanlash | `Shift`/`Ctrl`+bosish, bo‘sh polda `Shift`+tortish |
 | 2D | Masshtab / siljitish | g‘ildirak, ikki barmoq / bo‘sh polni tortish, `Probel`+tortish, o‘rta tugma |
 | 2D | Chizg‘ich | `M` yoki 📏; `Shift` — to‘g‘ri chiziq; `Esc` — chiqish |
+| 2D | Tokchani to‘ldirish | 📐, devorga olib boring, bosing; `Esc` — chiqish |
 | 3D Ko‘rinish | Aylantirish / masshtab / surish | chap tugma / g‘ildirak / o‘ng tugma |
 | 3D Sayr | Yurish | `W A S D` / strelkalar, `Shift` — tezroq |
 | 3D Sayr | Qarash | sichqoncha (bosgandan keyin) yoki kursor qulflanmasa — sichqonchani bosib surish |
@@ -154,15 +179,19 @@ http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 
 ### Loyiha tuzilmasi
 ```
-server.js            Express: statik, katalog, shablonlar, buyurtmalar, teksturalar (ro‘yxat / yuklash / tiklash / ZIP)
+server.js            Express: statik, katalog, shablonlar, buyurtmalar (+ chizma fayllari), menejer API, teksturalar (ro‘yxat / yuklash / tiklash / ZIP)
+server/              validateOrder (buyurtmani tekshirish), orderStore (yozish navbati, chastota limiti)
+orders/<id>/         buyurtma chizmalari plan.png / 3d.jpg (git da yo‘q)
+.env.example         menejer sahifasi uchun ADMIN_TOKEN (.env ga nusxalang)
 catalog.json         mebel katalogi (turlar, standart o‘lchamlar, 3 tildagi nomlar)
 templates.json       xona shablonlari (sovet uyi / yangi bino) va kvartira to‘plamlari
 order.json           saqlangan buyurtmalar
+public/print.html    chop etish / PDF uchun chizma + spetsifikatsiya; public/admin.html — menejer sahifasi
 public/index.html    sahifa tuzilmasi
 public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages, templates,
-                     snapshot, materials, matPanel, style, stylePanel
+                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
 test/                unit testlar (node:test): npm test
@@ -208,7 +237,12 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Шаблоны комнат:** + Комната → **Из шаблона**: набор *Советский дом* (панель / кирпич 1960–90-х, потолок ≈ 2,8 м) или *Новостройка* (монолит/каркас 2015+, потолок ≈ 3,0 м) — спальня, детская, кухня-гостиная, мастер-спальня, зал (в советском — проходной с двумя дверями), большая спальня, кабинет, кухня. На карточке мини-план и «12 м² · 4×3 м». В шаблоне окна с батареями под ними, двери, конструктив (стояки, выступ, колонна) и мебель, расставленная без ошибок; дальше всё можно менять. 📁 Проекты → **Новый проект из шаблона квартиры**: «2-комнатная (сов.)» = зал + спальня + кухня, «3-комнатная (новостройка)» = кухня-гостиная + мастер-спальня + детская, каждая комната — своей вкладкой. Размеры типичные для жилья Ташкента; шаблоны лежат в `templates.json` (`GET /api/templates`).
 - **Вид в 3D:** 📷 *Снимок* сохраняет PNG (2× разрешение) с плашкой-сводкой — проект, комната, назначение, размеры и площадь, число предметов, дата; на телефоне ⤴ *Поделиться*; 📷 рядом с линейкой сохраняет план. У каждого предмета **материал** из каталога (дуб, орех, ясень, белый матовый, графит, шалфей, глянец, ткани, велюр) — у шкафов, комодов, кухни и т. п. отдельно **корпус и фасад** — или свой цвет. **Свет:** ☀ день / 🌇 вечер (низкое тёплое солнце, лампы включены) / 🌙 ночь (тёмное окно, только светильники) и потолочный свет: люстра, точечные, LED-панель или без него; в каталоге торшер и бра со своим светом. **Отделка** (Комната → *Отделка и стиль*): стены — покраска, обои, кирпич, панели + цвет, акцентная стена своим цветом, пол — паркет, ламинат, плитка, ковролин; **стиль мебели** модерн / классика (латунные ручки, точёные ножки, фасады с филёнкой) / лофт (чёрная сталь) для всей комнаты или одного предмета — габариты и коллизии не меняются. Свет и отделка сохраняются с комнатой и отменяются.
 - **Открывание в 3D:** клик по шкафу, комоду, кухне, холодильнику или двери комнаты (в прогулке — `E`) — дверцы распахиваются, ящики выдвигаются, откидные створки опускаются; 🚪 *Открыть всё* / *Закрыть всё*. В каждом кадре движущаяся часть проверяется по другой мебели, конструктиву и стенам: при касании краснеет, останавливается, а HUD пишет «Дверца упирается в «Кровать» на 64°».
-- **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок).
+- **Конфигуратор и ориентировочная цена:** у шкафа, комода, тумбы, обувницы и кухни есть «Секций» и «Ящиков» (у шкафа-купе — 2–3 двери); 3D-модель строится по ним (полый корпус, перегородки, полки, штанга, ящики), на плане секции видны пунктиром. У выбранного предмета «≈ 2 310 000 сум» (наведите — разбивка: корпус, фасад, двери, фурнитура…), под списком мебели — «Итого ориентировочно от …»; итог попадает и на плашку снимка, и в заявку. **Цены в `catalog.json` → `pricing` и `materials[].priceRate` ТЕСТОВЫЕ — замените их реальными перед запуском.**
+- **Заполнить нишу** (📐): наведите на стену — зелёный «призрак» самого большого шкафа, который там поместится (с плинтусом и зазорами, с проходом перед ним, на 5 см ниже потолка или короба под потолком); клик — выбрать, затем купе или распашной с ценами, «Применить» ставит сконфигурированный шкаф одним шагом отмены.
+- **Сравнение вариантов:** ⋯ на вкладке комнаты → «Сравнить с…» — две комнаты проекта рядом (только просмотр) с размерами, числом предметов, ошибками и ценой; по умолчанию — другая версия той же комнаты.
+- **Чертёж заявки:** к заявке прикладывается чертёж — план в стандартном масштабе 1:N на белом листе A4 (2400 px): пронумерованные предметы, их габариты и расстояния до стен, окна, двери, конструктив и штамп (проект, комната, размеры, масштаб, цена, № заявки, дата); если открыт 3D — ещё и 3D-снимок. Сервер сохраняет их в `orders/<id>/plan.png` (`3d.jpg`). **🖨 Чертёж / PDF** в форме заявки открывает `print.html`: чертёж и спецификация (№, наименование, габарит, высота от пола, материал и конфигурация, цена) → «Печать / PDF» → «Сохранить как PDF», без библиотек.
+- **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок). Сервер проверяет каждую заявку (`server/validateOrder.js`: белый список полей, диапазоны — размеры 50–3000 см, ≤ 200 предметов, ≤ 50 проёмов / конструктива, маска телефона, PNG-сигнатура и ≤ 2 МБ для чертежа), пропускает 5 заявок с одного IP за 10 минут (иначе «Слишком часто»), молча отбрасывает ботов, заполнивших скрытое поле `website`, и пишет `order.json` через очередь (временный файл + rename) — параллельные заявки не теряются.
+- **Страница менеджера** `/admin.html` (см. ниже): таблица заявок — №, дата, имя, телефон (ссылка `tel:`), проект / комната, сумма, статус; фильтр по статусу и поиск; статусы **новая → в работе → замер → готово** (+ отменена) с историей и датами; в карточке заявки — чертёж, 3D-снимок, спецификация, комментарий клиента и заметки менеджера.
 - **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
 
 ### Стек
@@ -221,6 +255,11 @@ npm start
 ```
 Откройте http://localhost:3000 (Node.js 18+). Тесты: `npm test`.
 
+**Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
+1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.
+2. Перезапустите `npm start`, откройте http://localhost:3000/admin.html и введите токен (хранится только в этой вкладке браузера). Запросы идут с `Authorization: Bearer <токен>`.
+3. Без `ADMIN_TOKEN` API отвечает 503, а страница пишет, что отключена.
+
 ### Управление
 | Где | Действие | Как |
 |---|---|---|
@@ -232,6 +271,7 @@ npm start
 | 2D | Выделение нескольких | `Shift`/`Ctrl`+клик, `Shift`+протяжка по пустому полу |
 | 2D | Масштаб / сдвиг | колесо, щипок / протяжка по пустому полу, `Пробел`+протяжка, средняя кнопка |
 | 2D | Линейка | `M` или 📏; `Shift` — ровная линия; `Esc` — выход |
+| 2D | Заполнить нишу | 📐, навести на стену, клик; `Esc` — выход |
 | 3D Обзор | Вращение / масштаб / сдвиг | левая кнопка / колесо / правая кнопка |
 | 3D Прогулка | Ходьба | `W A S D` / стрелки, `Shift` — быстрее |
 | 3D Прогулка | Взгляд | мышь (после клика) или, если захват курсора недоступен, зажать кнопку мыши и вести |
@@ -241,15 +281,19 @@ npm start
 
 ### Структура проекта
 ```
-server.js            Express: статика, каталог, шаблоны, заявки, текстуры (список / загрузка / сброс / ZIP)
+server.js            Express: статика, каталог, шаблоны, заявки (+ файлы чертежей), API менеджера, текстуры (список / загрузка / сброс / ZIP)
+server/              validateOrder (проверка заявки), orderStore (очередь записи, лимит частоты)
+orders/<id>/         чертежи заявок plan.png / 3d.jpg (не в git)
+.env.example         ADMIN_TOKEN для страницы менеджера (скопировать в .env)
 catalog.json         каталог мебели (типы, размеры по умолчанию, названия на 3 языках)
 templates.json       шаблоны комнат (советский дом / новостройка) и наборы квартир
 order.json           сохранённые заявки
+public/print.html    чертёж + спецификация для печати / PDF; public/admin.html — страница менеджера
 public/index.html    разметка
 public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages, templates,
-                     snapshot, materials, matPanel, style, stylePanel
+                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin
 public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
 test/                модульные тесты (node:test): npm test

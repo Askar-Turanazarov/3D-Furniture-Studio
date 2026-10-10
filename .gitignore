@@ -7,3 +7,4 @@ prompt-mega.txt
 *.log
 public/textures/custom/
 orders/
+.env

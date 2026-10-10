@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Заявки — менеджер</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .top-actions { display: flex; gap: 8px; align-items: center; }
+    .top-actions .btn.ghost { color: #fff; border-color: rgba(255,255,255,.35); }
+    .adm { flex: 1; overflow: auto; padding: 16px; }
+    .adm-card { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+    .adm-login { max-width: 420px; margin: 40px auto; display: flex; flex-direction: column; gap: 10px; }
+    .adm-login input, .adm-tools input, .adm-tools select, .adm-table select, .adm-note {
+      font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text);
+    }
+    .adm-err { color: var(--danger); min-height: 1.4em; margin: 0; }
+    .adm-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .adm-tools input[type=search] { flex: 1; min-width: 180px; }
+    .adm-scroll { overflow-x: auto; }
+    .adm-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    .adm-table th, .adm-table td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    .adm-table th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+    .adm-table tbody tr { cursor: pointer; }
+    .adm-table tbody tr:hover { background: #f8f9fc; }
+    .adm-table td.num { text-align: right; white-space: nowrap; }
+    .adm-table a { color: var(--primary); }
+    .st-new { border-left: 4px solid var(--primary); }
+    .st-inWork { border-left: 4px solid #f59f00; }
+    .st-measure { border-left: 4px solid #7048e8; }
+    .st-done { border-left: 4px solid var(--accent); }
+    .st-cancelled { border-left: 4px solid #adb5bd; color: var(--muted); }
+    .adm-empty { color: var(--muted); text-align: center; padding: 30px; }
+    dialog.adm-dlg { width: min(1000px, 96vw); max-height: 92vh; overflow: auto; }
+    .adm-pics { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .adm-pics img { width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+    .adm-meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0; }
+    .adm-meta dt { color: var(--muted); }
+    .adm-meta dd { margin: 0; white-space: pre-wrap; }
+    .adm-spec { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 13px; }
+    .adm-spec th, .adm-spec td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+    .adm-spec th { background: #f1f3f5; }
+    .adm-note { width: 100%; min-height: 80px; resize: vertical; }
+    .adm-hist { color: var(--muted); font-size: 13px; padding-left: 18px; }
+    @media (max-width: 600px) { .adm { padding: 10px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><h1 data-i18n="adm.title">Заявки</h1></div>
+    <div class="top-actions">
+      <button type="button" class="btn ghost" id="admLogout" hidden data-i18n="adm.logout">Выйти</button>
+      <div class="lang" role="group" aria-label="Language">
+        <button data-lang="ru">RU</button>
+        <button data-lang="uz">UZ</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="adm">
+    <form class="adm-card adm-login" id="admLogin">
+      <h2 data-i18n="adm.loginTitle">Вход для менеджера</h2>
+      <label class="row"><span data-i18n="adm.token">Токен (ADMIN_TOKEN)</span>
+        <input type="password" name="token" required autocomplete="current-password"></label>
+      <p class="adm-err" id="admLoginErr"></p>
+      <button type="submit" class="btn primary" data-i18n="adm.login">Войти</button>
+    </form>
+
+    <section class="adm-card" id="admList" hidden>
+      <div class="adm-tools">
+        <select id="admFilter" aria-label="Status"></select>
+        <input type="search" id="admSearch" data-i18n-title="adm.search">
+        <button type="button" class="btn ghost" id="admReload" data-i18n="adm.reload">Обновить</button>
+      </div>
+      <div class="adm-scroll">
+        <table class="adm-table">
+          <thead><tr>
+            <th data-i18n="adm.no">№</th><th data-i18n="adm.date">Дата</th><th data-i18n="order.name">Имя</th>
+            <th data-i18n="order.phone">Телефон</th><th data-i18n="adm.room">Проект / комната</th>
+            <th data-i18n="adm.sum">Сумма</th><th data-i18n="adm.status">Статус</th>
+          </tr></thead>
+          <tbody id="admRows"></tbody>
+        </table>
+      </div>
+      <p class="adm-empty" id="admEmpty" hidden data-i18n="adm.empty">Заявок нет</p>
+    </section>
+  </main>
+
+  <dialog id="admDlg" class="adm-dlg">
+    <div class="dlg-head">
+      <h2 id="admDlgTitle"></h2>
+      <button type="button" class="btn icon ghost" id="admDlgClose" aria-label="Close">✕</button>
+    </div>
+    <div id="admDlgBody"></div>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

@@ -1,6 +1,15 @@
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
+
+// .env (KEY=value lines) without extra dependencies; real environment variables win.
+try {
+  for (const line of require('fs').readFileSync(path.join(__dirname, '.env'), 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+  }
+} catch { /* no .env */ }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -59,6 +68,55 @@ app.post('/api/order', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'save_failed' });
   }
+});
+
+// ---------- manager: orders list, statuses, notes (Authorization: Bearer ADMIN_TOKEN) ----------
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+const STATUSES = ['new', 'inWork', 'measure', 'done', 'cancelled'];
+
+function admin(req, res, next) {
+  if (!ADMIN_TOKEN) return res.status(503).json({ error: 'admin_disabled' });
+  const got = Buffer.from(String(req.get('authorization') || '').replace(/^Bearer\s+/i, ''));
+  const want = Buffer.from(ADMIN_TOKEN);
+  if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return res.status(401).json({ error: 'unauthorized' });
+  res.set('Cache-Control', 'no-store');
+  next();
+}
+
+app.get('/api/orders', admin, async (req, res) => {
+  const orders = await store.read();
+  res.json(orders.map(o => ({ status: 'new', ...o })).reverse());
+});
+
+app.patch('/api/orders/:id', admin, async (req, res) => {
+  const id = Number(req.params.id), { status, note } = req.body || {};
+  if (status !== undefined && !STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
+  if (note !== undefined && (typeof note !== 'string' || note.length > 2000)) return res.status(400).json({ error: 'bad_note' });
+  try {
+    const order = await store.update(orders => {
+      const o = orders.find(x => x.id === id);
+      if (!o) return null;
+      const at = new Date().toISOString();
+      if (status !== undefined && status !== (o.status || 'new')) {
+        o.status = status;
+        (o.history ||= []).push({ status, at });
+      }
+      if (note !== undefined) o.note = note;
+      o.updatedAt = at;
+      return o;
+    });
+    if (!order) return res.status(404).json({ error: 'not_found' });
+    res.json(order);
+  } catch {
+    res.status(500).json({ error: 'save_failed' });
+  }
+});
+
+// The drawing and the 3D picture of an order (fetched with the token, shown via a blob URL).
+app.get('/api/orders/:id/:file', admin, (req, res) => {
+  const { id, file } = req.params;
+  if (!/^\d+$/.test(id) || !['plan.png', '3d.jpg'].includes(file)) return res.status(404).end();
+  res.sendFile(path.join(ORDER_FILES, id, file), err => { if (err && !res.headersSent) res.status(404).end(); });
 });
 
 // ---------- photo textures: built-in CC0 set + custom uploads ----------

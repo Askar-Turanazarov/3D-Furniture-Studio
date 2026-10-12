@@ -1,7 +1,7 @@
 // Order dialog → POST /api/order (saved to order.json on the server).
-// Sends the current room or, with the checkbox, every room of the project.
+// Sends the whole apartment: every room with its place on the plan (pos).
 import { t, getLang } from './i18n.js';
-import { state, itemName } from './state.js';
+import { state, itemName, roomView } from './state.js';
 import { validateAll, hasErrors } from './validate.js';
 import { currentProject, currentRoom, persist } from './projects.js';
 import { toast } from './ui.js';
@@ -18,6 +18,7 @@ function roomPayload(r) {
   return {
     name: r.name,
     purpose: r.purpose || '',
+    pos: { x: r.pos?.x || 0, y: r.pos?.y || 0 },
     room: { ...r.room },
     openings: (r.openings || []).map(({ id, ...o }) => o),
     obstacles: (r.obstacles || []).map(({ id, ...o }) => o),
@@ -31,14 +32,12 @@ function roomPayload(r) {
   };
 }
 
-const allRooms = () => $('orderAll').checked && currentProject().rooms.length > 1;
-
 // The rooms to send, or a message why the order can't be sent.
 function check() {
   persist();
-  const rooms = allRooms() ? currentProject().rooms : [currentRoom()];
+  const rooms = currentProject().rooms;
   if (!rooms.some(r => r.items.length)) return { error: t('order.empty') };
-  const bad = rooms.find(r => r.items.length && hasErrors(validateAll(r)));
+  const bad = rooms.find(r => r.items.length && hasErrors(validateAll(roomView(r.id))));
   if (bad) return { error: rooms.length > 1 ? t('order.roomErrors', { name: bad.name }) : t('order.hasErrors') };
   return { rooms };
 }
@@ -66,7 +65,7 @@ const roomsKey = rooms => JSON.stringify(rooms.map(roomPayload));
 
 function openPrint() {
   persist();
-  const rooms = allRooms() ? currentProject().rooms : [currentRoom()];
+  const rooms = currentProject().rooms;
   const orderId = lastSent?.key === roomsKey(rooms) ? lastSent.id : null;
   window.__printData = { lang: getLang(), pages: rooms.map(r => printData(r, { orderId })) };
   // sessionStorage is copied to the new tab and survives a same-tab open; the opener is the fallback.
@@ -79,7 +78,7 @@ function summary() {
   const { L, W, H } = state.room;
   const p = currentProject();
   const head = `${p.name} · ${currentRoom().name}. `;
-  $('orderSummary').textContent = allRooms()
+  $('orderSummary').textContent = p.rooms.length > 1
     ? `${p.name}. ` + t('order.summaryAll', { r: p.rooms.length, n: p.rooms.reduce((s, r) => s + r.items.length, 0) })
     : head + t('order.summary', { L, W, H, n: state.items.length });
 }
@@ -89,17 +88,11 @@ export function initOrder() {
   const form = $('orderForm');
 
   $('orderBtn').addEventListener('click', () => {
-    const many = currentProject().rooms.length > 1;
-    $('orderAllRow').hidden = !many;
-    if (!many) $('orderAll').checked = false;
-    $('orderAllCount').textContent = currentProject().rooms.length;
     const { error } = check();
-    // With several rooms the choice is made in the dialog, so problems are reported on send.
-    if (error && !many) return toast(error, true);
+    if (error) return toast(error, true);
     summary();
     dlg.showModal();
   });
-  $('orderAll').addEventListener('change', summary);
   $('orderPrint').addEventListener('click', openPrint);
   $('orderCancel').addEventListener('click', () => dlg.close());
 
@@ -108,7 +101,6 @@ export function initOrder() {
     const { rooms, error } = check();
     if (error) return toast(error, true);
     const f = form.elements;
-    const cur = roomPayload(currentRoom());
     const body = {
       name: f.name.value.trim(),
       phone: f.phone.value.trim(),
@@ -116,14 +108,8 @@ export function initOrder() {
       website: f.website.value,
       lang: getLang(),
       project: { name: currentProject().name },
-      roomName: cur.name,
-      purpose: cur.purpose,
-      room: cur.room,
-      openings: cur.openings,
-      obstacles: cur.obstacles,
-      items: cur.items,
+      rooms: rooms.map(roomPayload),
       estimate: rooms.reduce((s, r) => s + roomEstimate(r.items, priceCatalog()).total, 0),
-      ...(rooms.length > 1 ? { rooms: rooms.map(roomPayload) } : {}),
       ...(await pictures())
     };
     try {

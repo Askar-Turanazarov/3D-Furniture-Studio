@@ -1,13 +1,19 @@
 // Single app state + simple change notification.
+// The state holds the whole apartment (rooms[], lighting, settings) and is at the same time the live view of the
+// active room: state.room / items / openings / obstacles / style are the fields of rooms[activeRoomId], so all
+// per-room logic (validate, autoplace, zones, renderer, 3D) works on `state` as before. syncActive() writes them back.
 import { footprint, rectOf, insideRoom, blocked } from './geometry.js';
 import { findSpot } from './autoplace.js';
 import { getLang } from './i18n.js';
-import { newOpening, clampOpening, doorSwingRect } from './openings.js';
+import { newOpening, clampOpening, doorSwingRect, defaultOpenings } from './openings.js';
 import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 import { styleOf } from './style.js';
 import { DEFAULT_LIGHTING } from './lighting.js';
+import { roomView as aptRoomView, moveItemBetween, posOf } from './apartment.js';
 
 export const state = {
+  rooms: [],          // the apartment: room docs with pos (see storage.js); the active one is mirrored below
+  activeRoomId: null,
   room: { L: 400, W: 300, H: 270, plinth: 2 },
   settings: { snap: 5, gap: 3, grid: 10, showZones: 'selected', minPassage: 60, showPassages: true },   // showZones: selected | all | none
   items: [],          // { id, type, w, d, h, x, y, rot, color }
@@ -34,26 +40,80 @@ const listeners = new Set();
 export function onChange(fn) { listeners.add(fn); }
 export function emit() { listeners.forEach(fn => fn(state)); }
 
-// The room document: everything that is saved and undone (not selection or highlights).
+// Fields of the active room that live directly on the state.
+const ROOM_KEYS = ['room', 'items', 'seq', 'openings', 'openingsLocked', 'opSeq', 'obstacles', 'obSeq', 'style'];
+
+export const activeRoomDoc = () => state.rooms.find(r => r.id === state.activeRoomId) || null;
+
+// Write the live fields of the active room back into its doc.
+export function syncActive() {
+  const r = activeRoomDoc();
+  if (r) for (const k of ROOM_KEYS) r[k] = state[k];
+  return r;
+}
+
+function loadActive() {
+  if (!activeRoomDoc()) state.activeRoomId = state.rooms[0]?.id ?? null;
+  const r = activeRoomDoc();
+  if (!r) return;
+  for (const k of ROOM_KEYS) state[k] = r[k];
+  state.openings ??= r.openings = defaultOpenings(state.room);
+  state.obstacles ??= r.obstacles = [];
+  state.style = r.style = styleOf(r.style);
+}
+
+// The apartment document: everything that is saved and undone (not selection, highlights or the active room).
 export function docFromState() {
-  const { room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting, style } = state;
-  return structuredClone({ room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting, style });
+  syncActive();
+  const { rooms, settings, lighting } = state;
+  return structuredClone({ rooms, settings, lighting });
 }
 
 export function applyDoc(doc) {
   const d = structuredClone(doc);
   Object.assign(state, {
-    room: d.room, settings: d.settings, items: d.items, seq: d.seq,
-    openings: d.openings, openingsLocked: d.openingsLocked, opSeq: d.opSeq,
-    obstacles: d.obstacles || [], obSeq: d.obSeq || 1,
-    lighting: { ...DEFAULT_LIGHTING, ...d.lighting },
-    style: styleOf(d.style)
+    rooms: d.rooms, settings: d.settings,
+    lighting: { ...DEFAULT_LIGHTING, ...d.lighting }
   });
+  loadActive();
+  clearStaleSelection();
+}
+
+function clearStaleSelection() {
   if (!getObstacle(state.selectedObstacle)) state.selectedObstacle = null;
   if (!getItem(state.selectedId)) state.selectedId = null;
   state.selectedIds = new Set([...state.selectedIds].filter(id => getItem(id)));
   if (!getOpening(state.selectedOpening)) state.selectedOpening = null;
 }
+
+// Any room in the old single-room shape (the active one is the live state itself).
+export const roomView = id => (id === state.activeRoomId ? state : aptRoomView(state, id));
+
+// Make another room active: the selection and highlights belong to the previous one.
+export function setActiveRoom(id) {
+  if (id === state.activeRoomId || !state.rooms.some(r => r.id === id)) return false;
+  syncActive();
+  state.activeRoomId = id;
+  Object.assign(state, { selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null });
+  loadActive();
+  emit();
+  return true;
+}
+
+// Re-parent an item of the active room into another room; it keeps its place on the apartment plan.
+export function moveItemToRoom(item, toId) {
+  const from = syncActive(), to = state.rooms.find(r => r.id === toId);
+  if (!from || !to || to === from || !state.items.includes(item)) return null;
+  const moved = moveItemBetween(from, to, item);
+  state.items = from.items;
+  if (state.selectedId === item.id) state.selectedId = null;
+  state.selectedIds.delete(item.id);
+  emit();
+  return moved;
+}
+
+// Active room position on the apartment plan.
+export const activePos = () => posOf(activeRoomDoc()?.pos);
 
 export const getItem = id => state.items.find(i => i.id === id) || null;
 export const selected = () => getItem(state.selectedId);

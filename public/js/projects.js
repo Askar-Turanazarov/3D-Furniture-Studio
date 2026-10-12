@@ -1,11 +1,12 @@
-// The open project and its rooms: tabs above the plan, the room dialog, switching rooms
-// (each room keeps its own undo history while the page is open).
-import { state, emit, applyDoc, docFromState } from './state.js';
+// The open project = one apartment: its rooms (tabs above the plan until the whole-apartment plan), the room dialog,
+// switching the active room, apartment variants (copies of the whole apartment). One undo history per apartment.
+import { state, emit, applyDoc, docFromState, setActiveRoom, syncActive } from './state.js';
 import { history } from './history.js';
 import {
-  onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom, activeRoom, normalizeDoc,
-  makeVersion, versionGroup, saveProjectNow, setLastProject
+  onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom,
+  saveProjectNow, setLastProject, makeVariant, variantsOf
 } from './storage.js';
+import { nextRoomPos } from './apartment.js';
 import { defaultOpenings } from './openings.js';
 import { resetView, drawPlanTo } from './renderer.js';
 import { resetRuler } from './interaction.js';
@@ -17,27 +18,29 @@ import { openCompare } from './compare.js';
 export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'bathroom', 'other'];
 
 let project = null;
-const histories = new Map();   // roomId → history.dump()
 const $ = id => document.getElementById(id);
 
 export const currentProject = () => project;
-export const currentRoom = () => (project ? activeRoom(project) : null);
+// The active room doc (fresh: the live fields are written back first).
+export const currentRoom = () => (project ? syncActive() : null);
 
-// The state is the active room: copy it back and save (debounced).
+// The state is the apartment: copy it into the project and save (debounced).
 export function persist() {
   if (!project) return;
-  Object.assign(activeRoom(project), docFromState());
+  Object.assign(project, docFromState(), { activeRoomId: state.activeRoomId });
   saveProject(project);
 }
 
+const emptyRoom = () => {
+  const room = { L: 400, W: 300, H: 270, plinth: 2 };
+  return makeRoom(t('room.default', { n: 1 }), { room, openings: defaultOpenings(room) });
+};
+
 export function initProjects() {
   onSaveError(() => toast(t('storage.full'), true));
-  project = openLastProject() || migrateV1(t('project.default'), t('room.default', { n: 1 }));
-  if (!project) {
-    state.openings = defaultOpenings(state.room);
-    project = makeProject(t('project.default'), [makeRoom(t('room.default', { n: 1 }), docFromState())]);
-  }
-  applyRoom(activeRoom(project));
+  project = openLastProject() || migrateV1(t('project.default'), t('room.default', { n: 1 }))
+    || makeProject(t('project.default'), [emptyRoom()]);
+  applyProject(project);
   window.addEventListener('pagehide', flushSave);
   initTabs();
   initRoomDialog();
@@ -48,16 +51,15 @@ export function initProjects() {
 // Switch to another project (already saved or new); the current one is saved first.
 export function openProject(p) {
   if (project) { capturePreview(); persist(); flushSave(); }
-  histories.clear();
   project = p;
   setLastProject(p.id);
-  enterRoom();
+  applyProject(p);
+  history.reset(null);
+  afterRoomChange();
 }
 
 export function newProject() {
-  const room = { L: 400, W: 300, H: 270, plinth: 2 };
-  const doc = normalizeDoc({ room, openings: defaultOpenings(room) });
-  const p = makeProject(t('project.new'), [makeRoom(t('room.default', { n: 1 }), doc)]);
+  const p = makeProject(t('project.new'), [emptyRoom()]);
   if (saveProjectNow(p)) openProject(p);
 }
 
@@ -74,31 +76,19 @@ export function capturePreview() {
   project.preview = c.toDataURL('image/jpeg', 0.7);
 }
 
-function applyRoom(r) {
-  state.selectedId = null;
-  state.selectedIds = new Set();
-  state.selectedOpening = null;
-  state.selectedObstacle = null;
-  state.found = null;
-  applyDoc(r);
-  state.openings ??= defaultOpenings(state.room);
+function applyProject(p) {
+  Object.assign(state, { selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null });
+  state.activeRoomId = p.activeRoomId;
+  applyDoc(p);
 }
 
 export function switchRoom(id) {
-  if (!project || id === project.activeRoomId || !project.rooms.some(r => r.id === id)) return;
-  persist();
-  histories.set(project.activeRoomId, history.dump());
-  project.activeRoomId = id;
-  enterRoom();
+  if (!project || !setActiveRoom(id)) return;
+  afterRoomChange();
 }
 
-// Apply the active room and reset everything that belongs to the view of the previous one.
-function enterRoom() {
-  const r = activeRoom(project);
-  applyRoom(r);
-  const h = histories.get(r.id);
-  if (h) history.load(h);
-  else history.reset(null);
+// Reset everything that belongs to the view of the previous room.
+function afterRoomChange() {
   resetView();
   resetRuler();
   syncForms();
@@ -106,22 +96,24 @@ function enterRoom() {
   emit();
 }
 
+// A new room goes next to the apartment (one undo step).
+function insertRoom(r) {
+  syncActive();
+  r.pos = nextRoomPos(state.rooms);
+  state.rooms.push(r);
+  switchRoom(r.id);
+}
+
 function addRoom({ name, purpose, L, W, H }) {
   const room = { L, W, H, plinth: state.room.plinth };
-  const doc = normalizeDoc({ room, settings: { ...state.settings }, openings: defaultOpenings(room) });
-  const r = makeRoom(name, doc, { purpose });
-  project.rooms.push(r);
-  switchRoom(r.id);
+  insertRoom(makeRoom(name, { room, openings: defaultOpenings(room) }, { purpose }));
 }
 
 function addRoomFromTemplate(tpl, name) {
-  const doc = templateDoc(tpl, { plinth: state.room.plinth, settings: { ...state.settings } });
-  const r = makeRoom(name, doc, { purpose: tpl.purpose });
-  project.rooms.push(r);
-  switchRoom(r.id);
+  insertRoom(makeRoom(name, templateDoc(tpl, { plinth: state.room.plinth }), { purpose: tpl.purpose }));
 }
 
-// A whole apartment: one tab per template room.
+// A whole apartment from room templates (put in a row until the apartment templates).
 export function newProjectFromTemplates(name, tpls) {
   const lang = getLang();
   const rooms = tpls.map(tp => makeRoom(localName(tp, lang), templateDoc(tp), { purpose: tp.purpose }));
@@ -134,25 +126,28 @@ export function newProjectFromTemplates(name, tpls) {
 const LETTERS = { ru: 'АБВГДЕЖЗИКЛМН', uz: 'ABCDEFGHIJKLM', en: 'ABCDEFGHIJKLM' };
 const letter = n => (LETTERS[getLang()] || LETTERS.en)[n - 1] || String(n);
 
-function duplicateAsVersion(id) {
+// A variant = a copy of the whole apartment, opened right away; the original stays as it is.
+export function createVariant() {
   persist();
-  const copy = makeVersion(project, id, (name, n) => `${name} — ${t('room.variant', { v: letter(n) })}`);
-  switchRoom(copy.id);
-  toast(t('room.versionDone', { name: copy.name }));
+  flushSave();
+  const group = variantsOf(project.id);
+  const root = group.find(e => !e.variantOf) || { name: project.name };
+  const name = `${root.name} — ${t('room.variant', { v: letter(group.length + 1) })}`;
+  const v = makeVariant(project, name);
+  if (!saveProjectNow(v, { last: false })) return null;
+  openProject(v);
+  toast(t('room.versionDone', { name }));
+  return v;
 }
 
 function deleteRoom(id) {
-  if (project.rooms.length < 2) return toast(t('room.lastOne'), true);
-  const i = project.rooms.findIndex(r => r.id === id);
-  if (!confirm(t('room.confirmDelete', { name: project.rooms[i].name }))) return;
-  project.rooms.splice(i, 1);
-  histories.delete(id);
-  if (project.activeRoomId === id) {
-    project.activeRoomId = project.rooms[Math.max(0, i - 1)].id;
-    enterRoom();
-  }
-  persist();
-  renderTabs();
+  if (state.rooms.length < 2) return toast(t('room.lastOne'), true);
+  syncActive();
+  const i = state.rooms.findIndex(r => r.id === id);
+  if (!confirm(t('room.confirmDelete', { name: state.rooms[i].name }))) return;
+  state.rooms.splice(i, 1);
+  if (state.activeRoomId === id) switchRoom(state.rooms[Math.max(0, i - 1)].id);
+  else { renderTabs(); emit(); }
 }
 
 // ---- tabs ----
@@ -174,7 +169,7 @@ function initTabs() {
     const id = $('roomMenu').dataset.room;
     closeMenu();
     if (b.dataset.act === 'edit') openRoomDialog(id);
-    if (b.dataset.act === 'version') duplicateAsVersion(id);
+    if (b.dataset.act === 'version') createVariant();
     if (b.dataset.act === 'compare') openCompare(id);
     if (b.dataset.act === 'delete') deleteRoom(id);
   });
@@ -188,14 +183,15 @@ export function renderTabs() {
   if (!project) return;
   $('projName').textContent = project.name;
   const list = $('roomTabsList');
-  list.replaceChildren(...project.rooms.map(r => {
+  list.replaceChildren(...state.rooms.map(r => {
     const tab = document.createElement('div');
-    tab.className = 'room-tab' + (r.id === project.activeRoomId ? ' active' : '');
+    tab.className = 'room-tab' + (r.id === state.activeRoomId ? ' active' : '');
     tab.setAttribute('role', 'tab');
-    tab.setAttribute('aria-selected', r.id === project.activeRoomId);
+    tab.setAttribute('aria-selected', r.id === state.activeRoomId);
     tab.dataset.room = r.id;
-    const area = (r.room.L * r.room.W / 10000).toFixed(1);
-    tab.title = [r.purpose && t('purpose.' + r.purpose), `${r.room.L}×${r.room.W} ${t('unit.cm')} · ${area} ${t('unit.m2')}`]
+    const room = r.id === state.activeRoomId ? state.room : r.room;
+    const area = (room.L * room.W / 10000).toFixed(1);
+    tab.title = [r.purpose && t('purpose.' + r.purpose), `${room.L}×${room.W} ${t('unit.cm')} · ${area} ${t('unit.m2')}`]
       .filter(Boolean).join(' · ');
     const name = document.createElement('span');
     name.className = 'room-tab-name';
@@ -207,12 +203,6 @@ export function renderTabs() {
     more.title = t('room.menu');
     more.textContent = '⋯';
     tab.append(name);
-    if (r.variant && versionGroup(project, r).length > 1) {
-      const v = document.createElement('small');
-      v.className = 'room-tab-ver';
-      v.textContent = t('room.variantShort', { v: letter(r.variant) });
-      tab.append(v);
-    }
     tab.append(more);
     return tab;
   }));
@@ -223,7 +213,7 @@ function openMenu(id, anchor) {
   const m = $('roomMenu');
   if (!m.hidden && m.dataset.room === id) return closeMenu();
   m.dataset.room = id;
-  m.querySelector('[data-act="compare"]').hidden = project.rooms.length < 2;
+  m.querySelector('[data-act="compare"]').hidden = state.rooms.length < 2;
   m.hidden = false;
   const r = anchor.getBoundingClientRect();
   m.style.left = Math.min(r.left, window.innerWidth - m.offsetWidth - 8) + 'px';
@@ -275,15 +265,15 @@ function initRoomDialog() {
   $('roomDlgForm').addEventListener('submit', e => {
     e.preventDefault();
     const f = e.target.elements;
-    const name = f.name.value.trim() || t('room.default', { n: project.rooms.length + 1 });
+    const name = f.name.value.trim() || t('room.default', { n: state.rooms.length + 1 });
     if (!editing && mode === 'template' && !tplPicked) return toast(t('tpl.pick'), true);
     $('roomDlg').close();
     if (!editing && mode === 'template') return addRoomFromTemplate(tplPicked, name);
     if (editing) {
-      const r = project.rooms.find(x => x.id === editing);
+      const r = state.rooms.find(x => x.id === editing);
       Object.assign(r, { name, purpose: f.purpose.value });
-      persist();
       renderTabs();
+      emit();
     } else {
       const num = (inp, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+inp.value) || lo));
       addRoom({ name, purpose: f.purpose.value, L: num(f.L, 100, 3000), W: num(f.W, 100, 3000), H: num(f.H, 200, 600) });
@@ -294,12 +284,12 @@ function initRoomDialog() {
 function openRoomDialog(id) {
   editing = id;
   const f = $('roomDlgForm').elements;
-  const r = id ? project.rooms.find(x => x.id === id) : null;
+  const r = id ? state.rooms.find(x => x.id === id) : null;
   $('roomDlgTitle').textContent = t(r ? 'room.edit' : 'room.new');
   $('roomDlgMode').hidden = !!r;
   tplPicked = null;
   setMode(r ? 'empty' : mode);
-  f.name.value = r ? r.name : t('room.default', { n: project.rooms.length + 1 });
+  f.name.value = r ? r.name : t('room.default', { n: state.rooms.length + 1 });
   f.purpose.value = r ? r.purpose : '';
   if (!r) { f.L.value = state.room.L; f.W.value = state.room.W; f.H.value = state.room.H; }
   $('roomDlg').showModal();

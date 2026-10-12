@@ -80,3 +80,18 @@ test('store: parallel updates are all kept, no temp files left', async () => {
   assert.equal(JSON.parse(readFileSync(file, 'utf8')).length, 20);
   assert.deepEqual(readdirSync(dir), ['order.json']);
 });
+
+test('apartment order: rooms[] with pos, no single-room fields', () => {
+  const { roomName, purpose, room, openings, items, ...head } = order();
+  const rooms = [
+    { name: 'Hall', purpose: 'hall', pos: { x: 0, y: 0 }, room, openings, items: [] },
+    { name: 'Bedroom', purpose: 'bedroom', pos: { x: 0, y: 310 }, room, openings: [], items }
+  ];
+  const r = validateOrder({ ...head, rooms });
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.order.rooms.map(x => x.pos), [{ x: 0, y: 0 }, { x: 0, y: 310 }]);
+  assert.equal(r.order.room, undefined);
+  assert.equal(validateOrder({ ...head, rooms: [{ ...rooms[1], pos: { x: 'a', y: 0 } }] }).field, 'rooms[0].pos.x');
+  assert.equal(validateOrder({ ...head, rooms: [rooms[0]] }).field, 'items', 'an empty apartment');
+  assert.equal(validateOrder(order()).order.roomName, 'Bedroom', 'old single-room orders still pass');
+});

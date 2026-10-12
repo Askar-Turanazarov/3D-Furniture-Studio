@@ -2,7 +2,7 @@
 import { t, getLang, onLangChange } from './i18n.js';
 import { loadTemplates, localName } from './templates.js';
 import {
-  listProjects, loadProject, saveProjectNow, deleteProject, cloneProject, exportProject, importProject, flushSave
+  listProjects, loadProject, saveProjectNow, deleteProject, cloneProject, exportProject, importProjects, flushSave
 } from './storage.js';
 import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderTabs, newProjectFromTemplates } from './projects.js';
 import { toast } from './ui.js';
@@ -37,8 +37,9 @@ export function initProjectsDialog() {
     if (!file) return;
     try {
       if (file.size > 5e6) throw new Error('too big');
-      const p = importProject(JSON.parse(await file.text()));
+      const [p, ...variants] = importProjects(JSON.parse(await file.text()));
       if (!saveProjectNow(p, { last: false })) return;
+      for (const v of variants) saveProjectNow(v, { last: false });
       openProject(p);
       $('projectsDlg').close();
       toast(t('proj.imported', { name: p.name }));

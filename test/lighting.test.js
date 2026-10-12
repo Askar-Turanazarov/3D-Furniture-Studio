@@ -38,6 +38,6 @@ test('light targets: numbers and colours, darker towards night', () => {
 test('lamp switch survives save and import', () => {
   const d = normalizeDoc({ lighting: { scene: 'night', ceiling: 'panel', lampsOn: false } });
   assert.deepEqual(lightingOf(d.lighting), { scene: 'night', ceiling: 'panel', lampsOn: false });
-  const p = importProject(exportProject(makeProject('P', [makeRoom('R', d)])));
-  assert.equal(lightingOf(p.rooms[0].lighting).lampsOn, false);
+  const p = importProject(exportProject(makeProject('P', [makeRoom('R', {})], { lighting: d.lighting })));
+  assert.equal(lightingOf(p.lighting).lampsOn, false);
 });

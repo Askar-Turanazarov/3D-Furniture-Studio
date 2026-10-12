@@ -2,8 +2,8 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeDoc, makeRoom, makeProject, listProjects, loadProject, saveProjectNow, deleteProject,
-  migrateV1, openLastProject, activeRoom, onSaveError, makeVersion, versionGroup,
-  cloneProject, exportProject, importProject
+  migrateV1, openLastProject, activeRoom, onSaveError, makeVariant, variantsOf, migrateV2,
+  cloneProject, exportProject, importProject, importProjects
 } from '../public/js/storage.js';
 import { state, item } from './helpers.js';
 
@@ -90,37 +90,70 @@ test('storage full is reported, not thrown', () => {
   onSaveError(() => {});
 });
 
-test('versions: next free letter, placed after the group, copy of the source', () => {
-  const a = makeRoom('Bedroom', v1());
-  const other = makeRoom('Kitchen', {});
-  const p = makeProject('P', [a, other]);
-  const name = (n, i) => `${n} — v${i}`;
-  const b = makeVersion(p, a.id, name);
-  const c = makeVersion(p, b.id, name);   // a version of a version still belongs to the original
-  assert.deepEqual(p.rooms.map(r => r.name), ['Bedroom', 'Bedroom — v2', 'Bedroom — v3', 'Kitchen']);
-  assert.equal(a.variant, 1);
-  assert.equal(c.versionOf, a.id);
-  assert.equal(b.items.length, 2);
-  assert.notEqual(b.items, a.items, 'deep copy');
-  p.rooms.splice(1, 1);   // delete v2 → the next copy reuses the letter
-  assert.equal(makeVersion(p, a.id, name).variant, 2);
-  assert.equal(versionGroup(p, other).length, 1);
-  saveProjectNow(p);
-  assert.deepEqual(loadProject(p.id).rooms.map(r => r.variant), [1, 3, 2, undefined], 'variants survive save/load');
+// An old v2 project: rooms as tabs with their own lighting / settings, a bedroom with a version.
+function v2Project() {
+  const bed = { id: 'b1', name: 'Bedroom', purpose: 'bedroom', versionOf: null, variant: 1, ...v1(), room: { L: 400, W: 300, H: 270, plinth: 2 } };
+  const ver = { ...structuredClone(bed), id: 'b2', name: 'Bedroom — B', versionOf: 'b1', variant: 2, items: [] };
+  const kit = { id: 'k1', name: 'Kitchen', purpose: 'kitchen', versionOf: null, room: { L: 300, W: 250, H: 270, plinth: 2 },
+    items: [], lighting: { scene: 'night', ceiling: 'spots' }, settings: { snap: 3 } };
+  return { id: 'p1', name: 'Flat', createdAt: 1, updatedAt: 2, activeRoomId: 'k1', rooms: [bed, ver, kit] };
+}
+
+test('v2 → v3: rooms in a row, versions become variant projects', () => {
+  const [p, ...variants] = migrateV2(v2Project());
+  assert.equal(p.version, 3);
+  assert.deepEqual(p.rooms.map(r => r.name), ['Bedroom', 'Kitchen']);
+  assert.deepEqual(p.rooms.map(r => r.pos), [{ x: 0, y: 0 }, { x: 420, y: 0 }], 'a row with a 20 cm gap');
+  assert.deepEqual(p.lighting, { scene: 'night', ceiling: 'spots' }, 'lighting of the room that was open');
+  assert.equal(p.settings.snap, 3);
+  assert.ok(p.rooms.every(r => !('lighting' in r) && !('settings' in r) && !('versionOf' in r)));
+  assert.equal(p.activeRoomId, 'k1');
+  assert.equal(variants.length, 1);
+  const v = variants[0];
+  assert.equal(v.variantOf, 'p1');
+  assert.equal(v.name, 'Flat — Bedroom — B');
+  assert.deepEqual(v.rooms.map(r => r.name), ['Bedroom — B', 'Kitchen']);
+  assert.deepEqual(v.rooms[0].pos, p.rooms[0].pos, 'the version takes the place of its original');
+  assert.equal(v.rooms[0].items.length, 0);
+  assert.equal(activeRoom(v).name, 'Bedroom — B');
+  assert.ok(v.rooms.every(r => !p.rooms.some(x => x.id === r.id)), 'own room ids');
 });
 
-test('clone gets new ids and keeps version links inside the copy', () => {
-  const a = makeRoom('A', v1());
-  const p = makeProject('P', [a, makeRoom('K', {})]);
-  makeVersion(p, a.id, (n, i) => `${n} ${i}`);
-  const c = cloneProject(p, 'P (copy)');
-  assert.equal(c.name, 'P (copy)');
-  assert.notEqual(c.id, p.id);
-  assert.ok(c.rooms.every((r, i) => r.id !== p.rooms[i].id));
-  assert.equal(c.rooms[1].versionOf, c.rooms[0].id);
-  assert.equal(c.activeRoomId, c.rooms[0].id);
-  c.rooms[0].items[0].x = 999;
-  assert.notEqual(p.rooms[0].items[0].x, 999);
+test('loading a v2 project migrates it once and saves the variants', () => {
+  localStorage.setItem('fsp3d.project.p1', JSON.stringify(v2Project()));
+  localStorage.setItem('fsp3d.projects.v2', JSON.stringify([{ id: 'p1', name: 'Flat', updatedAt: 2, rooms: 3 }]));
+  const p = loadProject('p1');
+  assert.equal(p.rooms.length, 2);
+  assert.equal(JSON.parse(localStorage.getItem('fsp3d.project.p1')).version, 3);
+  const group = variantsOf('p1');
+  assert.equal(group.length, 2);
+  assert.equal(group.filter(e => e.variantOf === 'p1').length, 1);
+  assert.deepEqual(loadProject('p1'), p, 'second load is the same v3 project');
+  assert.equal(listProjects().length, 2);
+});
+
+test('variant: exact copy of the apartment linked to the original', () => {
+  const p = makeProject('P', [makeRoom('A', v1()), makeRoom('K', {})]);
+  const v = makeVariant(p, 'P — B');
+  assert.equal(v.variantOf, p.id);
+  assert.notEqual(v.id, p.id);
+  assert.deepEqual(v.rooms.map(r => r.pos), p.rooms.map(r => r.pos));
+  assert.ok(v.rooms.every((r, i) => r.id !== p.rooms[i].id));
+  assert.equal(makeVariant(v, 'P — C').variantOf, p.id, 'a variant of a variant belongs to the original');
+  v.rooms[0].items[0].x = 999;
+  assert.notEqual(p.rooms[0].items[0].x, 999, 'deep copy');
+  const c = cloneProject(v, 'copy');
+  assert.equal(c.variantOf, undefined, 'a duplicate is a project of its own');
+});
+
+test('v2 file import brings its variants, v3 file round-trips pos', () => {
+  const [p, ...vs] = importProjects({ format: 'fsp3d-project', version: 2, project: v2Project() });
+  assert.notEqual(p.id, 'p1');
+  assert.equal(vs.length, 1);
+  assert.equal(vs[0].variantOf, p.id);
+  const q = importProject(JSON.parse(JSON.stringify(exportProject(p))));
+  assert.deepEqual(q.rooms.map(r => r.pos), p.rooms.map(r => r.pos));
+  assert.deepEqual(q.lighting, p.lighting);
 });
 
 test('export → import round trip, bad files are rejected', () => {
@@ -140,7 +173,7 @@ test('export → import round trip, bad files are rejected', () => {
   assert.throws(() => importProject(bad2));
 });
 
-test('normalizeDoc keeps lighting and fills its defaults', () => {
+test('normalizeDoc keeps lighting and fills its defaults (old room docs)', () => {
   assert.deepEqual(normalizeDoc({}).lighting, { scene: 'day', ceiling: 'chandelier' });
   assert.deepEqual(normalizeDoc({ lighting: { scene: 'night' } }).lighting, { scene: 'night', ceiling: 'chandelier' });
 });

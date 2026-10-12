@@ -67,7 +67,7 @@ async function load() {
   renderList();
 }
 
-const roomLabel = o => [o.project?.name, o.rooms?.length ? t('adm.rooms', { n: o.rooms.length }) : o.roomName]
+const roomLabel = o => [o.project?.name, o.rooms?.length > 1 ? t('adm.rooms', { n: o.rooms.length }) : o.rooms?.[0]?.name ?? o.roomName]
   .filter(Boolean).join(' / ');
 
 function statusSelect(o) {
@@ -82,7 +82,7 @@ function statusSelect(o) {
 function renderList() {
   const f = $('admFilter').value, q = $('admSearch').value.trim().toLowerCase();
   const rows = orders.filter(o => (!f || (o.status || 'new') === f)
-    && (!q || [o.id, o.name, o.phone, o.project?.name, o.roomName, o.comment].join(' ').toLowerCase().includes(q)));
+    && (!q || [o.id, o.name, o.phone, o.project?.name, o.roomName, ...(o.rooms || []).map(r => r.name), o.comment].join(' ').toLowerCase().includes(q)));
   $('admRows').replaceChildren(...rows.map(o => {
     const tr = el('tr', { className: 'st-' + (o.status || 'new') },
       el('td', { textContent: o.id }),

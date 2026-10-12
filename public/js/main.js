@@ -3,7 +3,7 @@ import { state, onChange, emit, itemName, docFromState, applyDoc } from './state
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
 import { parseCatalog } from './catalog.js';
-import { initProjects, persist } from './projects.js';
+import { initProjects, persist, renderTabs } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
 import { initCompare } from './compare.js';
@@ -58,6 +58,7 @@ function step(dir) {
   applyDoc(JSON.parse(snap));
   Object.assign(state.settings, view);
   syncForms();
+  renderTabs();
   emit();
   toast(t(dir < 0 ? 'hist.undone' : 'hist.redone'));
 }

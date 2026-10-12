@@ -95,10 +95,20 @@ function obstacle(o, f) {
   };
 }
 
+// Place of a room on the apartment plan (cm); optional for old single-room orders.
+const PLAN = [-10000, 100000];
+function pos(p, f) {
+  if (p == null) return undefined;
+  obj(p, f);
+  return { x: num(p.x, PLAN, f + '.x'), y: num(p.y, PLAN, f + '.y') };
+}
+
 function roomDoc(r, f) {
   obj(r, f);
+  const at = pos(r.pos, f + '.pos');
   return {
     name: str(r.name, 60, f + '.name'), purpose: str(r.purpose, 30, f + '.purpose'),
+    ...(at ? { pos: at } : {}),
     room: room(r.room, f + '.room'),
     openings: list(r.openings, LIMITS.openings, f + '.openings').map((o, i) => opening(o, `${f}.openings[${i}]`)),
     obstacles: list(r.obstacles, LIMITS.obstacles, f + '.obstacles').map((o, i) => obstacle(o, `${f}.obstacles[${i}]`)),
@@ -123,20 +133,25 @@ function validateOrder(body) {
     obj(body, 'body');
     const phone = str(body.phone, 30, 'phone', true);
     if (!PHONE.test(phone)) throw new Invalid('phone');
-    const main = roomDoc({ ...body, name: body.roomName }, 'room');
     const order = {
       name: str(body.name, 100, 'name', true),
       phone,
       comment: str(body.comment, 1000, 'comment'),
       lang: LANGS.includes(body.lang) ? body.lang : 'ru',
       project: { name: str(body.project?.name, 100, 'project.name') },
-      roomName: main.name, purpose: main.purpose,
-      room: main.room, openings: main.openings, obstacles: main.obstacles, items: main.items,
       estimate: body.estimate == null ? null : num(body.estimate, [0, 1e13], 'estimate')
     };
+    // An apartment: rooms[] with pos. Old clients send one room in the top-level fields (and optionally rooms[]).
     const rooms = list(body.rooms, LIMITS.rooms, 'rooms').map((r, i) => roomDoc(r, `rooms[${i}]`));
+    let all = rooms;
+    if (body.room != null || !rooms.length) {
+      const main = roomDoc({ ...body, name: body.roomName }, 'room');
+      Object.assign(order, { roomName: main.name, purpose: main.purpose, room: main.room,
+        openings: main.openings, obstacles: main.obstacles, items: main.items });
+      all = [main, ...rooms];
+    }
     if (rooms.length) order.rooms = rooms;
-    if (![main, ...rooms].some(r => r.items.length)) throw new Invalid('items');
+    if (!all.some(r => r.items.length)) throw new Invalid('items');
     const files = [['plan.png', picture(body.drawing, 'png', 'drawing')], ['3d.jpg', picture(body.snapshot3d, 'jpeg', 'snapshot3d')]]
       .filter(([, buf]) => buf);
     return { ok: true, order, files };

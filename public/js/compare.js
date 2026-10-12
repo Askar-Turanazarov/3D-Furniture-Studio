@@ -1,8 +1,7 @@
 // "Compare with…": two rooms of the project side by side, read-only (same renderer, own canvases).
-import { state } from './state.js';
+import { state, roomView } from './state.js';
 import { t, onLangChange } from './i18n.js';
 import { currentProject, persist } from './projects.js';
-import { versionGroup } from './storage.js';
 import { drawPlanTo } from './renderer.js';
 import { validateAll } from './validate.js';
 import { roomEstimate } from './pricing.js';
@@ -24,11 +23,9 @@ export function openCompare(id) {
   const others = p.rooms.filter(r => r !== left);
   if (!others.length) return;
   leftId = id;
-  // By default: another variant of the same room, else the next room.
-  const sibling = versionGroup(p, left).find(r => r !== left);
   const next = p.rooms[(p.rooms.indexOf(left) + 1) % p.rooms.length];
   $('compareSel').replaceChildren(...others.map(r => new Option(r.name, r.id)));
-  $('compareSel').value = (sibling || next).id;
+  $('compareSel').value = next.id;
   $('compareDlg').showModal();
   render();
 }
@@ -45,8 +42,7 @@ function draw(canvas, info, doc) {
   const w = canvas.parentElement.clientWidth || 360, h = Math.round(Math.min(420, w * 0.75));
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  const ctx = { ...doc, catalog: state.catalog };
-  const errors = validateAll(ctx);
+  const errors = validateAll(roomView(doc.id) || { ...doc, settings: state.settings, catalog: state.catalog });
   drawPlanTo(canvas, w, h, { doc, errors, dpr: window.devicePixelRatio || 1, pad: 36 });
   const bad = [...errors.values()].filter(e => e.length).length;
   const { L, W } = doc.room, sum = roomEstimate(doc.items, priceCatalog()).total;

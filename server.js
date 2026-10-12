@@ -53,6 +53,28 @@ app.get('/api/apartments', async (req, res) => {
   }
 });
 
+// ---------- new-building showcase: generated buildings (scripts/gen-building.mjs) ----------
+const BUILDINGS = path.join(__dirname, 'buildings');
+app.get('/api/buildings', async (req, res) => {
+  try {
+    const files = (await fs.readdir(BUILDINGS)).filter(f => f.endsWith('.json'));
+    const list = await Promise.all(files.map(async f => {
+      const b = JSON.parse(await fs.readFile(path.join(BUILDINGS, f), 'utf8'));
+      return { id: b.id, name: b.name, floors: b.floors, apartments: b.floorsData.reduce((s, x) => s + x.apartments.length, 0) };
+    }));
+    res.json(list);
+  } catch {
+    res.json([]);
+  }
+});
+
+app.get('/api/buildings/:id', (req, res) => {
+  if (!/^[a-z0-9-]{1,60}$/.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
+  res.sendFile(path.join(BUILDINGS, req.params.id + '.json'), err => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'not_found' });
+  });
+});
+
 app.post('/api/order', async (req, res) => {
   const body = req.body || {};
   // Honeypot: people never see the "website" field; a filled one means a bot. Answer "ok", save nothing.

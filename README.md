@@ -6,7 +6,7 @@
 
 ## English
 
-A web app for custom furniture: the client enters the room size and the furniture dimensions, checks what fits and where on a 2D plan, walks through the room in 3D and sends an order.
+A web app for custom furniture: the client plans a whole apartment (or picks one in a new building), enters the room size and the furniture dimensions, checks what fits and where on a 2D plan, walks through the room in 3D and sends an order.
 
 ### Features
 - **Room:** length, width, height (cm); the plan is rebuilt instantly.
@@ -40,6 +40,14 @@ A web app for custom furniture: the client enters the room size and the furnitur
 - **Order drawing:** the order carries a drawing — the plan at a standard scale 1:N on a white A4 sheet (2400 px) with numbered items, their sizes and distances to the walls, windows, doors, structure and a stamp (project, room, size, scale, price, order №, date) — plus a 3D picture if the 3D view is open. The server stores them in `orders/<id>/plan.png` (`3d.jpg`). **🖨 Drawing / PDF** in the order form opens `print.html`: the drawing and the specification (№, item, size, height above the floor, material and configuration, price) → *Print / PDF* → "Save as PDF", no libraries.
 - **Order** — form (name, phone, comment) is saved to `order.json` with the project and room names; the "send all rooms" checkbox sends every room of the project (each one must be free of errors). The server checks every order (`server/validateOrder.js`: field whitelist, ranges — sizes 50–3000 cm, ≤ 200 items, ≤ 50 openings / structure, phone mask, PNG signature and ≤ 2 MB for the drawing), allows 5 orders per IP in 10 minutes ("Too many orders" otherwise), silently drops bots that fill the hidden `website` field and writes `order.json` through a queue (temp file + rename), so parallel orders are never lost.
 - **Manager page** `/admin.html` (see below): orders table — №, date, name, phone (`tel:` link), project / room, total, status; filter by status and search; statuses **new → in progress → measuring → done** (+ cancelled) with a dated history; the order card shows the drawing, 3D picture, specification, client comment and manager notes.
+- **Whole apartment:** a project is one apartment — its rooms stand on one plan, a door in a shared partition (10 cm) leads to the neighbour room. The header shows the area, the active room and **⎘ Variants** (copies of the whole apartment). **✥ Layout** — drag the rooms, they stick to neighbours one partition apart (`Esc` — exit). Furniture can be dragged from one room to another. Old one-room projects are migrated automatically.
+- **Apartment templates:** 📁 Projects → *Apartment from a template* — *khrushchevka* (series 1-447, 1-464, II-29), *improved layout* (1-528, II-49, II-57, 121) and *new build* (studio, euro one-bedroom, 2–4 rooms), empty or furnished (`apartments.json`, `GET /api/apartments`).
+- **Kits:** 🎲 *Furnish* places a ready-made kit by the room purpose (bedroom, kids, living, kitchen, study, hall, bathroom…) — for one room or the whole apartment, a new variant every time; what did not fit is listed.
+- **Finish levels:** rough (concrete, screed), pre-finish (white box) and finished (as chosen) — for the whole apartment, switched in the 3D HUD.
+- **Light:** ☀ day / 🌇 sunset / 🌙 night with a smooth transition, 💡 (key `L`) — lamps on / off; the walker's room gets the sun and shadows.
+- **Texture library:** 41 CC0 sets (floor, wall, rough, furniture) from ambientCG, listed in `public/textures/library.json`; a set is downloaded on demand when first chosen, or all at once with `npm run textures` (`-- --kind floor`, `-- --id oakPlanks`).
+- **3D apartment:** every room in one scene, one door per partition, walking from room to room (doors open by themselves, the doorway is checked for clearance).
+- **New-building showcase** `/building.html` (🏢 in the header): a 12-storey demo building (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Facade with floors coloured by status (free / booked / sold), filters (rooms, area, price, free only), the floor plan with a tooltip, the apartment card (plan with furniture, rooms, area, price per m²). From the card: **🚶 Walk through in 3D** — the floor in 3D with the shared HUD (overview / walk, day / sunset / night, 💡, finish levels, fullscreen): the chosen apartment in full detail, the other apartments, the corridor and the core as a light shell; the walk starts at the entrance door; nothing is saved. **📐 Open in the planner** copies the apartment into a new project; **✉ Leave a request** sends an order with the apartment; the manager sets the apartment status in the order card (`PATCH /api/buildings/:id/apartments/:no`, admin token; statuses are kept in `data/`).
 - **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
 
 ### Tech stack
@@ -50,7 +58,7 @@ Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules
 npm install
 npm start
 ```
-Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
+Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand).
 
 **Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
 1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
@@ -75,23 +83,30 @@ Open http://localhost:3000 (Node.js 18+). Tests: `npm test`.
 | 3D Walk | Exit | `Esc` |
 | 3D | Open / close a door, drawer | click, `E` while walking; 🚪 — all |
 | Mobile | Move / look | joystick / swipe |
+| Apartment | Layout (move rooms) | ✥, `Esc` — exit |
+| 3D | Lamps on / off | `L` or 💡 |
+| 3D | Day / sunset / night, finish level | HUD buttons ☀ 🌇 🌙, Rough / Pre-finish / Finished |
 
 ### Project structure
 ```
-server.js            Express: static, catalog, templates, orders (+ drawing files), manager API, textures (list / upload / reset / ZIP)
-server/              validateOrder (order check), orderStore (write queue, rate limit)
+server.js            Express: static, catalog, templates, apartments, buildings, orders (+ drawing files), manager API, textures (list / upload / reset / ZIP / library)
+server/              validateOrder (order check), orderStore (write queue, rate limit), buildings (apartment statuses), textureFetch, zip
 orders/<id>/         order drawings plan.png / 3d.jpg (not in git)
 .env.example         ADMIN_TOKEN for the manager page (copy to .env)
 catalog.json         furniture catalogue (types, default sizes, names in 3 languages)
 templates.json       room templates (Soviet-era / new build) and apartment sets
+apartments.json      apartment templates (khrushchevka / improved / new build)
+buildings/           demo building for the showcase; data/ — apartment statuses (not in git)
+scripts/             fetch-textures (npm run textures), gen-apartments, gen-building
 order.json           saved orders
-public/index.html    layout; print.html — drawing + specification for printing / PDF; admin.html — manager page
+public/index.html    layout; building.html — new-building showcase; print.html — drawing + specification for printing / PDF; admin.html — manager page
 public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages, templates,
-                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
-public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos (not in git)
+                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin,
+                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d
+public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
+public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos, lib/ — downloaded library sets (not in git)
 test/                unit tests (node:test): npm test
 ```
 
@@ -141,6 +156,14 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **Buyurtma chizmasi:** buyurtmaga chizma qo‘shiladi — reja standart masshtabda 1:N oq A4 varag‘ida (2400 px): raqamlangan buyumlar, ularning o‘lchamlari va devorlargacha masofalar, derazalar, eshiklar, konstruktiv va shtamp (loyiha, xona, o‘lchamlar, masshtab, narx, buyurtma №, sana); 3D ko‘rinish ochiq bo‘lsa — 3D surat ham. Server ularni `orders/<id>/plan.png` (`3d.jpg`) ga saqlaydi. Buyurtma formasidagi **🖨 Chizma / PDF** `print.html` ni ochadi: chizma va spetsifikatsiya (№, nomi, gabarit, poldan balandlik, material va konfiguratsiya, narx) → *Chop etish / PDF* → «PDF sifatida saqlash», kutubxonalarsiz.
 - **Buyurtma** — forma (ism, telefon, izoh) loyiha va xona nomi bilan `order.json` fayliga saqlanadi; «barcha xonalarni yuborish» belgisi loyihaning hamma xonalarini yuboradi (har birida xato bo‘lmasligi kerak). Server har bir buyurtmani tekshiradi (`server/validateOrder.js`: maydonlar oq ro‘yxati, diapazonlar — o‘lchamlar 50–3000 sm, ≤ 200 buyum, ≤ 50 ochiq joy / konstruktiv, telefon niqobi, chizma uchun PNG imzosi va ≤ 2 MB), bitta IP dan 10 daqiqada 5 ta buyurtmaga ruxsat beradi (aks holda «Juda tez-tez»), yashirin `website` maydonini to‘ldirgan botlarni jimgina tashlab yuboradi va `order.json` ni navbat orqali yozadi (vaqtinchalik fayl + rename) — parallel buyurtmalar yo‘qolmaydi.
 - **Menejer sahifasi** `/admin.html` (pastga qarang): buyurtmalar jadvali — №, sana, ism, telefon (`tel:` havola), loyiha / xona, summa, holat; holat bo‘yicha filtr va qidiruv; holatlar **yangi → ishda → o‘lchov → tayyor** (+ bekor qilingan) sanali tarix bilan; buyurtma kartasida chizma, 3D surat, spetsifikatsiya, mijoz izohi va menejer izohlari.
+- **Butun kvartira:** loyiha — bitta kvartira, xonalari bitta rejada; umumiy to‘siqdagi (10 sm) eshik qo‘shni xonaga olib boradi. Sarlavhada maydon, faol xona va **⎘ Variantlar** (butun kvartira nusxalari). **✥ Planirovka** — xonalarni suring, ular qo‘shnisiga to‘siq orqali yopishadi (`Esc` — chiqish). Mebelni bir xonadan boshqasiga sudrab o‘tkazish mumkin. Eski bir xonali loyihalar avtomatik ko‘chiriladi.
+- **Kvartira shablonlari:** 📁 Loyihalar → *Shablondan kvartira* — *xrushchyovka* (1-447, 1-464, II-29 seriyalari), *yaxshilangan planirovka* (1-528, II-49, II-57, 121) va *yangi bino* (studiya, yevro-2, 2–4 xonali), bo‘sh yoki mebel bilan (`apartments.json`, `GET /api/apartments`).
+- **To‘plamlar:** 🎲 *Jihozlash* xona vazifasiga ko‘ra tayyor to‘plamni joylaydi (yotoqxona, bolalar xonasi, zal, oshxona, kabinet, dahliz, hammom…) — bitta xona yoki butun kvartira, har safar yangi variant; sig‘maganlari ro‘yxatda ko‘rsatiladi.
+- **Pardoz darajalari:** qora (beton, styajka), oldindan pardoz (white box) va toza (tanlanganidek) — butun kvartira uchun, 3D HUD’da almashtiriladi.
+- **Yorug‘lik:** ☀ kun / 🌇 shom / 🌙 tun silliq o‘tish bilan, 💡 (`L` tugmasi) — chiroqlarni yoqish / o‘chirish; yuruvchi turgan xonaga quyosh va soyalar beriladi.
+- **Teksturalar kutubxonasi:** ambientCG’dan 41 ta CC0 to‘plam (pol, devor, qora pardoz, mebel), ro‘yxati `public/textures/library.json`da; to‘plam birinchi tanlanganda yuklanadi yoki hammasi birdan `npm run textures` bilan (`-- --kind floor`, `-- --id oakPlanks`).
+- **3D kvartira:** barcha xonalar bitta sahnada, har bir to‘siqda bitta eshik, xonadan xonaga yurish (eshiklar o‘zi ochiladi, eshik o‘tish joyi tekshiriladi).
+- **Yangi bino vitrinasi** `/building.html` (sarlavhadagi 🏢): 12 qavatli demo bino (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Holat bo‘yicha bo‘yalgan qavatli fasad (bo‘sh / band / sotilgan), filtrlar (xonalar, maydon, narx, faqat bo‘shlari), izohli qavat rejasi, kvartira kartochkasi (mebelli reja, xonalar, maydon, 1 m² narxi). Kartochkadan: **🚶 3D’da aylanib chiqish** — umumiy HUD bilan qavat 3D’da (ko‘rib chiqish / sayr, kun / shom / tun, 💡, pardoz darajalari, to‘liq ekran): tanlangan kvartira to‘liq detallarda, boshqa kvartiralar, yo‘lak va lift bloki yengil qobiq sifatida; sayr kirish eshigidan boshlanadi; hech narsa saqlanmaydi. **📐 Rejalashtiruvchida ochish** kvartirani yangi loyihaga nusxalaydi; **✉ Ariza qoldirish** kvartira bilan buyurtma yuboradi; menejer buyurtma kartochkasida kvartira holatini o‘zgartiradi (`PATCH /api/buildings/:id/apartments/:no`, admin token; holatlar `data/`da saqlanadi).
 - **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
 
 ### Texnologiyalar
@@ -151,7 +174,7 @@ Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modu
 npm install
 npm start
 ```
-http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
+http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi).
 
 **ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
 1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
@@ -176,24 +199,31 @@ http://localhost:3000 manzilini oching (Node.js 18+). Testlar: `npm test`.
 | 3D Sayr | Chiqish | `Esc` |
 | 3D | Eshik, tortmani ochish / yopish | bosish, yurishda `E`; 🚪 — hammasi |
 | Mobil | Yurish / qarash | joystik / ekranni surish |
+| Kvartira | Planirovka (xonalarni surish) | ✥, `Esc` — chiqish |
+| 3D | Chiroqlarni yoqish / o‘chirish | `L` yoki 💡 |
+| 3D | Kun / shom / tun, pardoz darajasi | HUD tugmalari ☀ 🌇 🌙, Qora / Oldindan / Toza |
 
 ### Loyiha tuzilmasi
 ```
-server.js            Express: statik, katalog, shablonlar, buyurtmalar (+ chizma fayllari), menejer API, teksturalar (ro‘yxat / yuklash / tiklash / ZIP)
-server/              validateOrder (buyurtmani tekshirish), orderStore (yozish navbati, chastota limiti)
+server.js            Express: statik, katalog, shablonlar, kvartiralar, binolar, buyurtmalar (+ chizma fayllari), menejer API, teksturalar (ro‘yxat / yuklash / tiklash / ZIP / kutubxona)
+server/              validateOrder (buyurtmani tekshirish), orderStore (yozish navbati, chastota limiti), buildings (kvartira holatlari), textureFetch, zip
 orders/<id>/         buyurtma chizmalari plan.png / 3d.jpg (git da yo‘q)
 .env.example         menejer sahifasi uchun ADMIN_TOKEN (.env ga nusxalang)
 catalog.json         mebel katalogi (turlar, standart o‘lchamlar, 3 tildagi nomlar)
 templates.json       xona shablonlari (sovet uyi / yangi bino) va kvartira to‘plamlari
+apartments.json      kvartira shablonlari (xrushchyovka / yaxshilangan / yangi bino)
+buildings/           vitrina uchun demo bino; data/ — kvartira holatlari (git’da emas)
+scripts/             fetch-textures (npm run textures), gen-apartments, gen-building
 order.json           saqlangan buyurtmalar
 public/print.html    chop etish / PDF uchun chizma + spetsifikatsiya; public/admin.html — menejer sahifasi
-public/index.html    sahifa tuzilmasi
+public/index.html    sahifa tuzilmasi; building.html — yangi bino vitrinasi
 public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages, templates,
-                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
-public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar (git’da emas)
+                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin,
+                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d
+public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
+public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar, lib/ — yuklab olingan kutubxona to‘plamlari (git’da emas)
 test/                unit testlar (node:test): npm test
 ```
 
@@ -243,6 +273,14 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Чертёж заявки:** к заявке прикладывается чертёж — план в стандартном масштабе 1:N на белом листе A4 (2400 px): пронумерованные предметы, их габариты и расстояния до стен, окна, двери, конструктив и штамп (проект, комната, размеры, масштаб, цена, № заявки, дата); если открыт 3D — ещё и 3D-снимок. Сервер сохраняет их в `orders/<id>/plan.png` (`3d.jpg`). **🖨 Чертёж / PDF** в форме заявки открывает `print.html`: чертёж и спецификация (№, наименование, габарит, высота от пола, материал и конфигурация, цена) → «Печать / PDF» → «Сохранить как PDF», без библиотек.
 - **Заявка** — форма (имя, телефон, комментарий) сохраняется в `order.json` вместе с названием проекта и комнаты; галочка «Отправить все комнаты проекта» отправляет все комнаты (в каждой не должно быть ошибок). Сервер проверяет каждую заявку (`server/validateOrder.js`: белый список полей, диапазоны — размеры 50–3000 см, ≤ 200 предметов, ≤ 50 проёмов / конструктива, маска телефона, PNG-сигнатура и ≤ 2 МБ для чертежа), пропускает 5 заявок с одного IP за 10 минут (иначе «Слишком часто»), молча отбрасывает ботов, заполнивших скрытое поле `website`, и пишет `order.json` через очередь (временный файл + rename) — параллельные заявки не теряются.
 - **Страница менеджера** `/admin.html` (см. ниже): таблица заявок — №, дата, имя, телефон (ссылка `tel:`), проект / комната, сумма, статус; фильтр по статусу и поиск; статусы **новая → в работе → замер → готово** (+ отменена) с историей и датами; в карточке заявки — чертёж, 3D-снимок, спецификация, комментарий клиента и заметки менеджера.
+- **Вся квартира:** проект — одна квартира, её комнаты стоят на одном плане; дверь в общей перегородке (10 см) ведёт в соседнюю комнату. В шапке площадь, активная комната и **⎘ Варианты** (копии всей квартиры). **✥ Планировка** — перетаскивайте комнаты, они прилипают к соседним через перегородку (`Esc` — выход). Мебель можно перетащить из комнаты в комнату. Старые проекты из одной комнаты переносятся автоматически.
+- **Шаблоны квартир:** 📁 Проекты → *Квартира из шаблона* — *хрущёвка* (серии 1-447, 1-464, II-29), *улучшенная планировка* (1-528, II-49, II-57, 121) и *новостройка* (студия, евро-2, 2–4 комнаты), пустые или с мебелью (`apartments.json`, `GET /api/apartments`).
+- **Наборы:** 🎲 *Обставить* расставляет готовый набор по назначению комнаты (спальня, детская, зал, кухня, кабинет, прихожая, ванная…) — для одной комнаты или всей квартиры, каждый раз новый вариант; что не поместилось, перечисляется.
+- **Уровни отделки:** черновая (бетон, стяжка), предчистовая (white box) и чистовая (как выбрано) — для всей квартиры, переключаются в HUD 3D.
+- **Свет:** ☀ день / 🌇 закат / 🌙 ночь с плавным переходом, 💡 (клавиша `L`) — включить / выключить лампы; комната, где стоит гуляющий, получает солнце и тени.
+- **Библиотека текстур:** 41 набор CC0 (пол, стены, черновая, мебель) с ambientCG, список в `public/textures/library.json`; набор скачивается при первом выборе или все сразу командой `npm run textures` (`-- --kind floor`, `-- --id oakPlanks`).
+- **3D-квартира:** все комнаты в одной сцене, одна дверь на перегородку, прогулка из комнаты в комнату (двери открываются сами, проём проверяется на ширину прохода).
+- **Витрина новостройки** `/building.html` (🏢 в шапке): демо-дом на 12 этажей (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Фасад с этажами в цветах статуса (свободна / бронь / продана), фильтры (комнаты, площадь, цена, только свободные), план этажа с подсказкой, карточка квартиры (план с мебелью, комнаты, площадь, цена за м²). Из карточки: **🚶 Пройтись в 3D** — этаж в 3D с общим HUD (обзор / прогулка, день / закат / ночь, 💡, уровни отделки, весь экран): выбранная квартира в полной детализации, остальные квартиры, коридор и ядро — лёгкой оболочкой; прогулка начинается у входной двери; ничего не сохраняется. **📐 Открыть в планировщике** копирует квартиру в новый проект; **✉ Оставить заявку** отправляет заявку с квартирой; менеджер меняет статус квартиры в карточке заявки (`PATCH /api/buildings/:id/apartments/:no`, токен администратора; статусы хранятся в `data/`).
 - **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
 
 ### Стек
@@ -253,7 +291,7 @@ Node.js + Express (статика + небольшой JSON API), чистый H
 npm install
 npm start
 ```
-Откройте http://localhost:3000 (Node.js 18+). Тесты: `npm test`.
+Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию).
 
 **Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
 1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.
@@ -278,24 +316,31 @@ npm start
 | 3D Прогулка | Выход | `Esc` |
 | 3D | Открыть / закрыть дверцу, ящик | клик, в прогулке `E`; 🚪 — всё |
 | Мобильные | Ходьба / взгляд | джойстик / свайп |
+| Квартира | Планировка (двигать комнаты) | ✥, `Esc` — выход |
+| 3D | Включить / выключить лампы | `L` или 💡 |
+| 3D | День / закат / ночь, уровень отделки | кнопки HUD ☀ 🌇 🌙, Черновая / Предчистовая / Чистовая |
 
 ### Структура проекта
 ```
-server.js            Express: статика, каталог, шаблоны, заявки (+ файлы чертежей), API менеджера, текстуры (список / загрузка / сброс / ZIP)
-server/              validateOrder (проверка заявки), orderStore (очередь записи, лимит частоты)
+server.js            Express: статика, каталог, шаблоны, квартиры, дома, заявки (+ файлы чертежей), API менеджера, текстуры (список / загрузка / сброс / ZIP / библиотека)
+server/              validateOrder (проверка заявки), orderStore (очередь записи, лимит частоты), buildings (статусы квартир), textureFetch, zip
 orders/<id>/         чертежи заявок plan.png / 3d.jpg (не в git)
 .env.example         ADMIN_TOKEN для страницы менеджера (скопировать в .env)
 catalog.json         каталог мебели (типы, размеры по умолчанию, названия на 3 языках)
 templates.json       шаблоны комнат (советский дом / новостройка) и наборы квартир
+apartments.json      шаблоны квартир (хрущёвка / улучшенная / новостройка)
+buildings/           демо-дом для витрины; data/ — статусы квартир (не в git)
+scripts/             fetch-textures (npm run textures), gen-apartments, gen-building
 order.json           сохранённые заявки
 public/print.html    чертёж + спецификация для печати / PDF; public/admin.html — страница менеджера
-public/index.html    разметка
+public/index.html    разметка; building.html — витрина новостройки
 public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages, templates,
-                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin
-public/js/3d/        3D: scene3d, room3d, models3d, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
-public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото (не в git)
+                     snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin,
+                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d
+public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
+public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото, lib/ — скачанные наборы библиотеки (не в git)
 test/                модульные тесты (node:test): npm test
 ```
 

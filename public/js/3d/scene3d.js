@@ -21,6 +21,9 @@ let room = null;
 let lights = null;
 let furniture = null;
 let foundTimer = null;
+// Ambient occlusion (GTAO) in Photo mode: composer is loaded on first use, switched off when FPS drops.
+let quality = 'simple', aoWanted = false, composer = null, aoPass = null;
+let fpsTime = 0, fpsFrames = 0;
 
 function init(el) {
   container = el;
@@ -48,6 +51,8 @@ function init(el) {
   el.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => applyQuality(b.dataset.quality)));
   let saved = 'simple';
   try { saved = localStorage.getItem('fsp3d.quality') || 'simple'; } catch { /* ignore */ }
+  try { aoWanted = localStorage.getItem('fsp3d.ao') === '1'; } catch { /* ignore */ }
+  el.querySelector('#aoBtn').addEventListener('click', () => setAo(!aoWanted));
   if (saved !== 'simple') applyQuality(saved);
   // The texture panel changed the photo set: reload it and switch to Photo.
   document.addEventListener('fsp3d:textures', () => { resetPhoto(); applyQuality('photo'); });
@@ -80,6 +85,10 @@ function resize() {
   const w = container.clientWidth, h = container.clientHeight;
   if (!w || !h) return;
   renderer.setSize(w, h, false);
+  if (composer) {
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.setSize(w, h);
+  }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
@@ -87,7 +96,9 @@ function resize() {
 // Simple (procedural) / Photo (CC0) textures; the whole scene is rebuilt with new materials.
 async function applyQuality(q) {
   const ok = await setQuality(q);
+  quality = q;
   container.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === q));
+  syncAo();
   try { localStorage.setItem('fsp3d.quality', q); } catch { /* ignore */ }
   if (!ok) toast(t('v3d.photoFail'), true);
   roomKey = '';
@@ -154,13 +165,69 @@ function syncLightHud() {
   container.querySelector('#ceilSel').value = l.ceiling;
 }
 
+const aoActive = () => aoWanted && quality === 'photo' && composer;
+
+function syncAo() {
+  const btn = container.querySelector('#aoBtn');
+  btn.hidden = quality !== 'photo';
+  btn.classList.toggle('active', aoWanted);
+  if (aoWanted && quality === 'photo' && !composer) loadComposer();
+}
+
+async function loadComposer() {
+  try {
+    const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { OutputPass }] = await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/GTAOPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
+    if (composer) return;
+    const w = container.clientWidth || 1, h = container.clientHeight || 1;
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    aoPass = new GTAOPass(scene, camera, w, h);
+    aoPass.updateGtaoMaterial({ radius: 0.35, distanceFallOff: 1, thickness: 1, scale: 1 });
+    composer.addPass(aoPass);
+    composer.addPass(new OutputPass());
+    resize();
+  } catch {
+    aoWanted = false;
+    syncAo();
+  }
+}
+
+function setAo(on) {
+  aoWanted = on;
+  fpsTime = fpsFrames = 0;
+  try { localStorage.setItem('fsp3d.ao', on ? '1' : '0'); } catch { /* ignore */ }
+  syncAo();
+}
+
+function draw() {
+  if (aoActive()) composer.render();
+  else renderer.render(scene, camera);
+}
+
+// Average FPS over 2 s; AO is turned off when it is below 24.
+function watchFps(dt) {
+  if (!aoActive()) return;
+  fpsTime += dt;
+  fpsFrames++;
+  if (fpsTime < 2) return;
+  const fps = fpsFrames / fpsTime;
+  fpsTime = fpsFrames = 0;
+  if (fps < 24) {
+    setAo(false);
+    toast(t('v3d.aoSlow'));
+  }
+}
+
 function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.25);
   controls.update(dt);
   anim.update(dt);
-  renderer.render(scene, camera);
+  draw();
+  watchFps(dt);
 }
 
 export function show(el) {
@@ -183,14 +250,14 @@ export function snapshotCanvas() {
   const pr = renderer.getPixelRatio();
   renderer.setPixelRatio(2);
   resize();
-  renderer.render(scene, camera);
+  draw();
   const c = document.createElement('canvas');
   c.width = renderer.domElement.width;
   c.height = renderer.domElement.height;
   c.getContext('2d').drawImage(renderer.domElement, 0, 0);
   renderer.setPixelRatio(pr);
   resize();
-  renderer.render(scene, camera);
+  draw();
   return c;
 }
 

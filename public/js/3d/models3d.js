@@ -1,6 +1,8 @@
 // Procedural furniture models built from primitives and fitted exactly into w × d × h.
 // Local space: origin at the footprint centre on the floor, front faces +Z, metres.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { MORE_BUILDERS } from './models3dMore.js';
 import { furnitureMat } from './textures3d.js';
 import { rectOf } from '../geometry.js';
 import { itemLook } from '../materials.js';
@@ -117,6 +119,23 @@ function box(w, h, d, mat, x = 0, y = 0, z = 0) {
   return m;
 }
 
+// Box with rounded edges (soft furniture, sanitary ware, appliances); y = bottom.
+function rbox(w, h, d, mat, x = 0, y = 0, z = 0, r = 0.02) {
+  const rad = Math.max(0.001, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, rad), mat);
+  m.position.set(x, y + h / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+
+// Tapered round leg (wider at the top), y = bottom.
+function taper(rTop, rBottom, h, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, h, 14), mat);
+  m.position.set(x, y + h / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+
 function cyl(r, h, mat, x, y, z) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), mat);
   m.position.set(x, y + h / 2, z);
@@ -124,24 +143,11 @@ function cyl(r, h, mat, x, y, z) {
   return m;
 }
 
-// Rounded cushion (capsule-ish) for sofas and pillows.
+// Soft cushion: a well rounded box, slightly domed on top.
 function cushion(w, h, d, mat, x, y, z) {
-  const r = Math.min(w, h, d) * 0.35;
-  const g = new THREE.BoxGeometry(w - r, h, d - r, 1, 1, 1);
-  const m = new THREE.Mesh(g, mat);
-  m.position.set(x, y + h / 2, z);
-  const group = new THREE.Group();
-  group.add(m);
-  // Soft edges: capsules along the front and back edges.
-  for (const s of [-1, 1]) {
-    const c = new THREE.Mesh(new THREE.CapsuleGeometry(Math.min(r, h / 2), w - r * 2, 4, 12), mat);
-    c.rotation.z = Math.PI / 2;
-    c.position.set(x, y + h / 2, z + s * (d - r) / 2);
-    c.scale.set(1, 1, 1);
-    group.add(c);
-  }
-  group.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
-  return group;
+  const m = rbox(w, h, d, mat, x, y, z, Math.min(w, h, d) * 0.42);
+  m.scale.y = 1.06;
+  return m;
 }
 
 // ---------- builders: (w, d, h, color, status) → Group ----------
@@ -226,19 +232,28 @@ function sofa(w, d, h, c, s, seats) {
   const arm = Math.min(0.18, w * 0.12), backD = Math.min(0.22, d * 0.25);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const x = sx * (w / 2 - 0.06), z = sz * (d / 2 - 0.06);
-    g.add(leg(cyl(0.025, legH, dark, x, 0, z), x, z, legH, 0.05, c, s));
+    g.add(leg(taper(0.022, 0.014, legH, dark, x, 0, z), x, z, legH, 0.05, c, s));
   }
   const baseTop = legH + (seatH - legH) * 0.55;
-  g.add(box(w, baseTop - legH, d, fab, 0, legH, 0));                          // base
-  g.add(box(w - 2 * arm, h - baseTop, backD, fab, 0, baseTop, -d / 2 + backD / 2)); // back
+  g.add(rbox(w, baseTop - legH, d, fab, 0, legH, 0, 0.03));                          // base
+  g.add(rbox(w - 2 * arm + 0.04, h - baseTop, backD, fab, 0, baseTop, -d / 2 + backD / 2, 0.05)); // back
   const armH = Math.min(h, seatH + 0.2) - legH;
-  for (const sx of [-1, 1]) g.add(box(arm, armH, d, fab, sx * (w / 2 - arm / 2), legH, 0));
-  // Seat cushions.
+  for (const sx of [-1, 1]) g.add(rbox(arm, armH, d, fab, sx * (w / 2 - arm / 2), legH, 0, Math.min(0.06, arm * 0.4)));
+  // Seat cushions and leaning back cushions.
   const n = seats || (w - 2 * arm > 1.6 ? 3 : 2);
-  const cw = (w - 2 * arm) / n;
+  const cw = (w - 2 * arm) / n, sd = d - backD - 0.01;
+  const bh = Math.min(0.42, h - seatH - 0.02);
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + arm + cw / 2 + i * cw;
-    g.add(cushion(cw - 0.01, seatH - baseTop, d - backD - 0.01, fab, x, baseTop, backD / 2));
+    g.add(cushion(cw - 0.012, seatH - baseTop, sd, fab, x, baseTop, backD / 2));
+    if (bh > 0.15 && sd > 0.35) {
+      const b = cushion(cw - 0.03, bh, 0.16, fab, 0, -bh / 2, 0);
+      const piv = new THREE.Group();
+      piv.position.set(x, seatH + bh / 2 - 0.02, -d / 2 + backD + 0.07);
+      piv.rotation.x = -0.18;
+      piv.add(b);
+      g.add(piv);
+    }
   }
   return g;
 }
@@ -271,18 +286,22 @@ function bed(w, d, h, c, s) {
   const wood = fm('dark', c, s), soft = furnitureMat('soft', c, s), fab = fm('fabric', c, s);
   const frameH = Math.min(0.3, h * 0.55), matTop = Math.min(h - 0.02, frameH + 0.2);
   const head = Math.min(0.08, d * 0.06);
-  g.add(box(w, frameH, d - head, wood, 0, 0, head / 2));                    // frame
-  g.add(box(w, h, head, wood, 0, 0, -d / 2 + head / 2));                     // headboard (full height)
-  g.add(box(w - 0.04, matTop - frameH, d - head - 0.04, soft, 0, frameH, head / 2)); // mattress
+  g.add(rbox(w, frameH, d - head, wood, 0, 0, head / 2, 0.015));                    // frame
+  g.add(rbox(w, h, head, wood, 0, 0, -d / 2 + head / 2, 0.02));                      // headboard (full height)
+  if (h > matTop + 0.15) g.add(rbox(w - 0.08, h - matTop - 0.04, 0.05, fab, 0, matTop, -d / 2 + head + 0.025, 0.02));   // upholstered panel
+  g.add(rbox(w - 0.04, matTop - frameH, d - head - 0.04, soft, 0, frameH, head / 2, 0.06)); // mattress
   // Pillows.
   const pn = w > 1.2 ? 2 : 1, pw = (w - 0.12) / pn;
+  const ph = Math.min(0.12, Math.max(0.05, h - matTop));
   for (let i = 0; i < pn; i++) {
-    g.add(cushion(pw - 0.04, Math.min(0.1, h - matTop), 0.4, soft,
-      -w / 2 + 0.06 + pw / 2 + i * pw, matTop, -d / 2 + head + 0.25));
+    g.add(cushion(pw - 0.05, ph, 0.38, soft, -w / 2 + 0.06 + pw / 2 + i * pw, matTop - 0.01, -d / 2 + head + 0.24));
   }
-  // Blanket over the lower 60 %.
-  const bl = (d - head) * 0.6;
-  g.add(box(w - 0.02, 0.03, bl, fab, 0, matTop - 0.01, d / 2 - bl / 2 - 0.01));
+  // Duvet over the lower 65 % with its top edge folded back.
+  const bl = (d - head) * 0.65;
+  g.add(rbox(w + 0.02, 0.05, bl, fab, 0, matTop - 0.025, d / 2 - bl / 2 + 0.01, 0.022));
+  g.add(rbox(w + 0.02, 0.03, 0.2, soft, 0, matTop + 0.02, d / 2 - bl + 0.1, 0.014));
+  // The duvet hangs over the sides.
+  for (const sx of [-1, 1]) g.add(box(0.012, Math.max(0.02, matTop - frameH), bl, fab, sx * (w / 2 + 0.006), frameH + 0.02, d / 2 - bl / 2 + 0.01));
   return g;
 }
 
@@ -407,7 +426,8 @@ function kitchen(w, d, h, c, s) {
   const baseH = Math.min(0.86, h), plinth = 0.1, ct = 0.04;
   g.add(box(w, plinth, d - 0.06, dark, 0, 0, -0.03));
   g.add(box(w, baseH - plinth - ct, d - 0.04, body, 0, plinth, -0.02));
-  g.add(box(w, ct, d, counter, 0, baseH - ct, 0));
+  const sw = Math.min(0.5, w * 0.25), sd = d * 0.6;
+  g.add(slab(w, ct, d, counter, 0, baseH - ct, 0, { w: sw, d: sd, x: -w / 4, z: 0 }));
   const n = cfg.sections, dw = w / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + dw / 2 + i * dw;
@@ -419,8 +439,9 @@ function kitchen(w, d, h, c, s) {
     const left = i % 2 === 0;
     g.add(hinged(leaf, left ? x - dw / 2 + 0.003 : x + dw / 2 - 0.003, d / 2 - 0.029, left ? -1 : 1));
   }
-  g.add(box(Math.min(0.5, w * 0.25), 0.005, d * 0.6, metal, -w / 4, baseH, 0));   // sink
-  g.add(box(Math.min(0.58, w * 0.25), 0.006, d * 0.85, dark, w / 4, baseH, 0));   // hob
+  g.add(sinkBowl(sw, sd, -w / 4, baseH, 0, s));
+  g.add(tap(-w / 4, baseH, -d / 2 + 0.06, 0.28, s));
+  g.add(hob(Math.min(0.58, w * 0.25), d * 0.85, w / 4, baseH, 0, s));
   if (h > 1.6) {
     const bottom = Math.max(baseH + 0.55, h - 0.75), ud = Math.min(0.35, d);
     g.add(box(w, h - bottom, ud, body, 0, bottom, -d / 2 + ud / 2));
@@ -554,7 +575,65 @@ function sconce(w, d, h, c, s) {
   return g;
 }
 
+// ---- shared parts (also used by models3dMore.js) ----
+
+// Recessed bowl in a countertop / rim (sink, basin, bath): a hollow seen from above.
+function sinkBowl(w, d, x, y, z, s, depth = 0.16, mat = furnitureMat('chrome', '', s)) {
+  const g = new THREE.Group();
+  const cav = new THREE.Mesh(new RoundedBoxGeometry(w, depth, d, 3, Math.min(0.04, w / 4, d / 4)), mat.clone());
+  cav.material.side = THREE.BackSide;
+  cav.position.set(x, y - depth / 2 + 0.002, z);
+  cav.receiveShadow = true;
+  g.add(cav);
+  return g;
+}
+
+// Countertop slab (y = bottom) with an optional rectangular cut-out hole {w, d, x, z} for a bowl.
+function slab(w, t, d, mat, x, y, z, hole) {
+  if (!hole) return box(w, t, d, mat, x, y, z);
+  const g = new THREE.Group(), hx0 = hole.x - hole.w / 2, hx1 = hole.x + hole.w / 2;
+  const hz0 = hole.z - hole.d / 2, hz1 = hole.z + hole.d / 2;
+  g.add(box(hx0 + w / 2, t, d, mat, x + (-w / 2 + hx0) / 2, y, z));          // left of the hole
+  g.add(box(w / 2 - hx1, t, d, mat, x + (hx1 + w / 2) / 2, y, z));           // right of the hole
+  g.add(box(hole.w, t, hz0 + d / 2, mat, x + hole.x, y, z + (-d / 2 + hz0) / 2)); // behind
+  g.add(box(hole.w, t, d / 2 - hz1, mat, x + hole.x, y, z + (hz1 + d / 2) / 2));  // in front
+  return g;
+}
+
+// Mixer tap: a column with a curved spout towards +Z.
+function tap(x, y, z, h, s) {
+  const g = new THREE.Group(), ch = furnitureMat('chrome', '', s);
+  g.add(cyl(0.018, h * 0.6, ch, x, y, z));
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(h * 0.18, 0.011, 8, 16, Math.PI), ch);
+  arc.rotation.y = -Math.PI / 2;
+  arc.position.set(x, y + h * 0.6, z + h * 0.18);
+  g.add(arc);
+  g.add(box(0.012, 0.012, 0.07, ch, x, y + h * 0.42, z + 0.035));    // lever
+  return g;
+}
+
+// Glass-ceramic hob with four burner rings.
+function hob(w, d, x, y, z, s) {
+  const g = new THREE.Group();
+  g.add(box(w, 0.006, d, furnitureMat('screen', '', s), x, y, z));
+  const ring = furnitureMat('plain', '#4a4d52', s);
+  for (const [fx, fz, k] of [[-0.25, -0.22, 1], [0.25, -0.22, 0.75], [-0.25, 0.22, 0.75], [0.25, 0.22, 1]]) {
+    const r = Math.min(w, d) * 0.17 * k;
+    const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.004, 4, 32), ring);
+    t.rotation.x = Math.PI / 2;
+    t.position.set(x + fx * w, y + 0.007, z + fz * d);
+    g.add(t);
+  }
+  return g;
+}
+
+export const conf = () => cfg;
+export const style3d = () => sty;
+export { box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
+  wardrobe, drawers, wallcabinet, bed, sofa, table };
+
 const BUILDERS = {
+  ...MORE_BUILDERS,
   wardrobe, table, sofa, nightstand, bed, chair,
   armchair, dresser, shoerack, tvstand, bookshelf, coffeetable, desk, kitchen, fridge,
   wallcabinet, mezzanine, wallshelf, tvpanel, mirror, floorlamp, sconce

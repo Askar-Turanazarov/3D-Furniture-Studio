@@ -404,6 +404,15 @@ export function furnitureMat(kind, color, status = 'ok') {
     case 'gloss': m = new THREE.MeshStandardMaterial({ color, roughness: 0.1, metalness: 0.05 }); break;
     case 'brass': m = new THREE.MeshStandardMaterial({ color: '#b08d57', roughness: 0.35, metalness: 0.9 }); break;
     case 'black': m = new THREE.MeshStandardMaterial({ color: '#26272b', roughness: 0.5, metalness: 0.6 }); break;
+    // Sanitary ware and enamel: glossy clear coat over a soft base.
+    case 'ceramic': m = new THREE.MeshPhysicalMaterial({ color: color || '#f6f6f3', roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.06 }); break;
+    case 'chrome': m = new THREE.MeshStandardMaterial({ color: '#e8eaee', roughness: 0.12, metalness: 1 }); break;
+    // Clear glass: cheap transparency instead of transmission (keeps FPS).
+    case 'glass': m = new THREE.MeshPhysicalMaterial({ color: '#dfeef2', roughness: 0.05, metalness: 0, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }); break;
+    case 'leather': m = new THREE.MeshPhysicalMaterial({ ...maps(fab), color, roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 }); break;
+    case 'screen': m = new THREE.MeshPhysicalMaterial({ color: '#0b0c0f', roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.02 }); break;
+    case 'leaf': m = new THREE.MeshStandardMaterial({ color: color || '#4f7d45', roughness: 0.7, side: THREE.DoubleSide }); break;
+    case 'rug': m = new THREE.MeshStandardMaterial({ ...maps(fab), color, roughness: 1 }); break;
     default: m = new THREE.MeshStandardMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 0.9 });
   }
   const hl = HIGHLIGHT[status];

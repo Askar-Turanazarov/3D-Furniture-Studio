@@ -267,6 +267,11 @@ export const KITS = [
     { key: 'bs', type: 'basin', at: [rel('right', 'w', { gap: 5 }), rel('left', 'w', { gap: 5 }), wall(['any'], 'corner')] },
     { type: 'mirrorcab', at: [rel('above', 'bs')], fallback: false, optional: 0.8 },
     { type: 'boiler', at: [rel('above', 'w')], fallback: false, optional: 0.4 }
+  ] },
+  // a separate WC: only a toilet fits (the bigger kits need 170 × 200)
+  { id: 'bath-wc', purpose: 'bathroom', min: [100, 150], max: [160, 200], items: [
+    { type: 'toilet', at: [wall(['blank', 'any'], 'center')] },
+    { type: 'boiler', at: [wall(['blank', 'any'], 'center')], fallback: false, optional: 0.3 }
   ] }
 ];
 

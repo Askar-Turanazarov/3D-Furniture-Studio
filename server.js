@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 3000;
 const CATALOG = path.join(__dirname, 'catalog.json');
 const ORDERS = path.join(__dirname, 'order.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
+const APARTMENTS = path.join(__dirname, 'apartments.json');
 const ORDER_FILES = path.join(__dirname, 'orders');
 const { validateOrder } = require('./server/validateOrder');
 const { createStore, createRateLimit } = require('./server/orderStore');
@@ -41,6 +42,14 @@ app.get('/api/templates', async (req, res) => {
     res.type('json').send(await fs.readFile(TEMPLATES, 'utf8'));
   } catch (e) {
     res.status(500).json({ error: 'templates_unavailable' });
+  }
+});
+
+app.get('/api/apartments', async (req, res) => {
+  try {
+    res.type('json').send(await fs.readFile(APARTMENTS, 'utf8'));
+  } catch (e) {
+    res.status(500).json({ error: 'apartments_unavailable' });
   }
 });
 

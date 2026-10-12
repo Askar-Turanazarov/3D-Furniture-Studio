@@ -1,10 +1,11 @@
 // "Projects" dialog: open, create, rename, duplicate, delete, export / import a project file.
 import { t, getLang, onLangChange } from './i18n.js';
-import { loadTemplates, localName } from './templates.js';
+import { localName } from './templates.js';
+import { loadApartments, drawAptPlan } from './aptTemplates.js';
 import {
   listProjects, loadProject, saveProjectNow, deleteProject, cloneProject, exportProject, importProjects, flushSave
 } from './storage.js';
-import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderHeader, newProjectFromTemplates } from './projects.js';
+import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderHeader, newProjectFromApartment } from './projects.js';
 import { toast } from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -18,18 +19,33 @@ export function initProjectsDialog() {
     newProject();
     $('projectsDlg').close();
   });
-  $('aptList').addEventListener('click', async e => {
-    const b = e.target.closest('[data-apt]');
+  $('aptToggle').addEventListener('click', () => {
+    const open = $('aptPane').hidden;
+    $('aptPane').hidden = !open;
+    $('aptToggle').setAttribute('aria-expanded', open);
+    if (open) renderApartments();
+  });
+  $('aptSets').addEventListener('click', e => {
+    const b = e.target.closest('[data-set]');
     if (!b) return;
-    const d = await loadTemplates();
-    const apt = d.apartments.find(a => a.id === b.dataset.apt);
-    const name = localName(apt, getLang());
-    if (newProjectFromTemplates(name, apt.rooms.map(id => d.templates.find(x => x.id === id)))) {
+    aptSet = b.dataset.set;
+    try { localStorage.setItem('fsp3d.aptSet', aptSet); } catch { /* ignore */ }
+    renderApartments();
+  });
+  $('aptGrid').addEventListener('click', async e => {
+    const b = e.target.closest('[data-furnish]');
+    if (!b) return;
+    const d = await loadApartments();
+    const a = d.apartments.find(x => x.id === b.closest('[data-apt]').dataset.apt);
+    const lang = getLang();
+    const name = `${localName(a, lang)}, ${localName(d.sets.find(s => s.id === a.set), lang)}`;
+    if (newProjectFromApartment(a, name, b.dataset.furnish === '1')) {
       $('projectsDlg').close();
       toast(t('tpl.aptDone', { name }));
     }
   });
-  onLangChange(renderApartments);
+  try { aptSet = localStorage.getItem('fsp3d.aptSet'); } catch { /* ignore */ }
+  onLangChange(() => { if (!$('aptPane').hidden) renderApartments(); });
   $('projImport').addEventListener('click', () => $('projFile').click());
   $('projFile').addEventListener('change', async e => {
     const file = e.target.files[0];
@@ -60,24 +76,52 @@ function show() {
   persist();
   flushSave();
   render();
-  renderApartments();
+  if (!$('aptPane').hidden) renderApartments();
   if (!$('projectsDlg').open) $('projectsDlg').showModal();
 }
 
+// Gallery of apartment templates by set: mini plan, rooms, m², "Empty" / "Furnished".
+let aptSet = null;
 function renderApartments() {
-  loadTemplates().then(d => {
+  loadApartments().then(d => {
     const lang = getLang();
-    $('aptList').replaceChildren(...d.apartments.map(a => {
+    if (!d.sets.some(s => s.id === aptSet)) aptSet = d.sets[0].id;
+    $('aptSets').replaceChildren(...d.sets.map(s => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'btn';
-      b.dataset.apt = a.id;
-      b.textContent = '🏠 ' + localName(a, lang);
-      b.title = a.rooms.map(id => localName(d.templates.find(x => x.id === id), lang)).join(' + ');
+      b.dataset.set = s.id;
+      b.textContent = localName(s, lang);
+      b.classList.toggle('active', s.id === aptSet);
       return b;
     }));
-    $('aptRow').hidden = false;
-  }).catch(() => { $('aptRow').hidden = true; });
+    $('aptNote').textContent = d.sets.find(s => s.id === aptSet).note?.[lang] || '';
+    const list = d.apartments.filter(a => a.set === aptSet);
+    const num = new Intl.NumberFormat(LOCALE[lang] || 'en-GB', { maximumFractionDigits: 1 });
+    $('aptGrid').replaceChildren(...list.map(a => {
+      const card = document.createElement('div');
+      card.className = 'tpl-card apt-card';
+      card.dataset.apt = a.id;
+      const c = document.createElement('canvas');
+      const b = document.createElement('b');
+      b.textContent = `${localName(a, lang)} · ${num.format(a.total)} ${t('unit.m2')}`;
+      const small = document.createElement('small');
+      small.textContent = [t('apt.spaces', { n: a.plan.length }), a.series].filter(Boolean).join(' · ');
+      const acts = document.createElement('div');
+      acts.className = 'apt-acts';
+      for (const [f, key] of [['0', 'apt.empty'], ['1', 'apt.furnished']]) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn' + (f === '1' ? ' accent' : '');
+        btn.dataset.furnish = f;
+        btn.textContent = (f === '1' ? '🎲 ' : '') + t(key);
+        acts.append(btn);
+      }
+      card.append(c, b, small, acts);
+      return card;
+    }));
+    requestAnimationFrame(() => $('aptGrid').querySelectorAll('[data-apt]').forEach(card =>
+      drawAptPlan(card.querySelector('canvas'), list.find(x => x.id === card.dataset.apt))));
+  }).catch(() => { $('aptGrid').textContent = t('apt.loadError'); });
 }
 
 // The open project is edited in memory (persist() would overwrite a loaded copy).

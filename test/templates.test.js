@@ -37,13 +37,6 @@ for (const t of data.templates) {
   });
 }
 
-test('apartments reference existing templates of their set', () => {
-  for (const a of data.apartments) {
-    assert.ok(a.rooms.length >= 2, a.id);
-    for (const id of a.rooms) assert.equal(data.templates.find(t => t.id === id)?.set, a.set, `${a.id} → ${id}`);
-  }
-});
-
 test('templateDoc: fresh ids and seq counters, template untouched', () => {
   const t = data.templates.find(x => x.id === 'sov-kitchen');
   const before = JSON.stringify(t);

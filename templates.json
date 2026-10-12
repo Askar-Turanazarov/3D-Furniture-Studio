@@ -28,36 +28,6 @@
    }
   }
  ],
- "apartments": [
-  {
-   "id": "sov-2room",
-   "set": "soviet",
-   "name": {
-    "ru": "2-комнатная (сов.)",
-    "uz": "2 xonali (sovet)",
-    "en": "2-room (Soviet)"
-   },
-   "rooms": [
-    "sov-living",
-    "sov-bedroom",
-    "sov-kitchen"
-   ]
-  },
-  {
-   "id": "nb-3room",
-   "set": "newbuild",
-   "name": {
-    "ru": "3-комнатная (новостройка)",
-    "uz": "3 xonali (yangi bino)",
-    "en": "3-room (new build)"
-   },
-   "rooms": [
-    "nb-kitchen-living",
-    "nb-master",
-    "nb-kids"
-   ]
-  }
- ],
  "templates": [
   {
    "id": "sov-bedroom",

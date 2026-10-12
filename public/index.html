@@ -415,11 +415,13 @@
     <div class="btn-row">
       <button type="button" class="btn accent" id="projNew">+ <span data-i18n="proj.new">Новый проект</span></button>
       <button type="button" class="btn" id="projImport">⬆ <span data-i18n="proj.import">Импорт из файла</span></button>
+      <button type="button" class="btn" id="aptToggle" aria-expanded="false">🏠 <span data-i18n="apt.tplOpen">Квартира из шаблона</span></button>
       <input type="file" id="projFile" accept=".json,application/json" hidden>
     </div>
-    <div class="apt-row" id="aptRow" hidden>
-      <span data-i18n="tpl.aptTitle">Новый проект из шаблона квартиры:</span>
-      <span class="apt-list" id="aptList"></span>
+    <div id="aptPane" hidden>
+      <div class="seg" id="aptSets"></div>
+      <p class="hint" id="aptNote"></p>
+      <div class="tpl-grid apt-grid" id="aptGrid"></div>
     </div>
     <p class="hint" data-i18n="proj.hint">Проекты хранятся в этом браузере. Экспорт в файл — резервная копия и перенос на другое устройство.</p>
     <div class="proj-grid" id="projGrid"></div>

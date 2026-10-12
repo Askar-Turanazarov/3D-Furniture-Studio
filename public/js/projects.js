@@ -12,6 +12,8 @@ import { resetView, drawPlanTo, liveRooms } from './renderer.js';
 import { resetRuler } from './interaction.js';
 import { t, getLang, onLangChange } from './i18n.js';
 import { loadTemplates, templateDoc, localName, sizeLabel, drawMiniPlan } from './templates.js';
+import { aptRooms, furnishRooms } from './aptTemplates.js';
+import { DEFAULT_SETTINGS } from './storage.js';
 import { toast, syncForms } from './ui.js';
 import { openCompare } from './compare.js';
 
@@ -115,11 +117,12 @@ function addRoomFromTemplate(tpl, name) {
   insertRoom(makeRoom(name, templateDoc(tpl, { plinth: state.room.plinth }), { purpose: tpl.purpose }));
 }
 
-// A whole apartment from room templates (put in a row until the apartment templates).
-export function newProjectFromTemplates(name, tpls) {
-  const lang = getLang();
-  const rooms = tpls.map(tp => makeRoom(localName(tp, lang), templateDoc(tp), { purpose: tp.purpose }));
-  const p = makeProject(name, rooms);
+// A whole apartment from an apartment template (apartments.json), empty or furnished by the kits.
+export function newProjectFromApartment(a, name, furnished) {
+  const rooms = aptRooms(a, getLang());
+  if (furnished) furnishRooms({ rooms, settings: DEFAULT_SETTINGS, catalog: state.catalog }, { seed: Math.floor(Math.random() * 2 ** 31) });
+  const main = rooms.find(r => ['living', 'kitchenLiving'].includes(r.purpose)) || rooms[0];
+  const p = makeProject(name, rooms, { activeRoomId: main.id });
   if (!saveProjectNow(p)) return false;
   openProject(p);
   return true;

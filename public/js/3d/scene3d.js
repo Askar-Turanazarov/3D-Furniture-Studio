@@ -4,7 +4,8 @@ import { t, onLangChange } from '../i18n.js';
 import { state, onChange, emit } from '../state.js';
 import { buildRoom, disposeGroup } from './room3d.js';
 import { buildObstacles } from './obstacles3d.js';
-import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS } from './lights3d.js';
+import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights } from './lights3d.js';
+import { lampsOn } from '../lighting.js';
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
@@ -64,9 +65,16 @@ function init(el) {
   share.addEventListener('click', () => savePicture(compose(snapshotCanvas()), true));
   // Light: time of day and ceiling fixture are part of the room (saved, undoable).
   el.querySelectorAll('[data-light]').forEach(b => b.addEventListener('click', () => {
-    state.lighting = { ...lightingOf(state.lighting), scene: b.dataset.light };
+    state.lighting = { ...lightingOf(state.lighting), scene: b.dataset.light, lampsOn: null };   // the scene decides the lamps again
     emit();
   }));
+  // 💡 / L: lamps on or off over the scene default.
+  el.querySelector('#lampBtn').addEventListener('click', toggleLamps);
+  window.addEventListener('keydown', e => {
+    if (e.code !== 'KeyL' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !el.offsetParent
+      || e.target.closest?.('input, textarea, select')) return;
+    toggleLamps();
+  });
   el.querySelectorAll('[data-finish]').forEach(b => b.addEventListener('click', () => {
     state.style = { ...styleOf(state.style), finish: b.dataset.finish };
     emit();
@@ -128,15 +136,19 @@ function rebuild() {
     scene.add(room.group);
     lightKey = '';
   }
-  const lk = JSON.stringify(lightingOf(state.lighting));
+  // Lights are rebuilt only for a new room or fixture type; scene and 💡 changes are tweened.
+  const lk = lightingOf(state.lighting).ceiling;
   if (lk !== lightKey) {
     lightKey = lk;
+    const prev = lights?.userData.cur;
     if (lights) disposeGroup(lights);
-    lights = buildLights(room.size, room.windows[0] || null, state.lighting);
-    scene.environmentIntensity = lights.userData.env;
+    lights = buildLights(room.size, room.windows[0] || null, state.lighting, prev);
     scene.add(lights);
-    syncLightHud();
+  } else {
+    setLightTargets(lights, state.lighting);
   }
+  scene.environmentIntensity = lights.userData.cur.env;
+  syncLightHud();
   controls.setRoom(room, roomChanged);
   buildFurniture();
 }
@@ -153,7 +165,7 @@ function buildFurniture() {
     const status = (errors.get(it.id) || []).length ? 'bad' : found && found.id === it.id ? 'found' : 'ok';
     furniture.add(buildItem(it, status, state.materials, state.style, state.catalog));
   }
-  applyFixtures(furniture, state.lighting);
+  applyFixtures(furniture, lights.userData.cur.fix);
   anim.attach(furniture, room);
   scene.add(furniture);
   clearTimeout(foundTimer);
@@ -166,9 +178,15 @@ function fillCeilSel() {
   syncLightHud();
 }
 
+function toggleLamps() {
+  state.lighting = { ...lightingOf(state.lighting), lampsOn: !lampsOn(state.lighting) };
+  emit();
+}
+
 function syncLightHud() {
   const l = lightingOf(state.lighting);
   container.querySelectorAll('[data-light]').forEach(b => b.classList.toggle('active', b.dataset.light === l.scene));
+  container.querySelector('#lampBtn').classList.toggle('active', lampsOn(l));
   container.querySelector('#ceilSel').value = l.ceiling;
 }
 
@@ -233,6 +251,10 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.25);
   controls.update(dt);
   anim.update(dt);
+  if (lights && tweenLights(lights, dt)) {
+    scene.environmentIntensity = lights.userData.cur.env;
+    if (furniture) applyFixtures(furniture, lights.userData.cur.fix);
+  }
   draw();
   watchFps(dt);
 }

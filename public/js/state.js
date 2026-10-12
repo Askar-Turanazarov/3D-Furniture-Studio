@@ -5,6 +5,7 @@ import { getLang } from './i18n.js';
 import { newOpening, clampOpening, doorSwingRect } from './openings.js';
 import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 import { styleOf } from './style.js';
+import { DEFAULT_LIGHTING } from './lighting.js';
 
 export const state = {
   room: { L: 400, W: 300, H: 270, plinth: 2 },
@@ -28,7 +29,6 @@ export const state = {
   found: null         // { id, until } — green highlight after auto-place
 };
 
-const DEFAULT_LIGHTING = { scene: 'day', ceiling: 'chandelier' };
 
 const listeners = new Set();
 export function onChange(fn) { listeners.add(fn); }

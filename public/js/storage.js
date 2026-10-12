@@ -5,6 +5,7 @@
 //   fsp3d.plan.v1          — old single-room plan; migrated once and kept as a spare copy
 // roomDoc = { id, name, purpose, versionOf, room, settings, items, seq, openings, openingsLocked, opSeq, obstacles, obSeq, lighting, style }
 import { styleOf } from './style.js';
+import { DEFAULT_LIGHTING } from './lighting.js';
 
 const V1 = 'fsp3d.plan.v1';
 const INDEX = 'fsp3d.projects.v2';
@@ -13,7 +14,6 @@ const projectKey = id => 'fsp3d.project.' + id;
 
 const DEFAULT_ROOM = { L: 400, W: 300, H: 270, plinth: 2 };
 const DEFAULT_SETTINGS = { snap: 5, gap: 3, grid: 10, showZones: 'selected', minPassage: 60, showPassages: true };
-const DEFAULT_LIGHTING = { scene: 'day', ceiling: 'chandelier' };
 
 let timer = null, pending = null;
 let onError = () => {};

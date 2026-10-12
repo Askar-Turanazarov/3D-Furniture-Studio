@@ -343,9 +343,8 @@ async function loadLib(id) {
   if (!entry) return null;
   const loader = new THREE.TextureLoader(), rep = 1 / (entry.tile || 1);
   const load = async (file, srgb) => {
-    let t;
-    try { t = await loader.loadAsync(`/textures/sets/${id}/${file}.jpg`); }
-    catch { t = await loader.loadAsync(`/textures/lib/${id}/${file}.jpg`); }   // downloaded on demand
+    // Bundled sets are in the repository, the others are downloaded on demand into lib/.
+    const t = await loader.loadAsync(`/textures/${entry.bundled ? 'sets' : 'lib'}/${id}/${file}.jpg`);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;

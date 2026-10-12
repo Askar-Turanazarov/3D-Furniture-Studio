@@ -1,6 +1,7 @@
 // Room finish and furniture style (roomDoc.style). Pure: used by the state, storage, 3D and tests.
 // style = { wall: { material, color }, accentWall: null | 'north'|'east'|'south'|'west', accentColor,
-//           floor, furniture: 'modern'|'classic'|'loft', finish: 'finished'|'prefinish'|'rough' };
+//           floor, furniture: 'modern'|'classic'|'loft', finish: 'finished'|'prefinish'|'rough',
+//           tex?: { floor, wall, roughFloor, roughWall, preWall } — library set ids chosen in the texture panel };
 // item.style overrides the furniture style.
 export const WALL_MATS = ['paint', 'wallpaper', 'brick', 'panels', 'plaster', 'concrete', 'tileBath'];
 export const FLOORS = ['parquet', 'laminate', 'tile', 'carpet', 'herringbone', 'parquetDark', 'marble'];
@@ -21,6 +22,15 @@ export const DEFAULT_STYLE = {
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const pick = (v, list, def) => list.includes(v) ? v : def;
+// Library slots a texture set can take over (Photo quality); the style value stays the procedural fallback.
+export const TEX_SLOTS = ['floor', 'wall', 'roughFloor', 'roughWall', 'preWall'];
+const SET_ID = /^[a-zA-Z0-9]{1,40}$/;
+
+function texOf(t) {
+  const out = {};
+  for (const k of TEX_SLOTS) if (SET_ID.test(t?.[k] || '')) out[k] = t[k];
+  return out;
+}
 
 // Any saved / imported style → a complete valid one.
 export function styleOf(s = {}) {
@@ -31,7 +41,8 @@ export function styleOf(s = {}) {
     accentColor: HEX.test(s?.accentColor) ? s.accentColor : d.accentColor,
     floor: pick(s?.floor, FLOORS, d.floor),
     furniture: pick(s?.furniture, FURN_STYLES, d.furniture),
-    finish: pick(s?.finish, FINISHES, d.finish)
+    finish: pick(s?.finish, FINISHES, d.finish),
+    ...(Object.keys(texOf(s?.tex)).length ? { tex: texOf(s.tex) } : {})
   };
 }
 
@@ -48,15 +59,18 @@ const WALL_SET = { paint: null, wallpaper: null, panels: null, brick: 'brick', p
  * floor / wall — style values (procedural look); floorSet / wallSet — library ids for Photo quality (null = base set).
  */
 export function surfacesOf(style) {
-  const s = styleOf(style);
+  const s = styleOf(style), tex = s.tex || {};
   if (s.finish === 'rough') {
-    return { floor: 'screed', wall: 'blocks', accent: false, wallColor: '#b9b4ad', floorSet: 'screed', wallSet: 'blocks',
+    return { floor: 'screed', wall: 'blocks', accent: false, wallColor: '#b9b4ad',
+      floorSet: tex.roughFloor || 'screed', wallSet: tex.roughWall || 'blocks',
       ceiling: 'concrete', plinth: false, doorLeaves: false };
   }
   if (s.finish === 'prefinish') {
-    return { floor: 'screed', wall: 'putty', accent: false, wallColor: '#f4f2ee', floorSet: 'screed', wallSet: 'putty',
+    return { floor: 'screed', wall: 'putty', accent: false, wallColor: '#f4f2ee',
+      floorSet: tex.roughFloor || 'screed', wallSet: tex.preWall || 'putty',
       ceiling: 'white', plinth: false, doorLeaves: true };
   }
   return { floor: s.floor, wall: s.wall.material, accent: !!s.accentWall, wallColor: s.wall.color,
-    floorSet: FLOOR_SET[s.floor], wallSet: WALL_SET[s.wall.material], ceiling: 'white', plinth: true, doorLeaves: true };
+    floorSet: tex.floor || FLOOR_SET[s.floor], wallSet: tex.wall || WALL_SET[s.wall.material],
+    ceiling: 'white', plinth: true, doorLeaves: true };
 }

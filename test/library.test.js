@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import { styleOf, surfacesOf, FLOORS, WALL_MATS, FINISHES } from '../public/js/style.js';
+import { styleOf, surfacesOf, FLOORS, WALL_MATS, FINISHES, TEX_SLOTS } from '../public/js/style.js';
 
 const root = new URL('../public/textures/', import.meta.url);
 const library = JSON.parse(readFileSync(new URL('library.json', root), 'utf8'));
@@ -19,8 +19,11 @@ test('library entries are complete and unique', () => {
     if (e.style?.floor) assert.ok(FLOORS.includes(e.style.floor), e.id);
     if (e.style?.wall) assert.ok(WALL_MATS.includes(e.style.wall), e.id);
     if (e.style?.finish) assert.ok(FINISHES.includes(e.style.finish), e.id);
+    if (e.kind === 'rough') assert.ok(TEX_SLOTS.includes(e.slot), e.id + ' slot');
+    if (!e.bundled) assert.ok(e.mb > 0, e.id + ' mb');
   }
   assert.ok(library.filter(e => e.bundled).length >= 14);
+  assert.ok(library.length >= 40);
 });
 
 test('bundled sets have their three maps in the repository', () => {

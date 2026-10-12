@@ -19,6 +19,8 @@ const TEMPLATES = path.join(__dirname, 'templates.json');
 const ORDER_FILES = path.join(__dirname, 'orders');
 const { validateOrder } = require('./server/validateOrder');
 const { createStore, createRateLimit } = require('./server/orderStore');
+const { writeZip } = require('./server/zip');
+const { fetchSet, libraryStatus } = require('./server/textureFetch');
 const store = createStore(ORDERS);
 const orderLimit = createRateLimit({ max: 5, windowMs: 10 * 60 * 1000 });
 
@@ -162,40 +164,6 @@ app.delete('/api/texture/:set', async (req, res) => {
 });
 
 // The whole built-in set as a ZIP (stored, no compression: JPEGs are already compressed).
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-function zip(files) {
-  const parts = [], central = [];
-  let offset = 0;
-  for (const { name, data } of files) {
-    const n = Buffer.from(name), crc = crc32(data);
-    const head = Buffer.alloc(30);
-    head.writeUInt32LE(0x04034b50, 0); head.writeUInt16LE(20, 4);
-    head.writeUInt32LE(crc, 14); head.writeUInt32LE(data.length, 18); head.writeUInt32LE(data.length, 22);
-    head.writeUInt16LE(n.length, 26);
-    const cd = Buffer.alloc(46);
-    cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6);
-    cd.writeUInt32LE(crc, 16); cd.writeUInt32LE(data.length, 20); cd.writeUInt32LE(data.length, 24);
-    cd.writeUInt16LE(n.length, 28); cd.writeUInt32LE(offset, 42);
-    parts.push(head, n, data);
-    central.push(cd, n);
-    offset += 30 + n.length + data.length;
-  }
-  const cdBuf = Buffer.concat(central);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10);
-  end.writeUInt32LE(cdBuf.length, 12); end.writeUInt32LE(offset, 16);
-  return Buffer.concat([...parts, cdBuf, end]);
-}
-
 let packCache = null;
 app.get('/api/textures/pack.zip', async (req, res) => {
   try {
@@ -204,11 +172,25 @@ app.get('/api/textures/pack.zip', async (req, res) => {
       for (const s of SETS) for (const m of MAPS) {
         files.push({ name: `furniture-textures-cc0/${s}/${m}.jpg`, data: await fs.readFile(path.join(TEXTURES, s, `${m}.jpg`)) });
       }
-      packCache = zip(files);
+      packCache = writeZip(files);
     }
     res.attachment('furniture-textures-cc0.zip').type('zip').send(packCache);
   } catch {
     res.status(404).json({ error: 'pack_unavailable' });
+  }
+});
+
+// Texture library: which sets are on disk; download a whitelisted set from ambientCG on demand.
+app.get('/api/textures/library', async (req, res) => {
+  try { res.json(await libraryStatus()); } catch { res.status(500).json({ error: 'library_failed' }); }
+});
+
+app.post('/api/textures/fetch/:id', async (req, res) => {
+  try {
+    await fetchSet(String(req.params.id));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(e.status || 502).json({ error: e.status === 404 ? 'unknown_set' : e.status === 429 ? 'busy' : 'download_failed' });
   }
 });
 

@@ -36,6 +36,10 @@ export function initStylePanel() {
       furniture: f.furniture.value,
       finish: f.finish.value
     };
+    const tex = { ...s.tex };
+    if (e.target === f.floor) delete tex.floor;
+    if (e.target === f.wallMat) delete tex.wall;
+    if (s.tex) state.style.tex = tex;
     syncStylePanel();
     emit();
   });

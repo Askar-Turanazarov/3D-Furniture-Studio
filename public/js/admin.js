@@ -157,7 +157,8 @@ async function openCard(id) {
       el('dt', { textContent: t('order.comment') }), el('dd', { textContent: o.comment || '—' })),
     el('div', { className: 'adm-pics', id: 'admPics' }),
     ...rooms.flatMap(r => [
-      el('h3', { textContent: [r.name, r.room && `${r.room.L}×${r.room.W}×${r.room.H} ${t('unit.cm')}`].filter(Boolean).join(' · ') }),
+      el('h3', { textContent: [r.name, r.room && `${r.room.L}×${r.room.W}×${r.room.H} ${t('unit.cm')}`,
+        r.pos && `x ${r.pos.x} · y ${r.pos.y} ${t('unit.cm')}`].filter(Boolean).join(' · ') }),
       spec(r.items || [])
     ]),
     el('h3', { textContent: t('adm.note') }), note,

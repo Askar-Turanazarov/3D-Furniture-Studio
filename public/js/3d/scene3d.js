@@ -78,8 +78,11 @@ function init(el) {
       || e.target.closest?.('input, textarea, select')) return;
     toggleLamps();
   });
+  // The finish level is the whole apartment's (it is handed over rough, white box or finished), not one room's.
   el.querySelectorAll('[data-finish]').forEach(b => b.addEventListener('click', () => {
-    state.style = { ...styleOf(state.style), finish: b.dataset.finish };
+    const finish = b.dataset.finish;
+    state.style = { ...styleOf(state.style), finish };
+    for (const r of state.rooms) if (r.id !== state.activeRoomId) r.style = { ...styleOf(r.style), finish };
     emit();
   }));
   // A photo-library set has arrived: rebuild the shell and furniture with it.

@@ -348,7 +348,9 @@ async function loadLib(id) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
-    t.repeat.set(rep, rep);
+    // Non-square images (e.g. 1024×512) keep their aspect: one copy is tile × tile·h/w metres.
+    const { width: w = 1, height: h = 1 } = t.image || {};
+    t.repeat.set(rep, rep * w / h);
     return t;
   };
   try {

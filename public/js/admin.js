@@ -67,7 +67,9 @@ async function load() {
   renderList();
 }
 
-const roomLabel = o => [o.project?.name, o.rooms?.length > 1 ? t('adm.rooms', { n: o.rooms.length }) : o.rooms?.[0]?.name ?? o.roomName]
+const APT_STATUSES = ['free', 'booked', 'sold'];
+const aptLabel = r => '🏢 ' + t('adm.aptRef', { building: r.building, floor: r.floor, apt: r.apt });
+const roomLabel = o => o.apartmentRef ? aptLabel(o.apartmentRef) : [o.project?.name, o.rooms?.length > 1 ? t('adm.rooms', { n: o.rooms.length }) : o.rooms?.[0]?.name ?? o.roomName]
   .filter(Boolean).join(' / ');
 
 function statusSelect(o) {
@@ -82,7 +84,7 @@ function statusSelect(o) {
 function renderList() {
   const f = $('admFilter').value, q = $('admSearch').value.trim().toLowerCase();
   const rows = orders.filter(o => (!f || (o.status || 'new') === f)
-    && (!q || [o.id, o.name, o.phone, o.project?.name, o.roomName, ...(o.rooms || []).map(r => r.name), o.comment].join(' ').toLowerCase().includes(q)));
+    && (!q || [o.id, o.name, o.phone, o.project?.name, o.roomName, o.apartmentRef && aptLabel(o.apartmentRef), ...(o.rooms || []).map(r => r.name), o.comment].join(' ').toLowerCase().includes(q)));
   $('admRows').replaceChildren(...rows.map(o => {
     const tr = el('tr', { className: 'st-' + (o.status || 'new') },
       el('td', { textContent: o.id }),
@@ -109,6 +111,28 @@ async function patch(id, body) {
   } catch (e) {
     if (e.message !== 'auth') toast(t('adm.saveFail'), true);
   }
+}
+
+// Status of the requested apartment in the showcase (current one from the public building data).
+function aptStatus(ref) {
+  const s = el('select', { ariaLabel: t('adm.aptStatus'), disabled: true },
+    ...APT_STATUSES.map(v => el('option', { value: v, textContent: t('bld.st.' + v) })));
+  fetch('/api/buildings/' + encodeURIComponent(ref.building)).then(r => (r.ok ? r.json() : null)).then(b => {
+    const a = b?.floorsData.flatMap(f => f.apartments).find(x => x.no === ref.apt);
+    if (!a) return;
+    s.value = a.status;
+    s.disabled = false;
+  }).catch(() => {});
+  s.addEventListener('change', async () => {
+    try {
+      await api(`/api/buildings/${encodeURIComponent(ref.building)}/apartments/${ref.apt}`,
+        { method: 'PATCH', body: JSON.stringify({ status: s.value }) });
+      toast(t('adm.aptSaved'));
+    } catch (e) {
+      if (e.message !== 'auth') toast(t('adm.saveFail'), true);
+    }
+  });
+  return s;
 }
 
 // Picture of an order through the token → blob URL (freed when the card closes).
@@ -152,11 +176,16 @@ async function openCard(id) {
       el('dt', { textContent: t('order.phone') }),
       el('dd', {}, el('a', { href: 'tel:' + String(o.phone).replace(/[^\d+]/g, ''), textContent: o.phone })),
       el('dt', { textContent: t('adm.room') }), el('dd', { textContent: roomLabel(o) }),
+      ...(o.apartmentRef ? [
+        el('dt', { textContent: t('adm.apartment') }),
+        el('dd', { textContent: [o.apartment && t('bld.type.' + o.apartment.type), o.apartment && `${o.apartment.area} ${t('unit.m2')}`,
+          o.apartment && sum(o.apartment.price)].filter(Boolean).join(' · ') || '—' }),
+        el('dt', { textContent: t('adm.aptStatus') }), el('dd', {}, aptStatus(o.apartmentRef))] : []),
       el('dt', { textContent: t('adm.sum') }), el('dd', { textContent: o.estimate ? t('price.from', { sum: sum(o.estimate) }) : '—' }),
       el('dt', { textContent: t('adm.status') }), el('dd', {}, statusSelect(o)),
       el('dt', { textContent: t('order.comment') }), el('dd', { textContent: o.comment || '—' })),
     el('div', { className: 'adm-pics', id: 'admPics' }),
-    ...rooms.flatMap(r => [
+    ...(o.apartmentRef && !o.rooms?.length && !o.room ? [] : rooms).flatMap(r => [
       el('h3', { textContent: [r.name, r.room && `${r.room.L}×${r.room.W}×${r.room.H} ${t('unit.cm')}`,
         r.pos && `x ${r.pos.x} · y ${r.pos.y} ${t('unit.cm')}`].filter(Boolean).join(' · ') }),
       spec(r.items || [])

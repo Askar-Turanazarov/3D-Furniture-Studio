@@ -3,7 +3,7 @@ import { state, onChange, emit, itemName, docFromState, applyDoc } from './state
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
 import { parseCatalog } from './catalog.js';
-import { initProjects, persist, renderHeader } from './projects.js';
+import { initProjects, persist, renderHeader, openHandoff } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initFurnish } from './furnishUi.js';
 import { initOrder } from './order.js';
@@ -195,6 +195,7 @@ async function start() {
   initSnapshot();
   await loadCatalog();
   initProjects();
+  openHandoff();
   initProjectsDialog();
   initFurnish();
   fillCatalog();

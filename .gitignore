@@ -10,3 +10,4 @@ orders/
 .env
 CLAUDE.md
 public/textures/lib/
+data/

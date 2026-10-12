@@ -458,3 +458,54 @@ dialog.compare-dlg { width: min(1100px, 96vw); }
 .cmp-info.bad { color: #c92a2a; }
 @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+/* ---------- new-building showcase (building.html) ---------- */
+.bld { flex: 1; display: grid; grid-template-columns: 340px 1fr; gap: 12px; padding: 12px; min-height: 0; overflow: auto; }
+.bld .card { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; }
+.bld h2 { font-size: 15px; margin: 0 0 10px; }
+.bld-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.bld-f-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.bld-f-row input, .bld-range input { font: inherit; width: 84px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; }
+.bld-range { display: inline-flex; align-items: center; gap: 4px; }
+.bld-check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.bld-filters .seg button { padding: 4px 9px; }
+.bld-facade { display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 8px 8px 2px 2px;
+  background: linear-gradient(#dee2e6, #ced4da); border: 1px solid #adb5bd; }
+.bld-floor { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 5px; cursor: pointer; }
+.bld-floor:hover { background: rgba(255,255,255,.55); }
+.bld-floor.active { background: #fff; box-shadow: 0 0 0 2px var(--primary); }
+.bld-fl-n { font-weight: 600; font-size: 12px; text-align: right; color: #495057; }
+.bld-cells { display: flex; gap: 4px; min-width: 0; }
+.bld-band { display: flex; gap: 2px; flex: 1; min-width: 0; }
+.bld-cell { height: 16px; min-width: 4px; border-radius: 2px; border: 1px solid rgba(0,0,0,.18); }
+.bld-cell.dim { opacity: .25; }
+.bld-cell.st-free { background: #b2f2bb; } .bld-cell.st-booked { background: #ffd8a8; } .bld-cell.st-sold { background: #dee2e6; }
+.bld-lobby { font-size: 11px; color: #495057; padding: 1px 4px; background: #e7f5ff; border-radius: 3px; flex: 1; }
+.bld-cnt { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.bld-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.bld-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -2px; border: 1px solid rgba(0,0,0,.15); }
+.bld-main { min-width: 0; display: flex; flex-direction: column; }
+.bld-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.bld-head h2 { margin: 0; min-width: 80px; text-align: center; }
+.bld-spacer { flex: 1; }
+.bld-plan-wrap { position: relative; width: 100%; }
+.bld-plan-wrap canvas { display: block; width: 100%; touch-action: manipulation; }
+.bld-tip { position: absolute; pointer-events: none; background: #1e2235; color: #fff; padding: 7px 10px; border-radius: 8px;
+  font-size: 12px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow); z-index: 2; white-space: nowrap; }
+.bld-st { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; width: fit-content; }
+.bld-st.st-free { background: #d3f9d8; color: #2b8a3e; } .bld-st.st-booked { background: #ffe8cc; color: #d9480f; } .bld-st.st-sold { background: #e9ecef; color: #495057; }
+dialog.bld-dlg { width: min(940px, 96vw); max-height: 94vh; overflow: auto; }
+.bld-card { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.bld-card canvas { width: 100%; display: block; }
+.bld-meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 10px; }
+.bld-meta dt { color: var(--muted); }
+.bld-meta dd { margin: 0; font-weight: 600; }
+.bld-rooms { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+.bld-rooms td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.bld-rooms td.num { text-align: right; white-space: nowrap; color: var(--muted); }
+.bld-info .btn-row { flex-direction: column; }
+.top-btn.link { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 860px) {
+  .bld { grid-template-columns: 1fr; padding: 8px; }
+  .bld-card { grid-template-columns: 1fr; }
+}

@@ -1,16 +1,19 @@
 // order.json storage: one write at a time (promise queue), each via a temp file + rename,
 // so parallel orders never overwrite each other and a crash never leaves half a file.
 const fs = require('fs/promises');
+const path = require('path');
 
-function createStore(file) {
+// empty() — the value of a missing file (a list of orders by default).
+function createStore(file, empty = () => []) {
   let queue = Promise.resolve();
 
   async function read() {
-    try { return JSON.parse(await fs.readFile(file, 'utf8')); } catch { return []; }
+    try { return JSON.parse(await fs.readFile(file, 'utf8')); } catch { return empty(); }
   }
 
   async function write(orders) {
     const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+    await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(tmp, JSON.stringify(orders, null, 2));
     await fs.rename(tmp, file);
   }

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Новостройка</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bld-page">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🏢</span>
+      <h1 id="bldName" data-i18n="bld.title">Новостройка</h1>
+    </div>
+    <a class="top-btn link" href="/">📐 <span data-i18n="bld.back">Планировщик</span></a>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="ru">RU</button>
+      <button data-lang="uz">UZ</button>
+      <button data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <main class="bld">
+    <aside class="bld-side">
+      <section class="card bld-filters">
+        <h2 data-i18n="bld.filters">Подбор квартиры</h2>
+        <div class="bld-f-row"><span data-i18n="bld.rooms">Комнат</span><div class="seg" id="fRooms"></div></div>
+        <div class="bld-f-row"><span data-i18n="bld.area">Площадь, м²</span>
+          <span class="bld-range"><input type="number" id="fAreaMin" min="0" step="1" inputmode="numeric"> –
+            <input type="number" id="fAreaMax" min="0" step="1" inputmode="numeric"></span></div>
+        <div class="bld-f-row"><span data-i18n="bld.priceMax">Цена до, млн сум</span>
+          <input type="number" id="fPrice" min="0" step="10" inputmode="numeric"></div>
+        <label class="bld-check"><input type="checkbox" id="fFree"> <span data-i18n="bld.freeOnly">Только свободные</span></label>
+        <p class="hint" id="fFound"></p>
+      </section>
+      <section class="card bld-facade-card">
+        <h2 data-i18n="bld.floors">Этажи</h2>
+        <div class="bld-facade" id="bldFacade"></div>
+        <div class="bld-legend" id="bldLegendSt"></div>
+      </section>
+    </aside>
+
+    <section class="card bld-main">
+      <div class="bld-head">
+        <button type="button" class="btn icon" id="floorDown" aria-label="Floor down">▼</button>
+        <h2 id="floorTitle"></h2>
+        <button type="button" class="btn icon" id="floorUp" aria-label="Floor up">▲</button>
+        <span class="bld-spacer"></span>
+        <span class="hint" data-i18n="bld.colorBy">Цвет</span>
+        <div class="seg" id="colorBy">
+          <button type="button" data-by="status" data-i18n="bld.byStatus">Статус</button>
+          <button type="button" data-by="rooms" data-i18n="bld.byRooms">Комнаты</button>
+        </div>
+      </div>
+      <div class="bld-plan-wrap" id="planWrap">
+        <canvas id="bldPlan"></canvas>
+        <div class="bld-tip" id="bldTip" hidden></div>
+      </div>
+      <div class="bld-legend" id="bldLegend"></div>
+      <p class="hint" data-i18n="bld.hint">Наведите на квартиру — подсказка, клик — карточка</p>
+    </section>
+  </main>
+
+  <dialog id="aptDlg" class="wide bld-dlg">
+    <div class="dlg-head">
+      <h2 id="aptTitle"></h2>
+      <button type="button" class="btn icon ghost" id="aptClose" aria-label="Close">✕</button>
+    </div>
+    <div class="bld-card">
+      <canvas id="aptPlan"></canvas>
+      <div class="bld-info">
+        <dl class="bld-meta" id="aptMeta"></dl>
+        <table class="bld-rooms" id="aptRooms"></table>
+        <div class="btn-row">
+          <button type="button" class="btn" id="aptPlanner" data-i18n="bld.openPlanner">📐 Открыть в планировщике</button>
+          <button type="button" class="btn primary" id="aptRequest" data-i18n="bld.request">✉ Оставить заявку</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="reqDlg">
+    <form id="reqForm" method="dialog">
+      <h2 id="reqTitle"></h2>
+      <label class="row"><span data-i18n="order.name">Имя</span>
+        <input name="name" required maxlength="100" autocomplete="name"></label>
+      <label class="row"><span data-i18n="order.phone">Телефон</span>
+        <input name="phone" type="tel" required maxlength="30" placeholder="+998 __ ___ __ __" autocomplete="tel"></label>
+      <label class="row"><span data-i18n="order.comment">Комментарий</span>
+        <textarea name="comment" rows="3" maxlength="1000"></textarea></label>
+      <!-- Honeypot for bots: hidden from people and screen readers -->
+      <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="btn-row end">
+        <button type="button" class="btn ghost" id="reqCancel" data-i18n="order.cancel">Отмена</button>
+        <button type="submit" class="btn primary" data-i18n="order.send">Отправить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+  <script type="module" src="js/buildingPage.js"></script>
+</body>
+</html>

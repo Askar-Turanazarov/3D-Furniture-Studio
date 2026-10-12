@@ -128,6 +128,15 @@ function picture(v, type, field) {
   return buf;
 }
 
+// An apartment of the new-building showcase: { building, floor, apt (number) }.
+function apartmentRef(v) {
+  if (v == null) return null;
+  obj(v, 'apartmentRef');
+  const int = (x, max) => { if (!Number.isInteger(x) || x < 1 || x > max) throw new Invalid('apartmentRef'); return x; };
+  if (typeof v.building !== 'string' || !/^[a-z0-9-]{1,60}$/.test(v.building)) throw new Invalid('apartmentRef');
+  return { building: v.building, floor: int(v.floor, 200), apt: int(v.apt, 999999) };
+}
+
 function validateOrder(body) {
   try {
     obj(body, 'body');
@@ -141,17 +150,20 @@ function validateOrder(body) {
       project: { name: str(body.project?.name, 100, 'project.name') },
       estimate: body.estimate == null ? null : num(body.estimate, [0, 1e13], 'estimate')
     };
+    // A new-building apartment needs no furniture: the request is for the apartment itself.
+    const ref = apartmentRef(body.apartmentRef);
+    if (ref) order.apartmentRef = ref;
     // An apartment: rooms[] with pos. Old clients send one room in the top-level fields (and optionally rooms[]).
     const rooms = list(body.rooms, LIMITS.rooms, 'rooms').map((r, i) => roomDoc(r, `rooms[${i}]`));
     let all = rooms;
-    if (body.room != null || !rooms.length) {
+    if (body.room != null || (!rooms.length && !ref)) {
       const main = roomDoc({ ...body, name: body.roomName }, 'room');
       Object.assign(order, { roomName: main.name, purpose: main.purpose, room: main.room,
         openings: main.openings, obstacles: main.obstacles, items: main.items });
       all = [main, ...rooms];
     }
     if (rooms.length) order.rooms = rooms;
-    if (!all.some(r => r.items.length)) throw new Invalid('items');
+    if (!ref && !all.some(r => r.items.length)) throw new Invalid('items');
     const files = [['plan.png', picture(body.drawing, 'png', 'drawing')], ['3d.jpg', picture(body.snapshot3d, 'jpeg', 'snapshot3d')]]
       .filter(([, buf]) => buf);
     return { ok: true, order, files };

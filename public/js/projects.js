@@ -4,7 +4,7 @@ import { state, emit, applyDoc, docFromState, setActiveRoom, syncActive } from '
 import { history } from './history.js';
 import {
   onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom,
-  saveProjectNow, setLastProject, makeVariant, variantsOf, loadProject
+  saveProjectNow, setLastProject, makeVariant, variantsOf, loadProject, importProject
 } from './storage.js';
 import { nextRoomPos, apartmentArea, roomArea } from './apartment.js';
 import { defaultOpenings } from './openings.js';
@@ -59,6 +59,25 @@ export function openProject(p) {
   history.reset(null);
   resetView();
   afterRoomChange();
+}
+
+// An apartment sent from the new-building showcase (building.html → localStorage) becomes a new project.
+export function openHandoff() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem('fsp3d.handoff');
+    localStorage.removeItem('fsp3d.handoff');
+  } catch { return; }
+  if (!raw) return;
+  try {
+    const p = importProject(JSON.parse(raw));
+    if (saveProjectNow(p)) {
+      openProject(p);
+      toast(t('bld.imported', { name: p.name }));
+    }
+  } catch {
+    toast(t('proj.badFile'), true);
+  }
 }
 
 export function newProject() {

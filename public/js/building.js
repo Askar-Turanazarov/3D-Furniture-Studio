@@ -49,6 +49,13 @@ const NAMES = {
 };
 const LANGS = ['ru', 'uz', 'en'];
 
+// A generated room name (the plan keeps the Russian one) in another language.
+export function localRoomName(name, lang) {
+  const [, base, n = ''] = String(name).match(/^(.*?)( \d+)?$/);   // "Спальня 2" → "Bedroom 2"
+  const i = LANGS.indexOf(lang), e = Object.values(NAMES).find(x => x[0] === base);
+  return e && i >= 0 ? e[i] + n : name;
+}
+
 /**
  * Fill a band of `len` with units: corner types at the ends marked in `corners` ([west, east]: a type, true — random, false),
  * middle types in between; widths are stretched so the band is filled exactly. → [{ type, w }] or null.

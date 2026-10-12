@@ -22,7 +22,10 @@ const { validateOrder } = require('./server/validateOrder');
 const { createStore, createRateLimit } = require('./server/orderStore');
 const { writeZip } = require('./server/zip');
 const { fetchSet, libraryStatus } = require('./server/textureFetch');
+const { APT_STATUSES, BUILDING_ID, createBuildings } = require('./server/buildings');
+const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 const store = createStore(ORDERS);
+const buildings = createBuildings(path.join(__dirname, 'buildings'), createStore(path.join(DATA, 'building-status.json'), () => ({})));
 const orderLimit = createRateLimit({ max: 5, windowMs: 10 * 60 * 1000 });
 
 app.use(express.json({ limit: '6mb' }));   // the order carries the drawing PNG (≤ 2 MB) and a 3D picture
@@ -53,26 +56,16 @@ app.get('/api/apartments', async (req, res) => {
   }
 });
 
-// ---------- new-building showcase: generated buildings (scripts/gen-building.mjs) ----------
-const BUILDINGS = path.join(__dirname, 'buildings');
+// ---------- new-building showcase: generated buildings (scripts/gen-building.mjs) + statuses by the manager ----------
 app.get('/api/buildings', async (req, res) => {
-  try {
-    const files = (await fs.readdir(BUILDINGS)).filter(f => f.endsWith('.json'));
-    const list = await Promise.all(files.map(async f => {
-      const b = JSON.parse(await fs.readFile(path.join(BUILDINGS, f), 'utf8'));
-      return { id: b.id, name: b.name, floors: b.floors, apartments: b.floorsData.reduce((s, x) => s + x.apartments.length, 0) };
-    }));
-    res.json(list);
-  } catch {
-    res.json([]);
-  }
+  res.json(await buildings.list());
 });
 
-app.get('/api/buildings/:id', (req, res) => {
-  if (!/^[a-z0-9-]{1,60}$/.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
-  res.sendFile(path.join(BUILDINGS, req.params.id + '.json'), err => {
-    if (err && !res.headersSent) res.status(404).json({ error: 'not_found' });
-  });
+app.get('/api/buildings/:id', async (req, res) => {
+  const b = await buildings.get(req.params.id);
+  if (!b) return res.status(404).json({ error: 'not_found' });
+  res.set('Cache-Control', 'no-cache');
+  res.json(b);
 });
 
 app.post('/api/order', async (req, res) => {
@@ -82,6 +75,14 @@ app.post('/api/order', async (req, res) => {
   if (!orderLimit(req.ip)) return res.status(429).json({ error: 'too_many' });
   const v = validateOrder(body);
   if (!v.ok) return res.status(400).json({ error: v.error, field: v.field });
+  // A request for a new-building apartment: it must exist; the manager sees its type, area and price.
+  const ref = v.order.apartmentRef;
+  if (ref) {
+    const a = await buildings.apartment(ref.building, ref.apt);
+    if (!a || a.floor !== ref.floor) return res.status(400).json({ error: 'invalid_order', field: 'apartmentRef' });
+    v.order.apartment = { type: a.type, rooms: a.rooms, area: a.area, price: a.price, status: a.status };
+    v.order.estimate ??= a.price;
+  }
   try {
     const id = await store.update(async orders => {
       let id = Date.now();
@@ -140,6 +141,20 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
     });
     if (!order) return res.status(404).json({ error: 'not_found' });
     res.json(order);
+  } catch {
+    res.status(500).json({ error: 'save_failed' });
+  }
+});
+
+// Apartment status in the showcase: free → booked → sold (and back).
+app.patch('/api/buildings/:id/apartments/:apt', admin, async (req, res) => {
+  const { id, apt } = req.params, { status } = req.body || {};
+  if (!BUILDING_ID.test(id) || !/^\d{1,6}$/.test(apt)) return res.status(404).json({ error: 'not_found' });
+  if (!APT_STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
+  try {
+    const r = await buildings.setStatus(id, Number(apt), status);
+    if (!r) return res.status(404).json({ error: 'not_found' });
+    res.json(r);
   } catch {
     res.status(500).json({ error: 'save_failed' });
   }
@@ -225,4 +240,6 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Furniture Super Planner 3D: http://localhost:${PORT}`));
+if (require.main === module) app.listen(PORT, () => console.log(`Furniture Super Planner 3D: http://localhost:${PORT}`));
+
+module.exports = app;

@@ -29,6 +29,7 @@ export function roomView(apt, id) {
     id: r.id, name: r.name, purpose: r.purpose, pos: posOf(r.pos),
     room: r.room, items: r.items || [], openings: r.openings || [], obstacles: r.obstacles || [], style: r.style,
     doorways: incomingDoorways(liveRoomsOf(apt), id),
+    twins: [...twinIds(liveRoomsOf(apt), id)],
     settings: apt.settings, lighting: apt.lighting,
     catalog: apt.catalog || [], materials: apt.materials || [], pricing: apt.pricing || {}
   };
@@ -54,9 +55,27 @@ export function doorwaysOf(s) {
   return incomingDoorways(liveRoomsOf(s), s.activeRoomId);
 }
 
+// Doors of room `id` that duplicate a neighbour's door in the same partition (only one leaf is real).
+export function twinIds(rooms, id) {
+  return new Set([...twinDoors(rooms)].filter(k => k.startsWith(id + ':')).map(k => Number(k.slice(id.length + 1))));
+}
+
+// Twin doors of a room view, or of the active room of an apartment state.
+export function twinsOf(s) {
+  if (s.twins) return new Set(s.twins);
+  if (!s.rooms || s.activeRoomId == null) return new Set();
+  return twinIds(liveRoomsOf(s), s.activeRoomId);
+}
+
+// The room's own door leaves (a twin is only a doorway: its leaf is the neighbour's).
+export const leafDoors = s => {
+  const tw = twinsOf(s);
+  return (s.openings || []).filter(o => o.kind === 'door' && !tw.has(o.id));
+};
+
 // Floor that must stay free in front of doors and doorways (for an item at height `elev`).
 export function doorZones(s, elev = 0) {
-  return (s.openings || []).filter(o => o.kind === 'door' && elev < o.height).map(o => doorSwingRect(o, s.room))
+  return leafDoors(s).filter(o => elev < o.height).map(o => doorSwingRect(o, s.room))
     .concat(doorwaysOf(s).filter(d => elev < d.height).map(d => doorwayRect(d, s.room)));
 }
 
@@ -100,6 +119,38 @@ export function adjacent(a, b, maxGap = LINK_GAP) {
  * `wall` / `offset` / `width` describe the hole in the neighbour's wall (local offset along that wall).
  */
 export function doorLinks(rooms) {
+  const twins = twinDoors(rooms);
+  return rawLinks(rooms).filter(l => !twins.has(l.room + ':' + l.door));
+}
+
+// Which leaf of a pair stays: doors swing into living rooms, out of bathrooms; else the first room's.
+const LEAF_RANK = { bathroom: 0, hall: 1 };
+const rank = r => LEAF_RANK[r.purpose] ?? 2;
+
+/**
+ * Two doors in one partition, one from each side and overlapping by at least half of the narrower one,
+ * are one real door. → Set of 'roomId:doorId' of the duplicates (the other leaf of each pair stays).
+ */
+export function twinDoors(rooms) {
+  const links = rawLinks(rooms).filter(l => l.to !== 'outside');
+  const out = new Set();
+  for (const l of links) {
+    const a = rooms.find(r => r.id === l.room), b = rooms.find(r => r.id === l.to);
+    for (const m of links) {
+      if (m.room !== l.to || m.to !== l.room || m.wall !== a.openings.find(o => o.id === l.door).wall) continue;
+      const o = b.openings.find(x => x.id === m.door);
+      const common = Math.min(l.offset + l.width, o.offset + o.width) - Math.max(l.offset, o.offset);
+      if (common < Math.min(l.width, o.width) / 2) continue;
+      // l is a's door seen in b's wall, o is b's door: drop the one of the lower-ranked room.
+      const ia = rooms.indexOf(a), ib = rooms.indexOf(b);
+      const keepA = rank(a) > rank(b) || (rank(a) === rank(b) && ia < ib);
+      out.add(keepA ? `${b.id}:${o.id}` : `${a.id}:${l.door}`);
+    }
+  }
+  return out;
+}
+
+function rawLinks(rooms) {
   const out = [];
   for (const a of rooms) {
     for (const o of a.openings || []) {

@@ -1,7 +1,7 @@
 // Validate every item: walls (with plinth), AABB overlap, min gap, ceiling height, door swing.
 import { rectOf, wallViolations, overlaps, clearance, round1, zOverlaps, zRange, isDecor } from './geometry.js';
 import { doorSwingRect, windowZoneRect, doorwayRect } from './openings.js';
-import { doorwaysOf } from './apartment.js';
+import { doorwaysOf, leafDoors } from './apartment.js';
 import { openSpec, openZoneRect, freeDepth, wallDepth } from './zones.js';
 import { narrowPassages } from './passages.js';
 
@@ -11,6 +11,7 @@ export function validateAll(state) {
   const result = new Map(items.map(i => [i.id, []]));
   const rects = items.map(i => rectOf(i));
   const doorways = doorwaysOf(state);
+  const doors = leafDoors(state);
 
   items.forEach((it, i) => {
     const errs = result.get(it.id);
@@ -20,9 +21,9 @@ export function validateAll(state) {
     const top = (it.elev || 0) + it.h;
     if (top > room.H) errs.push({ key: 'err.height', params: { n: top - room.H } });
     if (isDecor(it)) return;
-    for (const o of state.openings || []) {
+    for (const o of doors) {
       // A wall cabinet above the door leaf does not block it.
-      if (o.kind === 'door' && (it.elev || 0) < o.height && overlaps(rects[i], doorSwingRect(o, room))) {
+      if ((it.elev || 0) < o.height && overlaps(rects[i], doorSwingRect(o, room))) {
         errs.push({ key: 'err.door', params: {} });
       }
     }
@@ -94,7 +95,7 @@ export function obstacleWarnings(state) {
     const r = { x: ob.x, y: ob.y, w: ob.w, h: ob.d };
     const list = [];
     for (const o of state.openings || []) {
-      if (o.kind === 'door' && ob.elev < o.height && overlaps(r, doorSwingRect(o, room))) {
+      if (o.kind === 'door' && ob.elev < o.height && leafDoors(state).includes(o) && overlaps(r, doorSwingRect(o, room))) {
         list.push({ key: 'warn.obDoor', params: { kind: ob.kind } });
       }
       if (o.kind === 'window' && ob.elev + ob.h > o.sill && ob.elev < o.sill + o.height && overlaps(r, windowZoneRect(o, room))) {
@@ -124,8 +125,8 @@ export function validateWarnings(state) {
   const zones = items.map(it => isDecor(it) ? null : openZoneRect(it, openSpec(it, state.catalog)));
   items.forEach((it, i) => {
     if (!zones[i]) return;
-    for (const o of state.openings || []) {
-      if (o.kind === 'door' && (it.elev || 0) < o.height && overlaps(zones[i], doorSwingRect(o, room))) {
+    for (const o of leafDoors(state)) {
+      if ((it.elev || 0) < o.height && overlaps(zones[i], doorSwingRect(o, room))) {
         result.get(it.id).push({ key: 'warn.openZoneDoor', params: {} });
       }
     }

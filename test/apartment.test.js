@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   roomRect, roomAt, roomView, overlapsRooms, adjacent, doorLinks, reachable, snapRoom, layoutRow, nextRoomPos,
-  moveItemBetween, apartmentArea, validateApartment, apartmentHasErrors, PARTITION
+  moveItemBetween, apartmentArea, validateApartment, apartmentHasErrors, PARTITION, twinDoors, doorZones
 } from '../public/js/apartment.js';
 import { validateAll } from '../public/js/validate.js';
 import { state as fixture, item } from './helpers.js';
@@ -67,6 +67,22 @@ test('doorway from a neighbour: furniture in front of it is an error, also for t
   applyDoc({ rooms, settings: fixture().settings, lighting: {} });
   setActiveRoom('living');
   assert.deepEqual(validateAll(state).get(1).map(e => e.key), ['err.doorway']);
+});
+
+test('one door per partition: a door from each side in the same place is one leaf', () => {
+  const rooms = flat();
+  rooms[1].openings = [door(7, 'north', 60)];          // the living room's own door, 50…130 vs 60…140
+  rooms[2].purpose = 'bathroom';
+  rooms[2].openings = [door(8, 'west', 60, 70)];       // the bath's door under the hall's door 3
+  assert.deepEqual([...twinDoors(rooms)].sort(), ['bath:8', 'hall:2'],
+    'the leaf swings into the living room, and out of the bath into the hall');
+  assert.deepEqual(doorLinks(rooms).map(l => [l.room, l.door, l.to]),
+    [['hall', 1, 'outside'], ['hall', 3, 'bath'], ['living', 7, 'hall']]);
+  const hall = roomView({ rooms, settings: fixture().settings }, 'hall');
+  assert.deepEqual(hall.twins, [2]);
+  assert.equal(doorZones(hall).length, 3, 'hall: entrance and bath leaves + the living room doorway, no own swing at door 2');
+  rooms[1].openings = [door(7, 'north', 200)];          // elsewhere: two separate doors
+  assert.deepEqual([...twinDoors(rooms)], ['bath:8']);
 });
 
 test('room magnet: aligned or one partition away', () => {

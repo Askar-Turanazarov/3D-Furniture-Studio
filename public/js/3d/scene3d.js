@@ -4,7 +4,7 @@ import { t, onLangChange } from '../i18n.js';
 import { state, onChange, emit, roomView } from '../state.js';
 import { buildRoom, disposeGroup, revealParts } from './room3d.js';
 import { liveRooms } from '../renderer.js';
-import { doorLinks, adjacent, wallLine, posOf, roomRect } from '../apartment.js';
+import { doorLinks, adjacent, wallLine, posOf, roomRect, twinIds } from '../apartment.js';
 import { switchRoom } from '../projects.js';
 import { buildObstacles } from './obstacles3d.js';
 import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights } from './lights3d.js';
@@ -163,11 +163,22 @@ function rebuild() {
       if (b === r) continue;
       for (const a of adjacent(r, b, 2 * T)) thick[a.wallA] = Math.min(thick[a.wallA] ?? T / 100, a.gap / 200);
     }
-    const key = JSON.stringify([r.room, r.openings, r.obstacles, r.style, holes, own, thick]);
+    // A twin door (the neighbour's leaf is the real one) is only a hole in this wall.
+    const twins = twinIds(rooms, r.id);
+    const openings = (r.openings || []).filter(o => !twins.has(o.id));
+    for (const o of (r.openings || []).filter(o => twins.has(o.id))) {
+      const h = holes.find(q => q.wall === o.wall && q.offset < o.offset + o.width && o.offset < q.offset + q.width);
+      if (!h) continue;
+      const end = Math.max(h.offset + h.width, o.offset + o.width);
+      h.offset = Math.min(h.offset, o.offset);
+      h.width = end - h.offset;
+      h.height = Math.max(h.height, o.height);
+    }
+    const key = JSON.stringify([r.room, openings, r.obstacles, r.style, holes, own, thick]);
     if (key !== e.key) {
       e.key = key;
       if (e.shell) disposeGroup(e.shell.group);
-      e.shell = buildRoom(r.room, r.openings || [], r.style, { holes, thick });
+      e.shell = buildRoom(r.room, openings, r.style, { holes, thick });
       e.shell.group.add(buildObstacles(r.obstacles));
       for (const d of own) e.shell.group.add(revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style));
       e.group.add(e.shell.group);

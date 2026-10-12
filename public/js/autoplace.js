@@ -2,7 +2,7 @@
 // Wall-adjacent positions are tried first, then the whole room.
 import { footprint, rectOf, blocked, insideRoom, obstacleRects, zOverlaps, isDecor } from './geometry.js';
 import { doorSwingRect, windowZoneRect, nearestWall, doorwayRect } from './openings.js';
-import { doorZones, doorwaysOf } from './apartment.js';
+import { doorZones, doorwaysOf, twinsOf } from './apartment.js';
 import { openSpec, openZoneRect } from './zones.js';
 
 const ROTS = [0, 90, 180, 270];
@@ -182,7 +182,9 @@ export function largestFit(pt, state) {
   // Things standing at the wardrobe's height; high structure (ceiling ducts) limits the height instead.
   const solid = state.items.filter(i => zOverlaps(i, tall)).map(i => ({ r: rectOf(i), gap }))
     .concat((state.obstacles || []).filter(o => (o.elev || 0) < NICHE.highOb).map(o => ({ r: { x: o.x, y: o.y, w: o.w, h: o.d }, gap })));
-  const zones = (state.openings || []).map(o => ({ r: o.kind === 'door' ? doorSwingRect(o, room) : windowZoneRect(o, room), gap: 0 }))
+  const tw = twinsOf(state);
+  const zones = (state.openings || []).filter(o => !(o.kind === 'door' && tw.has(o.id)))
+    .map(o => ({ r: o.kind === 'door' ? doorSwingRect(o, room) : windowZoneRect(o, room), gap: 0 }))
     .concat(doorwaysOf(state).map(d => ({ r: doorwayRect(d, room), gap: 0 })));
 
   let lo = p, hi = len - p;

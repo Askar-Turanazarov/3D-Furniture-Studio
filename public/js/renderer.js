@@ -3,7 +3,7 @@
 // Screen ↔ world (toScreen / toWorld) stay in the active room's local cm, so the per-room code is unchanged;
 // toPlan / planToScreen work in apartment cm.
 import { state, itemName, isSelected, syncActive } from './state.js';
-import { roomRect, overlapsRooms, doorLinks, posOf, roomArea } from './apartment.js';
+import { roomRect, overlapsRooms, doorLinks, posOf, roomArea, twinDoors } from './apartment.js';
 import { drawGlyph, isLight } from './glyphs.js';
 import { rectOf, rayGaps, obstacleRects, zOverlaps, isDecor } from './geometry.js';
 import { openSpec, openZoneRect, frontFace } from './zones.js';
@@ -261,11 +261,14 @@ function draw() {
 function drawApartment(now, sheet) {
   const rooms = liveRooms();
   const act = rooms.find(r => r.id === state.activeRoomId) || null;
+  twinKeys = twinDoors(rooms);
   for (const r of rooms) inRoom(r, drawWalls);
   for (const r of rooms) inRoom(r, () => drawFloor(sheet));
   drawDoorways(rooms);
-  for (const r of rooms) if (r !== act) inRoom(r, () => drawContent(now, sheet, false));
+  for (const r of rooms) if (r !== act) inRoom(r, () => { drawRoomId = r.id; drawContent(now, sheet, false); });
+  drawRoomId = state.activeRoomId;
   if (act) drawContent(now, sheet, true);
+  twinKeys = new Set();
   drawOverlaps(rooms);
   for (const r of rooms) inRoom(r, () => drawRoomLabel(r, r === act && rooms.length > 1));
   if (act && rooms.length > 1 && !sheet) drawActiveFrame();
@@ -587,13 +590,24 @@ function openingGeom(o) {
 }
 
 // Windows: glass in the wall with the classic 3-line symbol. Doors: gap, leaf and dashed swing arc.
+let twinKeys = new Set(), drawRoomId = null;   // doors that are the other side of a neighbour's door
+
 function drawOpenings() {
   for (const o of state.openings || []) {
     const g = openingGeom(o);
     const [bx, by, bw, bh] = g.band;
     const isSel = o.id === state.selectedOpening;
     ctx.save();
-    if (o.kind === 'window') {
+    if (o.kind === 'door' && twinKeys.has(drawRoomId + ':' + o.id)) {
+      // One door per partition: this side is just the doorway (dashed outline, no leaf).
+      ctx.fillStyle = COLORS.floor;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = COLORS.door;
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.setLineDash([]);
+    } else if (o.kind === 'window') {
       ctx.fillStyle = COLORS.glass;
       ctx.fillRect(bx, by, bw, bh);
       ctx.strokeStyle = COLORS.glassLine;

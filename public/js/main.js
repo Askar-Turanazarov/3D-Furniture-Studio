@@ -159,10 +159,12 @@ function initViewSwitch() {
   const wrap = document.getElementById('stageBody');
   document.getElementById('view2dBtn').addEventListener('click', () => setView('2d'));
   document.getElementById('view3dBtn').addEventListener('click', () => setView('3d'));
-  document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  const toggleFs = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else wrap.requestFullscreen?.().catch(() => {});
-  });
+  };
+  document.getElementById('fullscreenBtn').addEventListener('click', toggleFs);
+  document.getElementById('fs3dBtn').addEventListener('click', toggleFs);
   document.getElementById('exitFsBtn').addEventListener('click', () => document.exitFullscreen());
   document.addEventListener('fullscreenchange', () => {
     document.getElementById('exitFsBtn').hidden = !document.fullscreenElement;
@@ -182,7 +184,25 @@ async function loadCatalog() {
   }
 }
 
+// The floor view embedded in the showcase card: only the 3D scene, the apartment is not saved.
+const embed = new URLSearchParams(location.search).get('embed') === 'floor';
+
+async function startEmbed() {
+  try {
+    const floor = await import('./floor3d.js');
+    const params = floor.embedParams();
+    if (!params) throw new Error('bad params');
+    const ctx = await floor.openFloor(params);
+    await setView('3d');
+    view3d.setContext(floor.floorContext(ctx));
+    (await import('./3d/controls3d.js')).setMode('walk');
+  } catch {
+    toast(t('bld.loadFail'), true);
+  }
+}
+
 async function start() {
+  if (embed) document.body.classList.add('embed');
   initLangSwitcher();
   initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
   initInteraction(document.getElementById('plan'));
@@ -195,7 +215,7 @@ async function start() {
   initSnapshot();
   await loadCatalog();
   initProjects();
-  openHandoff();
+  if (!embed) openHandoff();
   initProjectsDialog();
   initFurnish();
   fillCatalog();
@@ -203,6 +223,7 @@ async function start() {
   onChange(update);
   onLangChange(() => { fillCatalog(); update(); });
   update();
+  if (embed) startEmbed();
 }
 
 start();

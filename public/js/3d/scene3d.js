@@ -26,6 +26,7 @@ const rooms3d = new Map();
 let outline = '';
 let mainLights = null;     // lights of the active room (the walker's): sky, sun, shadows
 let foundTimer = null;
+let context = null;        // static surroundings (the floor around an embedded apartment)
 // Ambient occlusion (GTAO) in Photo mode: composer is loaded on first use, switched off when FPS drops.
 let quality = 'simple', aoWanted = false, composer = null, aoPass = null;
 let fpsTime = 0, fpsFrames = 0;
@@ -379,6 +380,13 @@ export function snapshotCanvas() {
   resize();
   draw();
   return c;
+}
+
+// Static surroundings, not rebuilt with the rooms and without shadows (null removes them).
+export function setContext(group) {
+  if (context) disposeGroup(context);
+  context = group;
+  if (group) scene.add(group);
 }
 
 export const getScene = () => scene;

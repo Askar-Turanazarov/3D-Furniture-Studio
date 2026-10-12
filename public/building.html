@@ -72,11 +72,20 @@
         <dl class="bld-meta" id="aptMeta"></dl>
         <table class="bld-rooms" id="aptRooms"></table>
         <div class="btn-row">
+          <button type="button" class="btn" id="apt3d" data-i18n="bld.walk3d">🚶 Пройтись в 3D</button>
           <button type="button" class="btn" id="aptPlanner" data-i18n="bld.openPlanner">📐 Открыть в планировщике</button>
           <button type="button" class="btn primary" id="aptRequest" data-i18n="bld.request">✉ Оставить заявку</button>
         </div>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="floor3dDlg" class="wide bld-dlg floor3d-dlg">
+    <div class="dlg-head">
+      <h2 id="floor3dTitle"></h2>
+      <button type="button" class="btn icon ghost" id="floor3dClose" aria-label="Close">✕</button>
+    </div>
+    <iframe id="floor3dFrame" class="floor3d-frame" allow="fullscreen" title="3D"></iframe>
   </dialog>
 
   <dialog id="reqDlg">

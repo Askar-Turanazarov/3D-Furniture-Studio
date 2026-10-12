@@ -20,6 +20,7 @@ import { openCompare } from './compare.js';
 export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'bathroom', 'other'];
 
 let project = null;
+let temporary = false;   // shown but never saved (the floor view embedded in the showcase)
 const $ = id => document.getElementById(id);
 
 export const currentProject = () => project;
@@ -28,7 +29,7 @@ export const currentRoom = () => (project ? syncActive() : null);
 
 // The state is the apartment: copy it into the project and save (debounced).
 export function persist() {
-  if (!project) return;
+  if (!project || temporary) return;
   Object.assign(project, docFromState(), { activeRoomId: state.activeRoomId });
   saveProject(project);
 }
@@ -52,9 +53,20 @@ export function initProjects() {
 
 // Switch to another project (already saved or new); the current one is saved first.
 export function openProject(p) {
-  if (project) { capturePreview(); persist(); flushSave(); }
+  if (project && !temporary) { capturePreview(); persist(); flushSave(); }
   project = p;
+  temporary = false;
   setLastProject(p.id);
+  applyProject(p);
+  history.reset(null);
+  resetView();
+  afterRoomChange();
+}
+
+// Show a project without saving it or making it the last one (nothing of it is written to localStorage).
+export function openTemporary(p) {
+  project = p;
+  temporary = true;
   applyProject(p);
   history.reset(null);
   resetView();

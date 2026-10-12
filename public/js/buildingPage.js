@@ -317,6 +317,13 @@ function openInPlanner(a) {
   location.href = '/';
 }
 
+// The floor in 3D: the planner's 3D view embedded (temporary project, nothing saved), walking from the entrance.
+function open3d(a) {
+  $('floor3dTitle').textContent = `${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`;
+  $('floor3dFrame').src = `/?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}`;
+  $('floor3dDlg').showModal();
+}
+
 function openRequest(a) {
   $('reqTitle').textContent = t('bld.reqTitle', { no: a.no });
   $('reqDlg').showModal();
@@ -395,6 +402,10 @@ function bind() {
   plan.addEventListener('click', e => { const a = aptAt(e); if (a) openCard(a); });
   $('aptClose').addEventListener('click', () => $('aptDlg').close());
   $('aptPlanner').addEventListener('click', () => openInPlanner(cardApt));
+  $('apt3d').addEventListener('click', () => open3d(cardApt));
+  $('floor3dClose').addEventListener('click', () => $('floor3dDlg').close());
+  // The WebGL scene goes away with the dialog.
+  $('floor3dDlg').addEventListener('close', () => { $('floor3dFrame').src = 'about:blank'; });
   $('aptRequest').addEventListener('click', () => openRequest(cardApt));
   $('reqCancel').addEventListener('click', () => $('reqDlg').close());
   $('reqForm').addEventListener('submit', sendRequest);

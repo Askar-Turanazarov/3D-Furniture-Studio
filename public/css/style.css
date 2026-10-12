@@ -509,3 +509,13 @@ dialog.bld-dlg { width: min(940px, 96vw); max-height: 94vh; overflow: auto; }
   .bld { grid-template-columns: 1fr; padding: 8px; }
   .bld-card { grid-template-columns: 1fr; }
 }
+
+/* ---------- floor view embedded in the showcase (/?embed=floor) ---------- */
+#fs3dBtn { display: none; }
+body.embed #fs3dBtn { display: inline-block; }
+body.embed .topbar, body.embed .sidebar, body.embed .apt-head, body.embed .stage-bar,
+body.embed .notes, body.embed .legend { display: none; }
+body.embed .stage { padding: 0; gap: 0; }
+body.embed .canvas-wrap { border-radius: 0; border: 0; }
+.floor3d-frame { display: block; width: 100%; height: min(72vh, 680px); border: 0; border-radius: 10px; background: #1e2235; }
+dialog.floor3d-dlg { width: min(1200px, 96vw); }

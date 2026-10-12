@@ -50,6 +50,7 @@
               <span class="row"><select name="accentWall"></select><input type="color" name="accentColor"></span></label>
             <label><span data-i18n="style.floor">Пол</span><select name="floor"></select></label>
             <label><span data-i18n="style.furniture">Стиль мебели</span><select name="furniture"></select></label>
+            <label><span data-i18n="style.finish">Уровень отделки</span><select name="finish"></select></label>
           </form>
         </details>
       </section>
@@ -228,6 +229,8 @@
         </div>
         <ul class="tex-list" id="texList"></ul>
         <p class="hint" data-i18n="tex.hint"></p>
+        <h3 class="tex-lib-title" data-i18n="tex.library">Библиотека текстур</h3>
+        <div id="texLib"></div>
       </section>
 
       <button class="btn primary big" id="orderBtn" data-i18n="order.open">Оформить заявку</button>
@@ -285,6 +288,11 @@
               <button data-quality="simple" class="active" data-i18n="v3d.simple">Простые</button>
               <button data-quality="photo" data-i18n="v3d.photo">Фото-текстуры</button>
               <button id="aoBtn" data-i18n-title="v3d.aoTitle" hidden>AO</button>
+            </div>
+            <div class="seg" role="group" id="finishSeg">
+              <button data-finish="rough" data-i18n="style.finishShort.rough">Черновая</button>
+              <button data-finish="prefinish" data-i18n="style.finishShort.prefinish">Предчистовая</button>
+              <button data-finish="finished" data-i18n="style.finishShort.finished">Чистовая</button>
             </div>
             <div class="seg" role="group" id="lightSeg">
               <button data-light="day" data-i18n-title="light.day">☀</button>

@@ -73,7 +73,7 @@ export function buildRoom(room, openings = [], style) {
   floor.position.set(L / 2, 0, W / 2);
   group.add(floor);
 
-  const ceiling = mesh(new THREE.PlaneGeometry(L, W), M.ceiling, { cast: false });
+  const ceiling = mesh(new THREE.PlaneGeometry(L, W), F.ceiling, { cast: false });
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(L / 2, H, W / 2);
   group.add(ceiling);
@@ -101,7 +101,9 @@ export function buildRoom(room, openings = [], style) {
       const parts = doorParts(lo, hingeAtStart, M);
       const pivot = parts[parts.length - 1];
       pivot.userData.door.id = o.id;
-      doors.push(pivot);
+      // Rough finish: only the opening and the casing, no door leaf yet.
+      if (F.doorLeaves) doors.push(pivot);
+      else parts.pop();
       g.add(...parts);
     }
     walls[o.wall].add(g);
@@ -123,11 +125,13 @@ export function buildRoom(room, openings = [], style) {
   east.position.x = L + T;
   walls.east.add(east);
 
-  // Plinths along the inner faces (thickness = room plinth).
-  walls.north.add(at(box(L, PLINTH_H, p, M.plinth), L / 2, PLINTH_H / 2, p / 2));
-  walls.south.add(at(box(L, PLINTH_H, p, M.plinth), L / 2, PLINTH_H / 2, W - p / 2));
-  walls.west.add(at(box(p, PLINTH_H, W, M.plinth), p / 2, PLINTH_H / 2, W / 2));
-  walls.east.add(at(box(p, PLINTH_H, W, M.plinth), L - p / 2, PLINTH_H / 2, W / 2));
+  // Plinths along the inner faces (thickness = room plinth); not yet installed in rough / pre-finish.
+  if (F.plinth) {
+    walls.north.add(at(box(L, PLINTH_H, p, M.plinth), L / 2, PLINTH_H / 2, p / 2));
+    walls.south.add(at(box(L, PLINTH_H, p, M.plinth), L / 2, PLINTH_H / 2, W - p / 2));
+    walls.west.add(at(box(p, PLINTH_H, W, M.plinth), p / 2, PLINTH_H / 2, W / 2));
+    walls.east.add(at(box(p, PLINTH_H, W, M.plinth), L - p / 2, PLINTH_H / 2, W / 2));
+  }
 
   Object.values(walls).forEach(g => group.add(g));
   return { group, walls, ceiling, windows, doors, size: { L, W, H } };

@@ -10,7 +10,8 @@ import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import * as anim from './anim3d.js';
 import { initTouch } from './touch3d.js';
-import { setQuality, resetPhoto } from './textures3d.js';
+import { setQuality, resetPhoto, onLibLoaded } from './textures3d.js';
+import { styleOf } from '../style.js';
 import { toast } from '../ui.js';
 import { compose, savePicture, canShareFiles } from '../snapshot.js';
 
@@ -66,6 +67,12 @@ function init(el) {
     state.lighting = { ...lightingOf(state.lighting), scene: b.dataset.light };
     emit();
   }));
+  el.querySelectorAll('[data-finish]').forEach(b => b.addEventListener('click', () => {
+    state.style = { ...styleOf(state.style), finish: b.dataset.finish };
+    emit();
+  }));
+  // A photo-library set has arrived: rebuild the shell and furniture with it.
+  onLibLoaded(() => { roomKey = ''; if (running) rebuild(); });
   el.querySelector('#ceilSel').addEventListener('change', e => {
     state.lighting = { ...lightingOf(state.lighting), ceiling: e.target.value };
     emit();

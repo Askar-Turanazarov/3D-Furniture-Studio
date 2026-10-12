@@ -1,7 +1,7 @@
 // Room finish panel: wall material and colour, accent wall, floor (roomDoc.style, saved and undoable).
-import { state, emit } from './state.js';
+import { state, emit, onChange } from './state.js';
 import { t, onLangChange } from './i18n.js';
-import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR, FURN_STYLES } from './style.js';
+import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR, FURN_STYLES, FINISHES } from './style.js';
 
 const $ = id => document.getElementById(id);
 
@@ -11,6 +11,7 @@ function fillSelects() {
   opts(f.wallMat, WALL_MATS, 'style.wall.');
   opts(f.floor, FLOORS, 'style.floor.');
   opts(f.furniture, FURN_STYLES, 'style.f.');
+  opts(f.finish, FINISHES, 'style.finish.');
   f.accentWall.replaceChildren(new Option(t('style.noAccent'), ''), ...WALLS.map(w => new Option(t('style.w.' + w), w)));
   syncStylePanel();
 }
@@ -19,6 +20,7 @@ export function initStylePanel() {
   const form = $('styleForm');
   fillSelects();
   onLangChange(fillSelects);
+  onChange(syncStylePanel);      // the 3D HUD and the texture library change the style too
   // 'change', not 'input': dragging in the colour picker would make a history step per pixel.
   form.addEventListener('change', e => {
     const f = form.elements, s = styleOf(state.style);
@@ -31,7 +33,8 @@ export function initStylePanel() {
       accentWall: f.accentWall.value || null,
       accentColor: f.accentColor.value,
       floor: f.floor.value,
-      furniture: f.furniture.value
+      furniture: f.furniture.value,
+      finish: f.finish.value
     };
     syncStylePanel();
     emit();
@@ -47,4 +50,10 @@ export function syncStylePanel() {
   f.accentColor.disabled = !s.accentWall;
   f.floor.value = s.floor;
   f.furniture.value = s.furniture;
+  f.finish.value = s.finish;
+  // Colours and finishes are hidden under rough / pre-finish walls: show it by disabling them.
+  const bare = s.finish !== 'finished';
+  for (const n of ['wallMat', 'wallColor', 'accentWall', 'floor']) f[n].disabled = bare;
+  if (bare) f.accentColor.disabled = true;
+  document.querySelectorAll('[data-finish]').forEach(b => b.classList.toggle('active', b.dataset.finish === s.finish));
 }

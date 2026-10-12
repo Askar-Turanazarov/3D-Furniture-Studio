@@ -149,6 +149,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 /* ---------- photo textures panel ---------- */
 .tex-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
 .tex-row { display: flex; align-items: center; gap: 8px; }
+.tex-lib-title { margin: 14px 0 0; font-size: 14px; }
+#texLib h4 { margin: 10px 0 0; font-size: 12px; color: var(--muted, #667); text-transform: uppercase; letter-spacing: .04em; }
 .tex-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--line); flex: none; }
 .tex-info { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
 .tex-badge { font-size: 11px; color: var(--muted); }

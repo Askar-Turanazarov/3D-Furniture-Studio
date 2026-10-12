@@ -2,6 +2,7 @@
 // Quality 'simple': procedural Canvas textures; 'photo': CC0 photo textures from /textures (fallback to simple).
 // 1 texture tile = 1 m.
 import * as THREE from 'three';
+import { surfacesOf } from '../style.js';
 
 const SIZE = 512;
 let mats = null;
@@ -223,6 +224,12 @@ function panels() {
 }
 
 const EXTRA = { laminate, tile, carpet, wallpaper, brick, panels };
+// New finishes without their own generator: base pattern (or the plaster of the base set) and a colour.
+const LOOK = {
+  herringbone: ['parquet', '#d9b48a'], parquetDark: ['parquet', '#6e4e36'], marble: ['tile', '#f1efec'],
+  plaster: ['plaster', '#efe9df'], concrete: ['plaster', '#a9a7a3'], tileBath: ['tile', '#ffffff'],
+  screed: ['plaster', '#9d9a95'], putty: ['plaster', '#f6f5f2'], blocks: ['brick', '#b9b4ad']
+};
 
 function textures() {
   if (!tex) tex = { parquet: parquet(), plaster: plaster(), wood: woodGrain(), fabric: fabric() };
@@ -315,6 +322,61 @@ export function resetPhoto() {
   photo = null;
 }
 
+// ---------- photo library (public/textures/library.json) ----------
+// Sets are loaded lazily in Photo quality; until a set arrives (or if it is missing) the procedural look is used.
+// When a set finishes loading, the listeners rebuild the scene.
+const lib = new Map();      // id → texture set | 'loading' | null (failed)
+let libIndex = null;        // Promise<[{ id, tile, ... }]>
+const libListeners = [];
+
+export const onLibLoaded = fn => libListeners.push(fn);
+
+export function libraryIndex() {
+  if (!libIndex) {
+    libIndex = fetch('/textures/library.json').then(r => r.ok ? r.json() : []).catch(() => []);
+  }
+  return libIndex;
+}
+
+async function loadLib(id) {
+  const entry = (await libraryIndex()).find(e => e.id === id);
+  if (!entry) return null;
+  const loader = new THREE.TextureLoader(), rep = 1 / (entry.tile || 1);
+  const load = async (file, srgb) => {
+    let t;
+    try { t = await loader.loadAsync(`/textures/sets/${id}/${file}.jpg`); }
+    catch { t = await loader.loadAsync(`/textures/lib/${id}/${file}.jpg`); }   // downloaded on demand
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.anisotropy = 8;
+    t.repeat.set(rep, rep);
+    return t;
+  };
+  try {
+    const [map, normalMap, roughnessMap] = await Promise.all([load('color', true), load('normal', false), load('roughness', false)]);
+    return { map, normalMap, roughnessMap };
+  } catch { return null; }
+}
+
+// Loaded library set or null (starts loading on first request in Photo quality).
+function libSet(id) {
+  if (!id || quality !== 'photo') return null;
+  const v = lib.get(id);
+  if (v === undefined) {
+    lib.set(id, 'loading');
+    loadLib(id).then(set => {
+      lib.set(id, set);
+      if (!set) return;
+      mats = null;
+      furnCache.clear();
+      finishCache.clear();
+      libListeners.forEach(fn => fn(id));
+    });
+    return null;
+  }
+  return v === 'loading' ? null : v;
+}
+
 // Texture set for a surface in the current quality (falls back to procedural).
 function surface(name) {
   const p = quality === 'photo' && photo && photo[name];
@@ -363,17 +425,38 @@ export function getMats() {
 export function finishMats(style) {
   const key = JSON.stringify(style);
   if (finishCache.has(key)) return finishCache.get(key);
-  const floorTex = style.floor === 'parquet' ? surface('floor') : { ...extra(style.floor), photo: false };
-  const ROUGH = { parquet: null, laminate: 0.55, tile: 0.25, carpet: 1 };
+  const S = surfacesOf(style);
+  // Procedural texture of a finish value: own generator, the base parquet / plaster, or a LOOK alias.
+  const simple = (v, base) => {
+    if (v === base) return { tex: surface(base === 'parquet' ? 'floor' : 'wall'), color: null };
+    const [gen, color] = LOOK[v] || [v, null];
+    const T = textures();
+    const tex = gen === 'parquet' ? T.parquet : gen === 'plaster' ? T.plaster : extra(gen);
+    return { tex: { ...tex, photo: false }, color };
+  };
+  const ROUGH = { parquet: 0.75, herringbone: 0.75, parquetDark: 0.7, laminate: 0.55, tile: 0.25, marble: 0.15, carpet: 1, screed: 0.95 };
+  const fl = libSet(S.floorSet);
+  const fs = fl ? { tex: { ...fl, photo: true }, color: null } : simple(S.floor, 'parquet');
   const floor = new THREE.MeshStandardMaterial({
-    ...maps(floorTex), roughness: style.floor === 'parquet' ? (floorTex.photo ? 1 : 0.75) : ROUGH[style.floor]
+    ...maps(fs.tex), color: fs.color || '#ffffff', roughness: fs.tex.photo ? 1 : ROUGH[S.floor] ?? 0.8
   });
-  const wm = style.wall.material;
-  const wallTex = wm === 'paint' ? surface('wall') : { ...extra(wm), photo: false };
+  const wl = libSet(S.wallSet);
+  const ws = wl ? { tex: { ...wl, photo: true }, color: null } : simple(S.wall, 'paint');
+  // Bare finishes keep their own colour; painted ones are tinted by the chosen wall colour.
+  const own = S.wall === 'blocks' || S.wall === 'putty' || S.wall === 'concrete';
   const wallMat = color => new THREE.MeshStandardMaterial({
-    ...maps(wallTex), color: tint(color, wallTex.photo, wallTex.custom), roughness: wm === 'panels' ? 0.6 : 0.95
+    ...maps(ws.tex),
+    color: own ? (ws.tex.photo ? '#ffffff' : ws.color) : tint(color, ws.tex.photo, ws.tex.custom),
+    roughness: S.wall === 'panels' ? 0.6 : S.wall === 'tileBath' ? 0.3 : 0.95
   });
-  const res = { floor, wall: wallMat(style.wall.color), accent: style.accentWall ? wallMat(style.accentColor) : null };
+  const s = style || {};
+  const ceiling = S.ceiling === 'concrete'
+    ? new THREE.MeshStandardMaterial({ color: '#a8a6a2', roughness: 1 })
+    : getMats().ceiling;
+  const res = {
+    floor, wall: wallMat(S.wallColor), accent: S.accent ? wallMat(s.accentColor || '#8fa3b8') : null,
+    ceiling, plinth: S.plinth, doorLeaves: S.doorLeaves
+  };
   finishCache.set(key, res);
   return res;
 }
@@ -409,7 +492,11 @@ export function furnitureMat(kind, color, status = 'ok') {
     case 'chrome': m = new THREE.MeshStandardMaterial({ color: '#e8eaee', roughness: 0.12, metalness: 1 }); break;
     // Clear glass: cheap transparency instead of transmission (keeps FPS).
     case 'glass': m = new THREE.MeshPhysicalMaterial({ color: '#dfeef2', roughness: 0.05, metalness: 0, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }); break;
-    case 'leather': m = new THREE.MeshPhysicalMaterial({ ...maps(fab), color, roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 }); break;
+    case 'leather': {
+      const lt = libSet('leather');
+      m = new THREE.MeshPhysicalMaterial({ ...maps(lt || fab), color: lt ? tint(color, true) : color, roughness: lt ? 1 : 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 });
+      break;
+    }
     case 'screen': m = new THREE.MeshPhysicalMaterial({ color: '#0b0c0f', roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.02 }); break;
     case 'leaf': m = new THREE.MeshStandardMaterial({ color: color || '#4f7d45', roughness: 0.7, side: THREE.DoubleSide }); break;
     case 'rug': m = new THREE.MeshStandardMaterial({ ...maps(fab), color, roughness: 1 }); break;

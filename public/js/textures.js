@@ -1,6 +1,8 @@
 // "Photo textures (3D)" panel: apply / download the built-in CC0 set, upload own photos per surface.
-import { t, onLangChange } from './i18n.js';
+import { t, onLangChange, getLang } from './i18n.js';
 import { toast, escapeHtml } from './ui.js';
+import { state, emit } from './state.js';
+import { styleOf } from './style.js';
 
 const SETS = ['floor', 'wall', 'wood', 'fabric'];
 const MAX = 1024;          // uploaded photos are downsized to this many px
@@ -14,6 +16,53 @@ export function initTextures() {
   render();
   refresh();
   onLangChange(render);
+  loadLibrary();
+  onLangChange(renderLibrary);
+}
+
+// ---------- texture library (public/textures/library.json) ----------
+const KINDS = ['floor', 'wall', 'rough', 'furniture'];
+let library = [];
+
+async function loadLibrary() {
+  try {
+    const res = await fetch('/textures/library.json');
+    if (res.ok) library = await res.json();
+  } catch { /* offline */ }
+  renderLibrary();
+}
+
+const setUrl = (e, file) => `/textures/${e.bundled ? 'sets' : 'lib'}/${e.id}/${file}.jpg`;
+
+function renderLibrary() {
+  const box = document.getElementById('texLib');
+  const lang = getLang();
+  box.innerHTML = KINDS.map(k => {
+    const list = library.filter(e => e.kind === k);
+    if (!list.length) return '';
+    return `<h4>${escapeHtml(t('tex.kind.' + k))}</h4><ul class="tex-list">` + list.map(e => `<li class="tex-row">
+      <img class="tex-thumb" src="${escapeHtml(setUrl(e, 'color'))}" alt="" loading="lazy">
+      <div class="tex-info"><b>${escapeHtml(e.name[lang] || e.name.ru)}</b>
+        <span class="tex-badge">ambientCG ${escapeHtml(e.source?.ambientcg || '')}</span></div>
+      <div class="tex-actions">
+        ${e.style ? `<button class="btn sm" data-lib="${escapeHtml(e.id)}">${escapeHtml(t('tex.libApply'))}</button>` : ''}
+        <a class="btn sm" href="${escapeHtml(setUrl(e, 'color'))}" download="${escapeHtml(e.id)}-color.jpg" title="${escapeHtml(t('tex.download'))}">⬇</a>
+      </div></li>`).join('') + '</ul>';
+  }).join('');
+  box.querySelectorAll('[data-lib]').forEach(b => b.addEventListener('click', () => applyLib(b.dataset.lib)));
+}
+
+// Apply a set to the current room: floor / wall finish, or the finish level for rough sets.
+function applyLib(id) {
+  const e = library.find(x => x.id === id);
+  if (!e?.style) return;
+  const s = styleOf(state.style);
+  if (e.style.floor) state.style = { ...s, floor: e.style.floor, finish: 'finished' };
+  else if (e.style.wall) state.style = { ...s, wall: { ...s.wall, material: e.style.wall, color: '#ffffff' }, finish: 'finished' };
+  else if (e.style.finish) state.style = { ...s, finish: e.style.finish };
+  emit();
+  applyPhoto();
+  toast(t('tex.libApplied'));
 }
 
 async function refresh() {

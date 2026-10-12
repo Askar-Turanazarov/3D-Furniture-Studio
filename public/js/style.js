@@ -1,10 +1,13 @@
 // Room finish and furniture style (roomDoc.style). Pure: used by the state, storage, 3D and tests.
 // style = { wall: { material, color }, accentWall: null | 'north'|'east'|'south'|'west', accentColor,
-//           floor, furniture: 'modern'|'classic'|'loft' }; item.style overrides the furniture style.
-export const WALL_MATS = ['paint', 'wallpaper', 'brick', 'panels'];
-export const FLOORS = ['parquet', 'laminate', 'tile', 'carpet'];
+//           floor, furniture: 'modern'|'classic'|'loft', finish: 'finished'|'prefinish'|'rough' };
+// item.style overrides the furniture style.
+export const WALL_MATS = ['paint', 'wallpaper', 'brick', 'panels', 'plaster', 'concrete', 'tileBath'];
+export const FLOORS = ['parquet', 'laminate', 'tile', 'carpet', 'herringbone', 'parquetDark', 'marble'];
 export const WALLS = ['north', 'east', 'south', 'west'];
 export const FURN_STYLES = ['modern', 'classic', 'loft'];
+// Finish level: rough (screed, bare blocks), pre-finish ("white box": screed, putty), finished (the chosen style).
+export const FINISHES = ['finished', 'prefinish', 'rough'];
 export const BRICK_COLOR = '#b5654a';
 
 export const DEFAULT_STYLE = {
@@ -12,7 +15,8 @@ export const DEFAULT_STYLE = {
   accentWall: null,
   accentColor: '#8fa3b8',
   floor: 'parquet',
-  furniture: 'modern'
+  furniture: 'modern',
+  finish: 'finished'
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -26,9 +30,33 @@ export function styleOf(s = {}) {
     accentWall: WALLS.includes(s?.accentWall) ? s.accentWall : null,
     accentColor: HEX.test(s?.accentColor) ? s.accentColor : d.accentColor,
     floor: pick(s?.floor, FLOORS, d.floor),
-    furniture: pick(s?.furniture, FURN_STYLES, d.furniture)
+    furniture: pick(s?.furniture, FURN_STYLES, d.furniture),
+    finish: pick(s?.finish, FINISHES, d.finish)
   };
 }
 
 // Furniture style of one item: its own override or the room style.
 export const itemStyle = (item, style) => FURN_STYLES.includes(item.style) ? item.style : styleOf(style).furniture;
+
+// Photo-library set (public/textures/library.json) of each finish; parquet and paint use the base sets.
+const FLOOR_SET = { parquet: null, laminate: 'laminate', tile: 'tileStone', carpet: 'carpet', herringbone: 'herringbone', parquetDark: 'parquetDark', marble: 'marble' };
+const WALL_SET = { paint: null, wallpaper: null, panels: null, brick: 'brick', plaster: 'plaster', concrete: 'concrete', tileBath: 'tileBath' };
+
+/**
+ * What the 3D shell is made of for a style:
+ * { floor, wall, accent: bool, wallColor, floorSet, wallSet, ceiling: 'white'|'concrete', plinth, doorLeaves }.
+ * floor / wall — style values (procedural look); floorSet / wallSet — library ids for Photo quality (null = base set).
+ */
+export function surfacesOf(style) {
+  const s = styleOf(style);
+  if (s.finish === 'rough') {
+    return { floor: 'screed', wall: 'blocks', accent: false, wallColor: '#b9b4ad', floorSet: 'screed', wallSet: 'blocks',
+      ceiling: 'concrete', plinth: false, doorLeaves: false };
+  }
+  if (s.finish === 'prefinish') {
+    return { floor: 'screed', wall: 'putty', accent: false, wallColor: '#f4f2ee', floorSet: 'screed', wallSet: 'putty',
+      ceiling: 'white', plinth: false, doorLeaves: true };
+  }
+  return { floor: s.floor, wall: s.wall.material, accent: !!s.accentWall, wallColor: s.wall.color,
+    floorSet: FLOOR_SET[s.floor], wallSet: WALL_SET[s.wall.material], ceiling: 'white', plinth: true, doorLeaves: true };
+}

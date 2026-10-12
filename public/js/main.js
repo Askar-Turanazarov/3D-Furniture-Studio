@@ -3,19 +3,23 @@ import { state, onChange, emit, itemName, docFromState, applyDoc } from './state
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
 import { parseCatalog } from './catalog.js';
-import { initProjects, persist, renderTabs } from './projects.js';
+import { initProjects, persist, renderHeader } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
 import { initOrder } from './order.js';
 import { initCompare } from './compare.js';
 import { initTextures } from './textures.js';
 import { initSnapshot } from './snapshot.js';
-import { initRenderer, requestDraw, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings, setPassages as setDrawPassages } from './renderer.js';
+import { initRenderer, requestDraw, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings, setPassages as setDrawPassages,
+  setRoomErrors, liveRooms } from './renderer.js';
+import { roomView as aptRoomView, overlapsRooms } from './apartment.js';
+import { overlapText } from './interaction.js';
 import { validateAll, validateWarnings, obstacleWarnings } from './validate.js';
 import { narrowPassages } from './passages.js';
 import { clampOpening } from './openings.js';
 import { fitObstacleHeight } from './obstacles.js';
 import { initInteraction } from './interaction.js';
-import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings, setObWarnings, setPassages } from './ui.js';
+import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings, setObWarnings, setPassages,
+  setRoomNotes } from './ui.js';
 
 let lastH = null;   // full-height obstacles follow the ceiling
 
@@ -33,12 +37,29 @@ function update() {
   const errors = validateAll(state);
   setDrawErrors(errors);
   setUiErrors(errors);
+  setRoomErrors(otherRoomErrors());
+  setRoomNotes(overlapsRooms(liveRooms()).map(overlapText));
   requestDraw();
   refresh();
+  renderHeader();
   persist();
   closeStaleField();
   history.record(snapshot());
   syncUndo();
+}
+
+// Errors of the other rooms (red items on the apartment plan); recomputed only when a room changes.
+const roomCache = new Map();   // roomId → { key, errors }
+function otherRoomErrors() {
+  const out = new Map(), settings = JSON.stringify(state.settings);
+  for (const r of state.rooms) {
+    if (r.id === state.activeRoomId) continue;
+    const key = settings + JSON.stringify([r.room, r.items, r.openings, r.obstacles]);
+    let c = roomCache.get(r.id);
+    if (c?.key !== key) roomCache.set(r.id, c = { key, errors: validateAll(aptRoomView(state, r.id)) });
+    out.set(r.id, c.errors);
+  }
+  return out;
 }
 
 // ---- undo / redo ----
@@ -58,7 +79,6 @@ function step(dir) {
   applyDoc(JSON.parse(snap));
   Object.assign(state.settings, view);
   syncForms();
-  renderTabs();
   emit();
   toast(t(dir < 0 ? 'hist.undone' : 'hist.redone'));
 }

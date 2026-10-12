@@ -1,14 +1,14 @@
-// The open project = one apartment: its rooms (tabs above the plan until the whole-apartment plan), the room dialog,
+// The open project = one apartment: its header (name, area, active room, variants), the room dialog,
 // switching the active room, apartment variants (copies of the whole apartment). One undo history per apartment.
 import { state, emit, applyDoc, docFromState, setActiveRoom, syncActive } from './state.js';
 import { history } from './history.js';
 import {
   onSaveError, saveProject, flushSave, migrateV1, openLastProject, makeProject, makeRoom,
-  saveProjectNow, setLastProject, makeVariant, variantsOf
+  saveProjectNow, setLastProject, makeVariant, variantsOf, loadProject
 } from './storage.js';
-import { nextRoomPos } from './apartment.js';
+import { nextRoomPos, apartmentArea, roomArea } from './apartment.js';
 import { defaultOpenings } from './openings.js';
-import { resetView, drawPlanTo } from './renderer.js';
+import { resetView, drawPlanTo, liveRooms } from './renderer.js';
 import { resetRuler } from './interaction.js';
 import { t, getLang, onLangChange } from './i18n.js';
 import { loadTemplates, templateDoc, localName, sizeLabel, drawMiniPlan } from './templates.js';
@@ -42,10 +42,10 @@ export function initProjects() {
     || makeProject(t('project.default'), [emptyRoom()]);
   applyProject(project);
   window.addEventListener('pagehide', flushSave);
-  initTabs();
+  initHeader();
   initRoomDialog();
-  onLangChange(renderTabs);
-  renderTabs();
+  onLangChange(renderHeader);
+  renderHeader();
 }
 
 // Switch to another project (already saved or new); the current one is saved first.
@@ -55,6 +55,7 @@ export function openProject(p) {
   setLastProject(p.id);
   applyProject(p);
   history.reset(null);
+  resetView();
   afterRoomChange();
 }
 
@@ -66,11 +67,13 @@ export function newProject() {
 // Forget the open project without saving it (it is being deleted).
 export function closeProject() { project = null; }
 
-// Small JPEG of the plan for the project card (drawn off-screen, so it works from the 3D view too).
+// Small JPEG of the whole apartment for the project card (drawn off-screen, so it works from the 3D view too).
 export function capturePreview() {
   if (!project) return;
   const c = document.createElement('canvas');
-  const { L, W } = state.room;
+  const rs = liveRooms().map(r => ({ x: r.pos?.x || 0, y: r.pos?.y || 0, w: r.room.L, h: r.room.W }));
+  const L = Math.max(...rs.map(r => r.x + r.w)) - Math.min(...rs.map(r => r.x));
+  const W = Math.max(...rs.map(r => r.y + r.h)) - Math.min(...rs.map(r => r.y));
   const h = Math.max(60, Math.min(240, Math.round(240 * W / L)));
   drawPlanTo(c, 240, h, { drawing: true, pad: 8 });
   project.preview = c.toDataURL('image/jpeg', 0.7);
@@ -87,12 +90,11 @@ export function switchRoom(id) {
   afterRoomChange();
 }
 
-// Reset everything that belongs to the view of the previous room.
+// Reset what belongs to the previous room (the apartment view itself stays where it is).
 function afterRoomChange() {
-  resetView();
   resetRuler();
   syncForms();
-  renderTabs();
+  renderHeader();
   emit();
 }
 
@@ -147,80 +149,70 @@ function deleteRoom(id) {
   if (!confirm(t('room.confirmDelete', { name: state.rooms[i].name }))) return;
   state.rooms.splice(i, 1);
   if (state.activeRoomId === id) switchRoom(state.rooms[Math.max(0, i - 1)].id);
-  else { renderTabs(); emit(); }
+  else { renderHeader(); emit(); }
 }
 
-// ---- tabs ----
-function initTabs() {
-  $('roomTabsList').addEventListener('click', e => {
-    const more = e.target.closest('[data-more]');
-    if (more) return openMenu(more.dataset.more, more);
-    const tab = e.target.closest('[data-room]');
-    if (tab) switchRoom(tab.dataset.room);
-  });
-  $('roomTabsList').addEventListener('dblclick', e => {
-    const tab = e.target.closest('[data-room]');
-    if (tab) openRoomDialog(tab.dataset.room);
-  });
+// ---- apartment header: name, area, active room, variants, + room; the room panel's edit / delete ----
+function initHeader() {
+  $('roomPick').addEventListener('change', e => switchRoom(e.target.value));
   $('addRoomBtn').addEventListener('click', () => openRoomDialog(null));
-  $('roomMenu').addEventListener('click', e => {
-    const b = e.target.closest('[data-act]');
+  $('roomEditBtn').addEventListener('click', () => openRoomDialog(state.activeRoomId));
+  $('roomDelBtn').addEventListener('click', () => deleteRoom(state.activeRoomId));
+  $('variantsBtn').addEventListener('click', e => openVariants(e.currentTarget));
+  $('variantsMenu').addEventListener('click', e => {
+    const b = e.target.closest('button');
     if (!b) return;
-    const id = $('roomMenu').dataset.room;
     closeMenu();
-    if (b.dataset.act === 'edit') openRoomDialog(id);
-    if (b.dataset.act === 'version') createVariant();
-    if (b.dataset.act === 'compare') openCompare(id);
-    if (b.dataset.act === 'delete') deleteRoom(id);
+    if (b.dataset.open && b.dataset.open !== project.id) {
+      const p = loadProject(b.dataset.open);
+      if (p) openProject(p);
+    }
+    if (b.dataset.act === 'create') createVariant();
+    if (b.dataset.act === 'compare') openCompare();
   });
   document.addEventListener('pointerdown', e => {
-    if (!$('roomMenu').hidden && !e.target.closest('#roomMenu, [data-more]')) closeMenu();
+    if (!$('variantsMenu').hidden && !e.target.closest('#variantsMenu, #variantsBtn')) closeMenu();
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
 }
 
-export function renderTabs() {
+export function renderHeader() {
   if (!project) return;
   $('projName').textContent = project.name;
-  const list = $('roomTabsList');
-  list.replaceChildren(...state.rooms.map(r => {
-    const tab = document.createElement('div');
-    tab.className = 'room-tab' + (r.id === state.activeRoomId ? ' active' : '');
-    tab.setAttribute('role', 'tab');
-    tab.setAttribute('aria-selected', r.id === state.activeRoomId);
-    tab.dataset.room = r.id;
-    const room = r.id === state.activeRoomId ? state.room : r.room;
-    const area = (room.L * room.W / 10000).toFixed(1);
-    tab.title = [r.purpose && t('purpose.' + r.purpose), `${room.L}×${room.W} ${t('unit.cm')} · ${area} ${t('unit.m2')}`]
-      .filter(Boolean).join(' · ');
-    const name = document.createElement('span');
-    name.className = 'room-tab-name';
-    name.textContent = r.name;
-    const more = document.createElement('button');
-    more.className = 'room-tab-more';
-    more.type = 'button';
-    more.dataset.more = r.id;
-    more.title = t('room.menu');
-    more.textContent = '⋯';
-    tab.append(name);
-    tab.append(more);
-    return tab;
-  }));
-  list.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const rooms = liveRooms();
+  $('aptArea').textContent = `${t('apt.rooms', { n: rooms.length })} · ${apartmentArea(rooms).toFixed(1)} ${t('unit.m2')}`;
+  const pick = $('roomPick');
+  pick.replaceChildren(...rooms.map(r => new Option(`${r.name} · ${roomArea(r).toFixed(1)} ${t('unit.m2')}`, r.id)));
+  pick.value = state.activeRoomId;
+  const r = rooms.find(x => x.id === state.activeRoomId);
+  $('roomTitle').textContent = r ? [r.name, r.purpose && t('purpose.' + r.purpose)].filter(Boolean).join(' · ') : '';
+  $('roomDelBtn').disabled = rooms.length < 2;
 }
 
-function openMenu(id, anchor) {
-  const m = $('roomMenu');
-  if (!m.hidden && m.dataset.room === id) return closeMenu();
-  m.dataset.room = id;
-  m.querySelector('[data-act="compare"]').hidden = state.rooms.length < 2;
+// Variants of this apartment (copies of the whole apartment): open one, create, compare.
+function openVariants(anchor) {
+  const m = $('variantsMenu');
+  if (!m.hidden) return closeMenu();
+  persist();
+  flushSave();
+  const group = variantsOf(project.id);
+  $('variantsList').replaceChildren(...group.map(v => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.open = v.id;
+    b.className = v.id === project.id ? 'current' : '';
+    b.textContent = (v.id === project.id ? '✓ ' : '') + v.name;
+    return b;
+  }));
+  m.querySelector('hr').hidden = !group.length;
+  m.querySelector('[data-act="compare"]').hidden = group.length < 2;
   m.hidden = false;
   const r = anchor.getBoundingClientRect();
-  m.style.left = Math.min(r.left, window.innerWidth - m.offsetWidth - 8) + 'px';
+  m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - m.offsetWidth - 8)) + 'px';
   m.style.top = r.bottom + 4 + 'px';
 }
 
-function closeMenu() { $('roomMenu').hidden = true; }
+function closeMenu() { $('variantsMenu').hidden = true; }
 
 // ---- room dialog: new room (empty with a size, or from a template) or edit (name, purpose) ----
 let editing = null;   // room id or null for a new room
@@ -272,7 +264,7 @@ function initRoomDialog() {
     if (editing) {
       const r = state.rooms.find(x => x.id === editing);
       Object.assign(r, { name, purpose: f.purpose.value });
-      renderTabs();
+      renderHeader();
       emit();
     } else {
       const num = (inp, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+inp.value) || lo));

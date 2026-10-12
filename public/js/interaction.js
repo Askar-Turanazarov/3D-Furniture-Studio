@@ -2,11 +2,14 @@
 import { state, emit, select, selected, rotateItem, removeItems, moveItems, snapValue,
   selectOpening, selectedOpening, removeOpening, updateOpening,
   isSelected, selectedItems, toggleSelect, selectMany,
-  selectObstacle, selectedOb, updateObstacle, removeObstacle } from './state.js';
+  selectObstacle, selectedOb, updateObstacle, removeObstacle, moveItemToRoom, activePos } from './state.js';
+import { roomAt, roomRect, snapRoom, overlapsRooms } from './apartment.js';
+import { switchRoom } from './projects.js';
 import { obRect } from './obstacles.js';
 import { rectOf, footprint, overlaps, isDecor } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
-import { toWorld, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom } from './renderer.js';
+import { toWorld, toPlan, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom,
+  syncView, lockFit, liveRooms } from './renderer.js';
 import { history } from './history.js';
 import { duplicate, toast } from './ui.js';
 import { ruler, snapLines, snapPoint, lockAxis } from './ruler.js';
@@ -17,7 +20,7 @@ const MAGNET_PX = 8;   // edges stick to walls / neighbours within this screen d
 const OPENING_PX = 14; // an opening is grabbed within this screen distance from its wall
 const PAN_PX = 4;      // a press on the empty floor becomes panning after this movement
 // { item, offX, offY, group: [{ it, dx, dy }], pointerId } | { opening, grab, pointerId } | { marquee, pointerId }
-// | { pan, sx, sy, moved, pointerId }
+// | { pan, sx, sy, moved, pointerId } | { room, offX, offY, pointerId } (layout mode)
 let drag = null;
 let space = false;            // Space held: drag pans the plan
 const touches = new Map();    // active touch pointers → [x, y] (pinch zoom)
@@ -27,6 +30,7 @@ export function initInteraction(canvas) {
   initZoom(canvas);
   initRuler(canvas);
   initNiche(canvas);
+  document.getElementById('layoutBtn').addEventListener('click', () => toggleLayout());
   canvas.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') {
       touches.set(e.pointerId, local(canvas, e));
@@ -40,7 +44,11 @@ export function initInteraction(canvas) {
       e.preventDefault();
       return;
     }
-    const [wx, wy] = toWorld(...local(canvas, e));
+    let [wx, wy] = toWorld(...local(canvas, e));
+    if (overlay.layout) {
+      if (e.button === 0) startRoomDrag(canvas, e);
+      return;
+    }
     if (ruler.active) {
       if (e.button === 0) rulerClick(wx, wy, e.shiftKey);
       return;
@@ -49,12 +57,20 @@ export function initInteraction(canvas) {
       if (e.button === 0) nicheClick(wx, wy);
       return;
     }
-    const hit = hitTest(wx, wy);
+    let hit = hitTest(wx, wy);
+    // A press in another room makes it active, then works there as usual (select, drag, pan).
+    const other = hit ? null : roomAt(liveRooms(), ...toPlan(...local(canvas, e)));
+    if (other && other.id !== state.activeRoomId) {
+      switchRoom(other.id);
+      syncView();
+      [wx, wy] = toWorld(...local(canvas, e));
+      hit = hitTest(wx, wy);
+    }
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     if (hit?.opening) {
       const o = hit.opening;
       drag = { opening: o, grab: nearestWall(wx, wy, state.room).along - o.offset, pointerId: e.pointerId };
-      canvas.setPointerCapture(e.pointerId);
+      capture(canvas, e);
       history.begin();
       if (state.selectedOpening !== o.id) selectOpening(o.id);
       return;
@@ -72,7 +88,7 @@ export function initInteraction(canvas) {
         // Rubber band selection.
         drag = { marquee: true, pointerId: e.pointerId };
         overlay.marquee = { x0: wx, y0: wy, x1: wx, y1: wy };
-        canvas.setPointerCapture(e.pointerId);
+        capture(canvas, e);
         return;
       }
       // Empty floor: a click deselects, a drag pans the plan.
@@ -88,7 +104,7 @@ export function initInteraction(canvas) {
       item: hit, offX: wx - hit.x, offY: wy - hit.y, pointerId: e.pointerId,
       group: group.map(it => ({ it, dx: it.x - hit.x, dy: it.y - hit.y }))
     };
-    canvas.setPointerCapture(e.pointerId);
+    capture(canvas, e);
     history.begin();
   });
 
@@ -105,6 +121,11 @@ export function initInteraction(canvas) {
       drag.sx = e.clientX; drag.sy = e.clientY;
       canvas.style.cursor = 'grabbing';
       return panBy(dx, dy);
+    }
+    if (drag?.room && e.pointerId === drag.pointerId) return dragRoom(...toPlan(...local(canvas, e)));
+    if (!drag && overlay.layout) {
+      canvas.style.cursor = roomAt(liveRooms(), ...toPlan(...local(canvas, e))) ? 'move' : 'default';
+      return;
     }
     if (!drag && niche.active) {
       nicheHover(wx, wy);
@@ -130,11 +151,11 @@ export function initInteraction(canvas) {
     if (drag.obstacle) return dragObstacle(wx, wy);
     const it = drag.item;
     const f = footprint(it);
-    const { L, W } = state.room;
+    const b = dragArea();
     const skip = new Set([it, ...drag.group.map(g => g.it)]);
-    // Keep at least half of the item inside the room so it can't get lost.
-    const rawX = clamp(wx - drag.offX, -f.w / 2, L - f.w / 2);
-    const rawY = clamp(wy - drag.offY, -f.h / 2, W - f.h / 2);
+    // Keep at least half of the item inside the apartment so it can't get lost; another room takes it on drop.
+    const rawX = clamp(wx - drag.offX, b.x - f.w / 2, b.x + b.w - f.w / 2);
+    const rawY = clamp(wy - drag.offY, b.y - f.h / 2, b.y + b.h - f.h / 2);
     const nx = magnet(rawX, f.w, 'x', skip) ?? snapValue(rawX);
     const ny = magnet(rawY, f.h, 'y', skip) ?? snapValue(rawY);
     if (nx !== it.x || ny !== it.y) {
@@ -169,9 +190,18 @@ export function initInteraction(canvas) {
       if (box.w > 1 || box.h > 1) selectMany([...keep, ...ids]);
       return requestDraw();
     }
+    if (drag.room) {
+      drag = null;
+      lockFit(false);
+      history.end();
+      const bad = overlapsRooms(liveRooms());
+      if (bad.length) toast(overlapText(bad[0]), true);
+      return;
+    }
+    if (drag.item) dropIntoRoom(drag);
     drag = null;
     canvas.style.cursor = 'grab';
-    history.end();   // the whole drag is one undo step
+    history.end();   // the whole drag (and the move into another room) is one undo step
   };
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
@@ -182,6 +212,7 @@ export function initInteraction(canvas) {
     const mod = e.ctrlKey || e.metaKey;
     if (!mod && e.code === 'KeyM') { toggleRuler(); return e.preventDefault(); }
     if (niche.active && e.key === 'Escape') { nicheEscape(); return e.preventDefault(); }
+    if (overlay.layout && e.key === 'Escape') { toggleLayout(false); return e.preventDefault(); }
     if (ruler.active && e.key === 'Escape') {
       // Esc first drops an unfinished measurement, then leaves the ruler mode.
       if (ruler.a) { ruler.a = null; requestDraw(); } else toggleRuler(false);
@@ -230,7 +261,7 @@ export function toggleRuler(on = !ruler.active) {
   if (on === ruler.active) return;
   ruler.active = on;
   ruler.a = ruler.hover = null;
-  if (on) toggleNiche(false);
+  if (on) { toggleNiche(false); toggleLayout(false); }
   rulerCanvas.style.cursor = on ? 'crosshair' : 'default';
   if (on) toast(t('ruler.on'));
   syncRuler();
@@ -459,3 +490,69 @@ function magnet(raw, size, axis, skip) {
 }
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// ---- apartment: items between rooms, room layout mode ----
+// Where an item may be dragged, in the active room's coordinates: the whole apartment.
+function dragArea() {
+  const rs = liveRooms().map(roomRect);
+  if (!rs.length) return { x: 0, y: 0, w: state.room.L, h: state.room.W };
+  const o = activePos();
+  const x = Math.min(...rs.map(r => r.x)), y = Math.min(...rs.map(r => r.y));
+  return { x: x - o.x, y: y - o.y, w: Math.max(...rs.map(r => r.x + r.w)) - x, h: Math.max(...rs.map(r => r.y + r.h)) - y };
+}
+
+// Dropped with its centre in another room: the dragged items move there (keeping their place on the plan).
+function dropIntoRoom(d) {
+  const r = rectOf(d.item), o = activePos();
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  if (cx >= 0 && cy >= 0 && cx <= state.room.L && cy <= state.room.W) return;
+  const target = roomAt(liveRooms(), cx + o.x, cy + o.y);
+  if (!target || target.id === state.activeRoomId) return;
+  const moved = [d.item, ...d.group.map(g => g.it)].map(it => moveItemToRoom(it, target.id)).filter(Boolean);
+  switchRoom(target.id);
+  selectMany(moved.map(it => it.id));
+  toast(t('apt.movedTo', { name: target.name }));
+}
+
+let layoutCanvas = null;
+export function toggleLayout(on = !overlay.layout) {
+  layoutCanvas ??= document.getElementById('plan');
+  if (on === overlay.layout) return;
+  overlay.layout = on;
+  if (on) { toggleRuler(false); toggleNiche(false); toast(t('apt.layoutOn')); }
+  document.getElementById('layoutBtn').classList.toggle('active', on);
+  layoutCanvas.style.cursor = 'default';
+  requestDraw();
+}
+
+function startRoomDrag(canvas, e) {
+  const [px, py] = toPlan(...local(canvas, e));
+  const r = roomAt(liveRooms(), px, py);
+  if (!r) {
+    drag = { pan: true, sx: e.clientX, sy: e.clientY, moved: false, pointerId: e.pointerId };
+    return capture(canvas, e);
+  }
+  if (r.id !== state.activeRoomId) switchRoom(r.id);
+  const doc = state.rooms.find(x => x.id === r.id), p = roomRect(doc);
+  drag = { room: doc, offX: px - p.x, offY: py - p.y, pointerId: e.pointerId };
+  capture(canvas, e);
+  lockFit(true);
+  history.begin();
+}
+
+// Room drag: snap step, then the magnet to the other rooms (aligned edges or one partition apart).
+function dragRoom(px, py) {
+  const snap = Math.max(1, state.settings.snap);
+  const raw = { x: Math.round((px - drag.offX) / snap) * snap, y: Math.round((py - drag.offY) / snap) * snap };
+  const p = snapRoom(liveRooms(), drag.room.id, raw.x, raw.y, 2 * MAGNET_PX / view.scale);
+  const cur = roomRect(drag.room);
+  layoutCanvas.style.cursor = 'grabbing';
+  if (p.x === cur.x && p.y === cur.y) return;
+  drag.room.pos = { x: p.x, y: p.y };
+  emit();
+}
+
+export function overlapText([a, b]) {
+  const name = id => state.rooms.find(r => r.id === id)?.name || '?';
+  return t('apt.overlap', { a: name(a), b: name(b) });
+}

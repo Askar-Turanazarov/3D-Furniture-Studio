@@ -237,8 +237,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bac8ff; border-c
 .sw.warn { background: #fab005; }
 .legend .keys { margin-left: auto; }
 
-/* ---------- room tabs ---------- */
-.room-tabs { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* ---------- apartment header ---------- */
+.apt-head { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.apt-area { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.room-pick { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; max-width: 220px; min-width: 0; }
+.apt-head .btn { padding: 4px 10px; font-size: 13px; }
+.h2-tools { display: inline-flex; gap: 2px; margin-left: auto; }
+.h2-tools .btn { padding: 2px 6px; font-size: 14px; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.menu button.current { font-weight: 700; color: var(--primary); }
 .proj-name {
   font: inherit; font-weight: 700; font-size: 13px; color: var(--muted); white-space: nowrap; max-width: 30%;
   overflow: hidden; text-overflow: ellipsis; border: 0; background: transparent; cursor: pointer; padding: 4px 6px; border-radius: 6px; flex: none;
@@ -262,19 +269,6 @@ dialog.wide { width: min(780px, 94vw); }
 .proj-meta { font-size: 12px; color: var(--muted); }
 .proj-tools { display: flex; gap: 4px; }
 .proj-tools .btn { flex: 1; min-width: 0; font-size: 14px; }
-.room-tabs-list { display: flex; gap: 4px; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
-.room-tab {
-  display: inline-flex; align-items: center; gap: 2px; flex: none;
-  padding: 4px 4px 4px 12px; border-radius: 8px 8px 0 0; cursor: pointer;
-  background: #e7e9f0; color: var(--muted); font-weight: 600; font-size: 13px; user-select: none;
-  border-bottom: 2px solid transparent;
-}
-.room-tab:hover { color: var(--text); }
-.room-tab.active { background: var(--panel); color: var(--text); border-bottom-color: var(--primary); box-shadow: var(--shadow); }
-.room-tab-name { white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
-.room-tab-ver { font-size: 10px; font-weight: 700; color: var(--primary); background: #edf2ff; border-radius: 4px; padding: 1px 4px; margin-left: 4px; white-space: nowrap; }
-.room-tab-more { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 6px; font-size: 15px; border-radius: 5px; }
-.room-tab-more:hover { background: rgba(0,0,0,.07); }
 .add-room { flex: none; padding: 4px 10px; font-size: 13px; }
 .menu {
   position: fixed; z-index: 50; background: #fff; border-radius: 10px; padding: 4px; min-width: 200px;

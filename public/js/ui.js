@@ -169,6 +169,8 @@ let obWarnings = new Map();
 export function setObWarnings(map) { obWarnings = map; }
 let passages = [];
 export function setPassages(list) { passages = list; }
+let roomNotes = [];   // apartment problems (overlapping rooms), always shown first
+export function setRoomNotes(list) { roomNotes = list; }
 
 // ---- windows / doors panel + lock ----
 function initOpenings() {
@@ -436,10 +438,11 @@ function renderNotes() {
   const errs = id => errors.get(id) || [], warns = id => (warnings.get(id) || []).filter(w => w.key !== 'warn.passage');
   const bad = state.items.filter(i => errs(i.id).length || warns(i.id).length);
   const obs = (state.obstacles || []).filter(o => obWarnings.has(o.id));
-  $('notesEmpty').hidden = !!selected() || bad.length > 0 || obs.length > 0;
-  $('notesAll').hidden = state.items.length === 0 && obs.length === 0;
-  $('problemList').innerHTML = bad.length || obs.length
-    ? bad.map(it => `<li data-id="${it.id}" class="${it.id === state.selectedId ? 'selected' : ''}">
+  $('notesEmpty').hidden = !!selected() || bad.length > 0 || obs.length > 0 || roomNotes.length > 0;
+  $('notesAll').hidden = state.items.length === 0 && obs.length === 0 && !roomNotes.length;
+  const apt = roomNotes.map(s => `<li class="apt-note"><b>${escapeHtml(t('apt.layout'))}</b><span>${escapeHtml(s)}</span></li>`).join('');
+  $('problemList').innerHTML = bad.length || obs.length || apt
+    ? apt + bad.map(it => `<li data-id="${it.id}" class="${it.id === state.selectedId ? 'selected' : ''}">
         <b>${escapeHtml(itemName(it))}</b>
         ${errs(it.id).map(e => `<span>${escapeHtml(describe(e))}</span>`).join('')}
         ${warns(it.id).map(e => `<i>⚠ ${escapeHtml(describe(e))}</i>`).join('')}

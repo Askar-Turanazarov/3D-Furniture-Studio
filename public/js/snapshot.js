@@ -3,14 +3,30 @@ import { state } from './state.js';
 import { t, getLang } from './i18n.js';
 import { currentProject, currentRoom } from './projects.js';
 import { toast } from './ui.js';
-import { drawNow } from './renderer.js';
+import { drawNow, liveRooms } from './renderer.js';
+import { apartmentArea } from './apartment.js';
+import { roomEstimate } from './pricing.js';
+import { priceCatalog, fmtSum } from './pricePanel.js';
 
 const LOCALE = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-GB' };
 // Extra plate lines from other modules (e.g. the price estimate): () => string | null
 export const plateExtras = [];
 
-export function summaryLines() {
+// scope 'room' — the active room (3D view); 'apartment' — the whole plan (2D, more than one room).
+export function summaryLines(scope = 'room') {
   const loc = LOCALE[getLang()] || 'en-GB';
+  const rooms = liveRooms();
+  if (scope === 'apartment' && rooms.length > 1) {
+    const sum = rooms.reduce((s, r) => s + roomEstimate(r.items, priceCatalog()).total, 0);
+    return [
+      { text: currentProject()?.name || '', kind: 'title' },
+      { text: `${t('apt.rooms', { n: rooms.length })} · ${apartmentArea(rooms).toFixed(1)} ${t('unit.m2')}` },
+      { text: t('snap.items', { n: rooms.reduce((s, r) => s + r.items.length, 0) }) },
+      sum > 0 && { text: t('price.from', { sum: fmtSum(sum) }) },
+      { text: new Date().toLocaleDateString(loc), kind: 'muted' },
+      { text: t('snap.brand'), kind: 'brand' }
+    ].filter(Boolean);
+  }
   const f1 = new Intl.NumberFormat(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const f = new Intl.NumberFormat(loc, { maximumFractionDigits: 1 });
   const p = currentProject(), r = currentRoom();
@@ -53,7 +69,7 @@ export function drawPlate(g, w, h, lines) {
   });
 }
 
-export function compose(src) {
+export function compose(src, scope = 'room') {
   const c = document.createElement('canvas');
   c.width = src.width;
   c.height = src.height;
@@ -61,15 +77,16 @@ export function compose(src) {
   g.fillStyle = '#fff';
   g.fillRect(0, 0, c.width, c.height);
   g.drawImage(src, 0, 0);
-  drawPlate(g, c.width, c.height, summaryLines());
+  drawPlate(g, c.width, c.height, summaryLines(scope));
   return c;
 }
 
-export function fileName(date = new Date()) {
+export function fileName(date = new Date(), scope = 'room') {
   const clean = s => String(s || '').trim().replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40);
   const d2 = n => String(n).padStart(2, '0');
   const ymd = `${date.getFullYear()}${d2(date.getMonth() + 1)}${d2(date.getDate())}`;
-  return [clean(currentProject()?.name), clean(currentRoom()?.name), ymd].filter(Boolean).join('-') + '.png';
+  const room = scope === 'apartment' && liveRooms().length > 1 ? '' : clean(currentRoom()?.name);
+  return [clean(currentProject()?.name), room, ymd].filter(Boolean).join('-') + '.png';
 }
 
 export function canShareFiles() {
@@ -77,10 +94,10 @@ export function canShareFiles() {
 }
 
 // Download the picture, or hand it to the system share sheet (phones).
-export async function savePicture(canvas, share = false) {
+export async function savePicture(canvas, share = false, scope = 'room') {
   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
   if (!blob) return toast(t('snap.fail'), true);
-  const name = fileName();
+  const name = fileName(new Date(), scope);
   if (share) {
     try { await navigator.share({ files: [new File([blob], name, { type: 'image/png' })], title: name }); }
     catch (e) { if (e.name !== 'AbortError') toast(t('snap.fail'), true); }
@@ -96,7 +113,7 @@ export async function savePicture(canvas, share = false) {
   toast(t('snap.saved', { name }));
 }
 
-// 2D plan without selection, ruler and other UI, at 2× resolution.
+// 2D plan (the whole apartment) without selection, ruler and other UI, at 2× resolution.
 export function planCanvas() {
   const keep = {
     selectedId: state.selectedId, selectedIds: state.selectedIds,
@@ -118,5 +135,5 @@ export function planCanvas() {
 
 export function initSnapshot() {
   const b2 = document.getElementById('snap2dBtn');
-  b2.addEventListener('click', () => savePicture(compose(planCanvas())));
+  b2.addEventListener('click', () => savePicture(compose(planCanvas(), 'apartment'), false, 'apartment'));
 }

@@ -1,5 +1,6 @@
 // Order drawing: the room plan at a fixed scale 1:N on a white A4-landscape sheet (2400 px) with a stamp,
 // plus the specification table (№, name, size, height above the floor, material/configuration, price).
+// An apartment gets an overview sheet first: all rooms at their places, the table lists the rooms.
 import { state, itemName } from './state.js';
 import { t, getLang } from './i18n.js';
 import { currentProject } from './projects.js';
@@ -10,6 +11,7 @@ import { configurable, sectionCount, drawerCount } from './config.js';
 import { priceCatalog, fmtSum } from './pricePanel.js';
 import { itemLook } from './materials.js';
 import { openSpec } from './zones.js';
+import { validateApartment, apartmentArea, roomArea, roomRect } from './apartment.js';
 
 const SHEET = [1200, 848];               // css px; ×2 → 2400×1696 (297×210 mm)
 const PAPER_CM = SHEET[0] / 29.7;         // css px per paper centimetre
@@ -49,6 +51,28 @@ export function specRows(doc) {
 
 // → { canvas (2400 px), scale N, rows, total }
 export function renderDrawing(doc, { orderId = null, date = new Date() } = {}) {
+  const { c, g, pw, ph } = sheet();
+  const n = pickScale(doc.room.L, doc.room.W, pw, ph);
+  const rows = specRows(doc);
+  const plan = document.createElement('canvas');
+  drawPlanTo(plan, pw, ph, {
+    doc, dpr: 2, scale: PAPER_CM / n, drawing: true, walls: true,
+    errors: validateAll({ ...doc, catalog: state.catalog }),
+    numbers: new Map(rows.map(r => [r.id, r.no]))
+  });
+  g.drawImage(plan, M, M, pw, ph);
+
+  const total = roomEstimate(doc.items, priceCatalog()).total;
+  const { L, W, H } = doc.room;
+  stamp(g, SHEET[0] - M / 2 - STAMP[0], SHEET[1] - M / 2 - STAMP[1], [
+    [t('drw.room'), [doc.name, doc.purpose && t('purpose.' + doc.purpose)].filter(Boolean).join(' · ')],
+    [t('drw.size'), `${L}×${W}×${H} ${t('unit.cm')} · ${(L * W / 10000).toFixed(1)} ${t('unit.m2')}`]
+  ], n, orderId, date, total);
+  return { canvas: c, scale: n, rows, total };
+}
+
+// White A4 sheet with the frame; → { c, g, pw, ph } (plan area size)
+function sheet() {
   const [sw, sh] = SHEET, dpr = 2;
   const c = document.createElement('canvas');
   c.width = sw * dpr;
@@ -57,36 +81,46 @@ export function renderDrawing(doc, { orderId = null, date = new Date() } = {}) {
   g.scale(dpr, dpr);
   g.fillStyle = '#fff';
   g.fillRect(0, 0, sw, sh);
-
-  const pw = sw - 2 * M, ph = sh - 2 * M - STAMP[1] - 8;
-  const n = pickScale(doc.room.L, doc.room.W, pw, ph);
-  const rows = specRows(doc);
-  const plan = document.createElement('canvas');
-  drawPlanTo(plan, pw, ph, {
-    doc, dpr, scale: PAPER_CM / n, drawing: true, walls: true,
-    errors: validateAll({ ...doc, catalog: state.catalog }),
-    numbers: new Map(rows.map(r => [r.id, r.no]))
-  });
-  g.drawImage(plan, M, M, pw, ph);
-
-  // Frame
   g.strokeStyle = '#212529';
   g.lineWidth = 1.5;
   g.strokeRect(M / 2, M / 2, sw - M, sh - M);
+  return { c, g, pw: sw - 2 * M, ph: sh - 2 * M - STAMP[1] - 8 };
+}
 
-  const total = roomEstimate(doc.items, priceCatalog()).total;
-  stamp(g, sw - M / 2 - STAMP[0], sh - M / 2 - STAMP[1], doc, n, orderId, date, total);
+// Overview of the apartment: every room at its place at 1:N, the stamp with the totals.
+// → { canvas, scale, rows (one per room), total }
+export function renderOverview(apt, { orderId = null, date = new Date() } = {}) {
+  const { c, g, pw, ph } = sheet();
+  const rs = apt.rooms.map(roomRect);
+  const L = Math.max(...rs.map(r => r.x + r.w)) - Math.min(...rs.map(r => r.x));
+  const W = Math.max(...rs.map(r => r.y + r.h)) - Math.min(...rs.map(r => r.y));
+  const n = pickScale(L, W, pw, ph);
+  const v = validateApartment({ ...apt, catalog: state.catalog, materials: state.materials, pricing: state.pricing });
+  const plan = document.createElement('canvas');
+  drawPlanTo(plan, pw, ph, { apartment: apt, errors: v.rooms, dpr: 2, scale: PAPER_CM / n, drawing: true });
+  g.drawImage(plan, M, M, pw, ph);
+  const cat = priceCatalog();
+  const rows = apt.rooms.map((r, i) => ({
+    no: i + 1, name: r.name, purpose: r.purpose ? t('purpose.' + r.purpose) : '—',
+    size: `${r.room.L}×${r.room.W}×${r.room.H}`, area: roomArea(r), items: r.items.length,
+    price: roomEstimate(r.items, cat).total
+  }));
+  const total = rows.reduce((s, r) => s + r.price, 0);
+  stamp(g, SHEET[0] - M / 2 - STAMP[0], SHEET[1] - M / 2 - STAMP[1], [
+    [t('drw.apartment'), t('apt.rooms', { n: apt.rooms.length })],
+    [t('drw.area'), `${apartmentArea(apt.rooms).toFixed(1)} ${t('unit.m2')}`]
+  ], n, orderId, date, total);
   return { canvas: c, scale: n, rows, total };
 }
 
-function stamp(g, x, y, doc, n, orderId, date, total) {
+// Stamp: project, the given cells, scale (+ price), order number and date.
+function stamp(g, x, y, mid, n, orderId, date, total) {
   const [w, h] = STAMP;
-  const p = currentProject(), { L, W, H } = doc.room;
+  const p = currentProject();
   const loc = LOCALE[getLang()] || 'en-GB';
   const cells = [
     [t('drw.project'), p?.name || ''],
-    [t('drw.room'), [doc.name, doc.purpose && t('purpose.' + doc.purpose)].filter(Boolean).join(' · ')],
-    [t('drw.size'), `${L}×${W}×${H} ${t('unit.cm')} · ${(L * W / 10000).toFixed(1)} ${t('unit.m2')}`],
+    ...mid,
     [t('drw.scale'), `1:${n}` + (total ? ` · ${t('price.from', { sum: fmtSum(total) })}` : '')],
     [t('drw.order'), (orderId ? `№${orderId} · ` : '') + date.toLocaleDateString(loc)]
   ];
@@ -135,6 +169,22 @@ export function printData(doc, opts = {}) {
     scale,
     head: [t('drw.no'), t('drw.name'), t('drw.dims'), t('drw.elev'), t('drw.conf'), t('drw.price')],
     rows: rows.map(r => [r.no, r.name, r.size, r.elev ? `↑${r.elev}` : '—', r.conf || '—', r.price ? fmtSum(r.price) : t('drw.noPrice')]),
+    total: total ? t('price.total', { sum: fmtSum(total) }) : '',
+    note: t('price.note'),
+    print: t('drw.print'), close: t('drw.close')
+  };
+}
+
+// The overview page of the print view: the apartment sheet and the list of rooms.
+export function printOverview(apt, opts = {}) {
+  const { canvas, scale, rows, total } = renderOverview(apt, opts);
+  return {
+    lang: getLang(),
+    title: `${currentProject()?.name || ''} — ${t('drw.overview')}`,
+    png: canvas.toDataURL('image/png'),
+    scale,
+    head: [t('drw.no'), t('drw.room'), t('room.purpose'), t('drw.roomSize'), t('drw.area'), t('drw.price')],
+    rows: rows.map(r => [r.no, r.name, r.purpose, r.size, `${r.area.toFixed(1)} ${t('unit.m2')}`, r.price ? fmtSum(r.price) : '—']),
     total: total ? t('price.total', { sum: fmtSum(total) }) : '',
     note: t('price.note'),
     print: t('drw.print'), close: t('drw.close')

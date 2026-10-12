@@ -9,7 +9,7 @@ import { slideDoors } from './config.js';
 import { estimate } from './pricing.js';
 import { priceCatalog, fmtSum } from './pricePanel.js';
 import { toast } from './ui.js';
-import { toggleRuler } from './interaction.js';
+import { toggleRuler, toggleLayout } from './interaction.js';
 
 const $ = id => document.getElementById(id);
 export const niche = { active: false, fixed: false, fit: null };
@@ -29,7 +29,7 @@ export function toggleNiche(on = !niche.active) {
   niche.active = on;
   niche.fixed = false;
   show(null);
-  if (on) { toggleRuler(false); toast(t('niche.on')); }
+  if (on) { toggleRuler(false); toggleLayout(false); toast(t('niche.on')); }
   canvas.style.cursor = on ? 'crosshair' : 'default';
   $('nicheBtn').classList.toggle('active', on);
 }

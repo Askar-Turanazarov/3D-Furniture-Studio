@@ -4,7 +4,7 @@ import { loadTemplates, localName } from './templates.js';
 import {
   listProjects, loadProject, saveProjectNow, deleteProject, cloneProject, exportProject, importProjects, flushSave
 } from './storage.js';
-import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderTabs, newProjectFromTemplates } from './projects.js';
+import { currentProject, openProject, newProject, closeProject, persist, capturePreview, renderHeader, newProjectFromTemplates } from './projects.js';
 import { toast } from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -157,7 +157,7 @@ function rename(p, el) {
     if (save && v && v !== p.name) {
       p.name = v;
       saveProjectNow(p, { last: p === currentProject() });
-      if (p === currentProject()) renderTabs();
+      if (p === currentProject()) renderHeader();
     }
     render();
   };

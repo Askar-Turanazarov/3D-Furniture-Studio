@@ -8,7 +8,7 @@ import { toast } from './ui.js';
 import { estimate, roomEstimate } from './pricing.js';
 import { configurable, sectionCount, drawerCount } from './config.js';
 import { priceCatalog } from './pricePanel.js';
-import { renderDrawing, printData } from './drawing.js';
+import { renderDrawing, printData, renderOverview, printOverview } from './drawing.js';
 
 const $ = id => document.getElementById(id);
 
@@ -42,9 +42,12 @@ function check() {
   return { rooms };
 }
 
-// Drawing of the current room for the manager (PNG dataURL) and, with the 3D view open, a 3D picture (JPEG).
+// Drawing for the manager (PNG dataURL): the apartment overview, or the room drawing for a single room;
+// with the 3D view open, a 3D picture (JPEG).
 async function pictures() {
-  const out = { drawing: renderDrawing(currentRoom()).canvas.toDataURL('image/png') };
+  const p = currentProject();
+  const sheet = p.rooms.length > 1 ? renderOverview(p) : renderDrawing(p.rooms[0]);
+  const out = { drawing: sheet.canvas.toDataURL('image/png') };
   if (document.querySelector('.stage.is3d')) {
     try {
       const { snapshotCanvas } = await import('./3d/scene3d.js');
@@ -67,7 +70,9 @@ function openPrint() {
   persist();
   const rooms = currentProject().rooms;
   const orderId = lastSent?.key === roomsKey(rooms) ? lastSent.id : null;
-  window.__printData = { lang: getLang(), pages: rooms.map(r => printData(r, { orderId })) };
+  const pages = rooms.map(r => printData(r, { orderId }));
+  if (rooms.length > 1) pages.unshift(printOverview(currentProject(), { orderId }));
+  window.__printData = { lang: getLang(), pages };
   // sessionStorage is copied to the new tab and survives a same-tab open; the opener is the fallback.
   try { sessionStorage.setItem('fsp3d.print', JSON.stringify(window.__printData)); } catch { /* too big: opener only */ }
   const w = window.open('/print.html' + (orderId ? '?order=' + orderId : ''), '_blank');

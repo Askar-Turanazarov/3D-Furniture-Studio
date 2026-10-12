@@ -1,5 +1,9 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
-import { state, itemName, isSelected } from './state.js';
+// The live plan shows the whole apartment: every room at its pos, the active one is the editable live state.
+// Screen ↔ world (toScreen / toWorld) stay in the active room's local cm, so the per-room code is unchanged;
+// toPlan / planToScreen work in apartment cm.
+import { state, itemName, isSelected, syncActive } from './state.js';
+import { roomRect, overlapsRooms, doorLinks, posOf, roomArea } from './apartment.js';
 import { drawGlyph, isLight } from './glyphs.js';
 import { rectOf, rayGaps, obstacleRects, zOverlaps, isDecor } from './geometry.js';
 import { openSpec, openZoneRect, frontFace } from './zones.js';
@@ -31,13 +35,17 @@ const WALL_PX = 8;
 
 let canvas, ctx, wrap;
 // zoom / pan are applied on top of the "fit the room" scale; they are view-only (not saved).
-export const view = { scale: 1, ox: 0, oy: 0, zoom: 1, panX: 0, panY: 0 };
+// ox / oy — screen of the active room's (0, 0); px0 / py0 — screen of the apartment (0, 0).
+export const view = { scale: 1, ox: 0, oy: 0, px0: 0, py0: 0, zoom: 1, panX: 0, panY: 0 };
+let fitLock = null;   // apartment bounds frozen while a room is dragged (the scale must not follow the drag)
 const ZOOM_MIN = 0.5, ZOOM_MAX = 8;
 let lastW = 0, lastH = 0;
 const zoomListeners = new Set();
 export function onZoom(fn) { zoomListeners.add(fn); }
-export const overlay = { marquee: null, niche: null };   // box selection rect; niche fill ghost (item-like)
+export const overlay = { marquee: null, niche: null, layout: false };   // box selection; niche ghost; room layout mode
 let errors = new Map();
+let roomErrors = new Map();   // roomId → Map(itemId → errors) of the other rooms
+export function setRoomErrors(map) { roomErrors = map; }
 let pending = false;
 
 export function initRenderer(canvasEl, wrapEl) {
@@ -63,37 +71,103 @@ export function drawNow(opts = {}) {
   return canvas;
 }
 
-// Draw a room into any canvas: project previews, version comparison, the order drawing.
-// opts: { doc — roomDoc (default: the current room), errors — Map, dpr, scale — px per cm (default: fit),
+// Draw into any canvas: project previews, variant comparison, the order drawing.
+// opts: { doc — one roomDoc drawn alone at (0, 0); apartment — { rooms, settings } (default: the current apartment);
+//         errors — Map of a doc, or roomId → Map for an apartment; dpr, scale — px per cm (default: fit),
 //         drawing — white sheet, no grid/zones; walls — every item's distances to the walls; numbers — Map id → №; pad }
 // Nothing of the live plan (selection, zoom, errors) is changed. → { scale, ox, oy } of the drawn plan.
-const DOC_KEYS = ['room', 'items', 'openings', 'obstacles', 'settings', 'style',
+const DOC_KEYS = ['room', 'items', 'openings', 'obstacles', 'settings', 'style', 'rooms', 'activeRoomId',
   'selectedId', 'selectedIds', 'selectedOpening', 'selectedObstacle', 'found'];
 export function drawPlanTo(target, w, h, opts = {}) {
-  const saved = { canvas, ctx, lastW, lastH, view: { ...view }, errors, obWarnings, passages };
+  const saved = { canvas, ctx, lastW, lastH, view: { ...view }, errors, obWarnings, passages, roomErrors, fitLock };
+  if (!opts.doc && !opts.apartment) syncActive();   // the current apartment: the docs must hold the live fields
   const savedState = Object.fromEntries(DOC_KEYS.map(k => [k, state[k]]));
   try {
-    const d = opts.doc;
+    const d = opts.doc, apt = opts.apartment;
     if (d) Object.assign(state, {
       room: d.room, items: d.items || [], openings: d.openings || [], obstacles: d.obstacles || [],
       settings: { ...state.settings, ...d.settings }, style: d.style
     });
-    Object.assign(state, { selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null });
+    if (apt) Object.assign(state, { rooms: apt.rooms, settings: { ...state.settings, ...apt.settings } });
+    // An apartment is drawn with no active room: every room from its doc, nothing highlighted.
+    Object.assign(state, { activeRoomId: null,
+      selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null });
     canvas = target;
     ctx = target.getContext('2d');
     Object.assign(view, { zoom: 1, panX: 0, panY: 0 });
-    errors = opts.errors || new Map();
+    errors = d ? opts.errors || new Map() : new Map();
+    roomErrors = d ? new Map() : opts.errors || new Map();
     obWarnings = new Map();
     passages = [];
-    drawOpts = { clean: true, dpr: opts.dpr || 1, size: [w, h], scale: opts.scale, pad: opts.pad,
+    fitLock = null;
+    drawOpts = { clean: true, dpr: opts.dpr || 1, size: [w, h], scale: opts.scale, pad: opts.pad, single: !!d,
       drawing: opts.drawing, walls: opts.walls, numbers: opts.numbers };
     draw();
     return { scale: view.scale, ox: view.ox, oy: view.oy };
   } finally {
     drawOpts = {};
-    ({ canvas, ctx, lastW, lastH, errors, obWarnings, passages } = saved);
+    ({ canvas, ctx, lastW, lastH, errors, obWarnings, passages, roomErrors, fitLock } = saved);
     Object.assign(view, saved.view);
     Object.assign(state, savedState);
+  }
+}
+
+// ---- apartment ----
+const aptMode = () => !drawOpts.single && state.rooms.length > 0;
+
+// Room docs with the live fields for the active one (its doc is synced only on save).
+export function liveRooms() {
+  return state.rooms.map(r => r.id !== state.activeRoomId ? r
+    : { ...r, room: state.room, items: state.items, openings: state.openings, obstacles: state.obstacles, style: state.style });
+}
+
+// Apartment bounds in cm (a single room: the room itself).
+function bounds() {
+  if (!aptMode()) return { x: 0, y: 0, w: state.room.L, h: state.room.W };
+  if (fitLock) return fitLock;
+  const rs = liveRooms().map(roomRect);
+  const x = Math.min(...rs.map(r => r.x)), y = Math.min(...rs.map(r => r.y));
+  return { x, y, w: Math.max(...rs.map(r => r.x + r.w)) - x, h: Math.max(...rs.map(r => r.y + r.h)) - y };
+}
+
+// Freeze the fit while rooms are dragged; on release the zoom / pan absorb the new fit, so nothing jumps.
+export function lockFit(on) {
+  if (on) { fitLock = bounds(); return; }
+  if (!fitLock) return;
+  const { scale, px0, py0 } = view;
+  fitLock = null;
+  computeView(lastW, lastH);
+  view.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, view.zoom * scale / view.scale));
+  computeView(lastW, lastH);
+  view.panX += px0 - view.px0;
+  view.panY += py0 - view.py0;
+  changed();
+}
+
+const activeOrigin = () => (aptMode() ? posOf(state.rooms.find(r => r.id === state.activeRoomId)?.pos) : { x: 0, y: 0 });
+export const planToScreen = (x, y) => [view.px0 + x * view.scale, view.py0 + y * view.scale];
+export const toPlan = (px, py) => [(px - view.px0) / view.scale, (py - view.py0) / view.scale];
+
+// Run fn with another room as the drawn one: its fields on the state, the view shifted to its pos.
+function inRoom(r, fn) {
+  if (r.id === state.activeRoomId) return fn();
+  const keep = Object.fromEntries(DOC_KEYS.map(k => [k, state[k]]));
+  const kept = { ox: view.ox, oy: view.oy, errors, obWarnings, passages };
+  const p = posOf(r.pos);
+  try {
+    Object.assign(state, {
+      room: r.room, items: r.items || [], openings: r.openings || [], obstacles: r.obstacles || [], style: r.style,
+      selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null
+    });
+    [view.ox, view.oy] = planToScreen(p.x, p.y);
+    errors = roomErrors.get(r.id) || new Map();
+    obWarnings = new Map();
+    passages = [];
+    return fn();
+  } finally {
+    Object.assign(state, keep);
+    ({ errors, obWarnings, passages } = kept);
+    view.ox = kept.ox; view.oy = kept.oy;
   }
 }
 
@@ -106,17 +180,22 @@ export function requestDraw() {
 export const toScreen = (x, y) => [view.ox + x * view.scale, view.oy + y * view.scale];
 export const toWorld = (px, py) => [(px - view.ox) / view.scale, (py - view.oy) / view.scale];
 
-// Scale factor so the room fits into the container with margins, times the user zoom, plus pan.
+// Scale factor so the room (the apartment) fits into the container with margins, times the user zoom, plus pan.
 function computeView(cw, ch) {
-  const { L, W } = state.room;
+  const b = bounds(), o = activeOrigin();
   lastW = cw; lastH = ch;
   const m = drawOpts.pad ?? MARGIN;
-  const fit = Math.max(0.05, Math.min((cw - 2 * m) / L, (ch - 2 * m) / W));
+  const fit = Math.max(0.02, Math.min((cw - 2 * m) / b.w, (ch - 2 * m) / b.h));
   const scale = drawOpts.scale || fit * view.zoom;
   view.scale = scale;
-  view.ox = Math.round((cw - L * scale) / 2) + view.panX;
-  view.oy = Math.round((ch - W * scale) / 2) + view.panY;
+  view.px0 = Math.round((cw - b.w * scale) / 2 - b.x * scale) + view.panX;
+  view.py0 = Math.round((ch - b.h * scale) / 2 - b.y * scale) + view.panY;
+  view.ox = view.px0 + o.x * scale;
+  view.oy = view.py0 + o.y * scale;
 }
+
+// Recompute the view now (e.g. right after the active room changed, before the next frame).
+export function syncView() { if (lastW) computeView(lastW, lastH); }
 
 // Zoom keeping the point (px, py) of the canvas under the cursor in place.
 export function zoomAt(px, py, factor) {
@@ -163,26 +242,13 @@ function draw() {
   const sheet = drawOpts.drawing;
   if (sheet) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch); }
 
-  drawRoom();
-  if (!sheet) drawGrid();
-  drawPlinth();
-  drawDimensions();
-  drawObstacles(false);   // floor-standing structure under the furniture
   const now = performance.now();
-  const sel = state.items.find(i => i.id === state.selectedId);
-  for (const it of state.items) if (it !== sel && isDecor(it)) drawItem(it, now);   // rugs under the furniture
-  for (const it of state.items) if (it !== sel && !isDecor(it) && !(it.elev > 0)) drawItem(it, now);
-  for (const it of state.items) if (it !== sel && !isDecor(it) && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
-  if (sel) drawItem(sel, now);
-  drawObstacles(true);    // ceiling ducts and other high structure over the furniture
-  if (!sheet) { drawZones(sel); drawPassages(); }
-  drawOpenings();   // over the furniture: a blocked door swing stays visible
-  if (sel && state.selectedIds.size === 0) drawClearances(sel);
-  if (drawOpts.walls) for (const it of state.items) drawClearances(it, true);
-  if (!drawOpts.clean) {
-    if (overlay.marquee) drawMarquee(overlay.marquee);
-    if (overlay.niche) drawNicheGhost(overlay.niche);
-    drawRuler();
+  if (aptMode()) drawApartment(now, sheet);
+  else {
+    drawWalls();
+    drawFloor(sheet);
+    drawDimensions();
+    drawContent(now, sheet);
   }
 
   if (state.found && now < state.found.until) {
@@ -190,14 +256,141 @@ function draw() {
   }
 }
 
+// Walls of all rooms first, then all floors (a partition between two rooms stays one band), doorways,
+// the contents of the other rooms, the active room on top, then labels and overlaps.
+function drawApartment(now, sheet) {
+  const rooms = liveRooms();
+  const act = rooms.find(r => r.id === state.activeRoomId) || null;
+  for (const r of rooms) inRoom(r, drawWalls);
+  for (const r of rooms) inRoom(r, () => drawFloor(sheet));
+  drawDoorways(rooms);
+  for (const r of rooms) if (r !== act) inRoom(r, () => drawContent(now, sheet, false));
+  if (act) drawContent(now, sheet, true);
+  drawOverlaps(rooms);
+  for (const r of rooms) inRoom(r, () => drawRoomLabel(r, r === act && rooms.length > 1));
+  if (act && rooms.length > 1 && !sheet) drawActiveFrame();
+  if (act) drawDimensions();
+}
+
+function drawFloor(sheet) {
+  drawRoom();
+  if (!sheet) drawGrid();
+  drawPlinth();
+}
+
+// Everything inside one room; live = the editable active room (selection, zones, passages, overlays).
+function drawContent(now, sheet, live = true) {
+  drawObstacles(false);   // floor-standing structure under the furniture
+  const sel = state.items.find(i => i.id === state.selectedId);
+  for (const it of state.items) if (it !== sel && isDecor(it)) drawItem(it, now);   // rugs under the furniture
+  for (const it of state.items) if (it !== sel && !isDecor(it) && !(it.elev > 0)) drawItem(it, now);
+  for (const it of state.items) if (it !== sel && !isDecor(it) && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
+  if (sel) drawItem(sel, now);
+  drawObstacles(true);    // ceiling ducts and other high structure over the furniture
+  if (!sheet) { drawZones(sel); if (live) drawPassages(); }
+  drawOpenings();   // over the furniture: a blocked door swing stays visible
+  if (sel && state.selectedIds.size === 0) drawClearances(sel);
+  if (drawOpts.walls) for (const it of state.items) drawClearances(it, true);
+  if (live && !drawOpts.clean) {
+    if (overlay.marquee) drawMarquee(overlay.marquee);
+    if (overlay.niche) drawNicheGhost(overlay.niche);
+    drawRuler();
+  }
+}
+
+function drawWalls() {
+  const [x, y] = toScreen(0, 0);
+  ctx.fillStyle = COLORS.wall;
+  ctx.fillRect(x - WALL_PX, y - WALL_PX, state.room.L * view.scale + 2 * WALL_PX, state.room.W * view.scale + 2 * WALL_PX);
+}
+
 function drawRoom() {
+  const [x, y] = toScreen(0, 0);
+  ctx.fillStyle = COLORS.floor;
+  ctx.fillRect(x, y, state.room.L * view.scale, state.room.W * view.scale);
+}
+
+// A door leading into a neighbour cuts through both walls of the partition.
+function drawDoorways(rooms) {
+  ctx.save();
+  ctx.fillStyle = COLORS.floor;
+  for (const l of doorLinks(rooms)) {
+    if (l.to === 'outside') continue;
+    const a = rooms.find(r => r.id === l.room), b = rooms.find(r => r.id === l.to);
+    const door = (a.openings || []).find(o => o.id === l.door);
+    if (!door) continue;
+    const ra = roomRect(a), rb = roomRect(b), s = view.scale;
+    const horiz = door.wall === 'north' || door.wall === 'south';
+    // across: the wall line of a and of b; along: the doorway
+    const lineA = { north: ra.y, south: ra.y + ra.h, west: ra.x, east: ra.x + ra.w }[door.wall];
+    const lineB = { north: rb.y + rb.h, south: rb.y, west: rb.x + rb.w, east: rb.x }[door.wall];
+    const from = (horiz ? ra.x : ra.y) + door.offset, to = from + door.width;
+    // Both wall bands (WALL_PX outside each floor) between the two wall lines, in px from the plan origin.
+    const A = lineA * s, B = lineB * s, out = door.wall === 'south' || door.wall === 'east';
+    const lo = out ? Math.min(A, B - WALL_PX) : Math.min(A - WALL_PX, B);
+    const hi = out ? Math.max(A + WALL_PX, B) : Math.max(A, B + WALL_PX);
+    if (horiz) ctx.fillRect(view.px0 + from * s, view.py0 + lo, (to - from) * s, hi - lo);
+    else ctx.fillRect(view.px0 + lo, view.py0 + from * s, hi - lo, (to - from) * s);
+  }
+  ctx.restore();
+}
+
+// Overlapping rooms: the common part red, both rooms outlined red (the reason is in the notes).
+function drawOverlaps(rooms) {
+  const pairs = overlapsRooms(rooms);
+  if (!pairs.length) return;
+  ctx.save();
+  const bad = new Set(pairs.flat());
+  for (const [i, j] of pairs) {
+    const a = roomRect(rooms.find(r => r.id === i)), b = roomRect(rooms.find(r => r.id === j));
+    const x = Math.max(a.x, b.x), y = Math.max(a.y, b.y);
+    const w = Math.min(a.x + a.w, b.x + b.w) - x, h = Math.min(a.y + a.h, b.y + b.h) - y;
+    const [sx, sy] = planToScreen(x, y);
+    ctx.fillStyle = 'rgba(224, 49, 49, .35)';
+    ctx.fillRect(sx, sy, w * view.scale, h * view.scale);
+  }
+  ctx.strokeStyle = COLORS.bad;
+  ctx.lineWidth = 3;
+  for (const r of rooms) {
+    if (!bad.has(r.id)) continue;
+    const b = roomRect(r), [sx, sy] = planToScreen(b.x, b.y);
+    ctx.strokeRect(sx, sy, b.w * view.scale, b.h * view.scale);
+  }
+  ctx.restore();
+}
+
+function drawActiveFrame() {
+  const [x, y] = toScreen(0, 0);
+  ctx.save();
+  ctx.strokeStyle = COLORS.selected;
+  ctx.lineWidth = 3;
+  if (overlay.layout) ctx.setLineDash([8, 5]);
+  ctx.strokeRect(x - WALL_PX - 2, y - WALL_PX - 2, state.room.L * view.scale + 2 * WALL_PX + 4, state.room.W * view.scale + 2 * WALL_PX + 4);
+  ctx.restore();
+}
+
+// Room name, purpose and area in the top-left corner of the floor.
+function drawRoomLabel(r, active) {
   const { L, W } = state.room;
   const [x, y] = toScreen(0, 0);
   const w = L * view.scale, h = W * view.scale;
-  ctx.fillStyle = COLORS.wall;
-  ctx.fillRect(x - WALL_PX, y - WALL_PX, w + 2 * WALL_PX, h + 2 * WALL_PX);
-  ctx.fillStyle = COLORS.floor;
-  ctx.fillRect(x, y, w, h);
+  const purpose = r.purpose && t('purpose.' + r.purpose);
+  const head = [r.name, purpose && !purpose.toLowerCase().startsWith(r.name.toLowerCase()) && purpose].filter(Boolean).join(' · ');
+  const sub = `${L}×${W} · ${roomArea(r).toFixed(1)} ${t('unit.m2')}`;
+  ctx.save();
+  ctx.font = '700 12px system-ui, sans-serif';
+  const tw = Math.min(w - 12, Math.max(ctx.measureText(head).width, ctx.measureText(sub).width) + 12);
+  if (tw < 40 || h < 40) { ctx.restore(); return; }
+  ctx.fillStyle = active ? 'rgba(237, 242, 255, .92)' : 'rgba(255, 255, 255, .85)';
+  ctx.fillRect(x + 6, y + 6, tw, 34);
+  ctx.fillStyle = active ? COLORS.selected : '#343a40';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(fit(head, tw - 12), x + 12, y + 16);
+  ctx.font = '500 11px system-ui, sans-serif';
+  ctx.fillStyle = COLORS.dim;
+  ctx.fillText(fit(sub, tw - 12), x + 12, y + 30);
+  ctx.restore();
 }
 
 function drawGrid() {
@@ -475,15 +668,25 @@ function drawDimensions() {
   const { L, W } = state.room;
   const [x, y] = toScreen(0, 0);
   const w = L * view.scale, h = W * view.scale;
+  // On the apartment plan the labels can lie over a neighbour: a white pill keeps them readable.
+  const pill = aptMode() && state.rooms.length > 1;
+  const text = (s, px, py) => {
+    if (pill) {
+      const tw = ctx.measureText(s).width + 8;
+      ctx.fillStyle = 'rgba(255, 255, 255, .9)';
+      ctx.fillRect(px - tw / 2, py - 15, tw, 15);
+    }
+    ctx.fillStyle = COLORS.dim;
+    ctx.fillText(s, px, py);
+  };
   ctx.save();
-  ctx.fillStyle = COLORS.dim;
   ctx.font = '600 12px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(`${L} ${t('unit.cm')}`, x + w / 2, y - WALL_PX - 6);
+  text(`${L} ${t('unit.cm')}`, x + w / 2, y - WALL_PX - 6);
   ctx.translate(x - WALL_PX - 8, y + h / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillText(`${W} ${t('unit.cm')}`, 0, 0);
+  text(`${W} ${t('unit.cm')}`, 0, 0);
   ctx.restore();
 }
 

@@ -245,6 +245,7 @@
         <button type="button" class="proj-name" id="projName" data-i18n-title="proj.title"></button>
         <span class="apt-area" id="aptArea"></span>
         <select class="room-pick" id="roomPick" data-i18n-title="apt.room"></select>
+        <button class="btn" id="furnishBtn" type="button" data-i18n-title="furn.hint">🎲 <span data-i18n="furn.btn">Обставить</span></button>
         <button class="btn" id="variantsBtn" type="button">⎘ <span data-i18n="apt.variants">Варианты</span></button>
         <button class="btn add-room" id="addRoomBtn" type="button">+ <span data-i18n="room.add">Комната</span></button>
       </div>
@@ -373,6 +374,11 @@
       </div>
     </form>
   </dialog>
+
+  <div class="menu" id="furnishMenu" hidden>
+    <button type="button" data-act="room"></button>
+    <button type="button" data-act="apt" data-i18n="furn.apt">Всю квартиру</button>
+  </div>
 
   <div class="menu" id="variantsMenu" hidden>
     <div id="variantsList"></div>

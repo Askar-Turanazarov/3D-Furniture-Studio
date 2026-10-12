@@ -5,6 +5,7 @@ import { findSpot } from './autoplace.js';
 import { parseCatalog } from './catalog.js';
 import { initProjects, persist, renderHeader } from './projects.js';
 import { initProjectsDialog } from './projectsDialog.js';
+import { initFurnish } from './furnishUi.js';
 import { initOrder } from './order.js';
 import { initCompare } from './compare.js';
 import { initTextures } from './textures.js';
@@ -195,6 +196,7 @@ async function start() {
   await loadCatalog();
   initProjects();
   initProjectsDialog();
+  initFurnish();
   fillCatalog();
   syncForms();
   onChange(update);

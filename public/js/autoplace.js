@@ -1,6 +1,6 @@
 // "Find a spot": scan (x, y) with the snap step over 4 rotations.
 // Wall-adjacent positions are tried first, then the whole room.
-import { footprint, rectOf, blocked, insideRoom, obstacleRects, zOverlaps } from './geometry.js';
+import { footprint, rectOf, blocked, insideRoom, obstacleRects, zOverlaps, isDecor } from './geometry.js';
 import { doorSwingRect, windowZoneRect, nearestWall } from './openings.js';
 import { openSpec, openZoneRect } from './zones.js';
 
@@ -15,7 +15,8 @@ export function findSpot(item, state) {
   const gap = settings.gap;
   // Door swing areas count as obstacles, so nothing is auto-placed in front of a door.
   const elev = item.elev || 0;
-  const others = state.items.filter(i => i.id !== item.id && zOverlaps(i, item)).map(i => rectOf(i))
+  const decor = isDecor(item);
+  const others = decor ? [] : state.items.filter(i => i.id !== item.id && !isDecor(i) && zOverlaps(i, item)).map(i => rectOf(i))
     .concat((state.openings || []).filter(o => o.kind === 'door' && elev < o.height).map(o => doorSwingRect(o, room)))
     .concat(obstacleRects(state.obstacles, item));
 
@@ -39,7 +40,7 @@ export function findSpot(item, state) {
   };
   // Strict: own opening zone inside the room and free; not standing in other items' zones.
   const spec = openSpec(item, state.catalog);
-  const otherZones = state.items.filter(i => i.id !== item.id && zOverlaps(i, item))
+  const otherZones = decor ? [] : state.items.filter(i => i.id !== item.id && !isDecor(i) && zOverlaps(i, item))
     .map(i => openZoneRect(i, openSpec(i, state.catalog))).filter(Boolean);
   const strict = (x, y, rot) => {
     if (!loose(x, y, rot)) return false;

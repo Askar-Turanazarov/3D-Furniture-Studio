@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { state, itemName } from '../state.js';
-import { rectOf } from '../geometry.js';
+import { rectOf, isDecor } from '../geometry.js';
 import { t, getLang } from '../i18n.js';
 
 const NORMALS = {
@@ -164,7 +164,7 @@ const eyeHeight = () => Math.min(personH * 0.93 / 100, room.size.H - 0.15);
 // Furniture and structure footprints in metres. Structure above the head (a ceiling duct) does not block.
 function obstacles() {
   // Wall-mounted furniture above the head does not block the walk either.
-  const out = state.items.filter(it => (it.elev || 0) < personH).map(it => {
+  const out = state.items.filter(it => (it.elev || 0) < personH && !isDecor(it)).map(it => {
     const r = rectOf(it);
     return { x: r.x / 100, z: r.y / 100, w: r.w / 100, d: r.h / 100 };
   });

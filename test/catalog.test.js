@@ -21,3 +21,18 @@ test('catalog.json is v2 with unique types and sane sizes', () => {
     assert.ok(!i.elev || i.elev + i.h <= 300, `${i.type} elev`);
   }
 });
+
+test('every catalog type has a category and the room purposes it suits', () => {
+  const c = JSON.parse(readFileSync(new URL('../catalog.json', import.meta.url), 'utf8'));
+  const cats = ['storage', 'beds', 'seating', 'tables', 'kitchen', 'bath', 'hall', 'decor', 'light'];
+  const purposes = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'bathroom', 'other'];
+  assert.ok(c.items.length >= 50);
+  for (const i of c.items) {
+    assert.ok(cats.includes(i.cat), `${i.type}.cat`);
+    assert.ok(i.rooms?.length && i.rooms.every(r => purposes.includes(r)), `${i.type}.rooms`);
+    assert.ok(!i.layer || i.layer === 'decor', `${i.type}.layer`);
+  }
+  for (const p of purposes.filter(p => p !== 'other')) assert.ok(c.items.some(i => i.rooms.includes(p)), p);
+  // Wall items fit a 250 cm khrushchevka ceiling (a mezzanine is made to the ceiling).
+  for (const i of c.items.filter(i => i.type !== 'mezzanine')) assert.ok((i.elev || 0) + i.h <= 250, `${i.type} height`);
+});

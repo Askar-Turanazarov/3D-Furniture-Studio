@@ -120,6 +120,7 @@ export function initOrder() {
       purpose: cur.purpose,
       room: cur.room,
       openings: cur.openings,
+      obstacles: cur.obstacles,
       items: cur.items,
       estimate: rooms.reduce((s, r) => s + roomEstimate(r.items, priceCatalog()).total, 0),
       ...(rooms.length > 1 ? { rooms: rooms.map(roomPayload) } : {}),

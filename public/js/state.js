@@ -110,6 +110,7 @@ export function addItem({ type, w, d, h, elev }) {
   };
   const e = elev ?? c?.elev ?? 0;
   if (e > 0) item.elev = e;
+  if (c?.layer) item.layer = c.layer;
   state.items.push(item);
   state.selectedId = item.id;
   emit();

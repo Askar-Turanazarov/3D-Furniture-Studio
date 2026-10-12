@@ -8,7 +8,9 @@ const catalog = JSON.parse(readFileSync(new URL('../catalog.json', import.meta.u
 const wardrobe = (extra = {}) => ({ id: 1, type: 'wardrobe', w: 120, d: 60, h: 220, x: 0, y: 0, rot: 0, ...extra });
 
 test('every catalog type is priced, fixed or explicitly left out', () => {
-  const out = ['fridge', 'floorlamp', 'sconce'];
+  // Appliances, plumbing, lamps and decor are bought elsewhere: not part of the furniture order.
+  const out = ['fridge', 'floorlamp', 'sconce', 'bathtub', 'shower', 'toilet', 'washer', 'towelrail', 'boiler',
+    'stove', 'dishwasher', 'tv', 'painting', 'plant', 'tablelamp', 'rug', 'curtains'];
   for (const c of catalog.items) {
     const e = estimate({ ...c, id: 1, x: 0, y: 0, rot: 0 }, catalog);
     if (out.includes(c.type)) assert.equal(e, null, c.type);

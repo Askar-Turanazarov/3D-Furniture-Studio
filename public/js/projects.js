@@ -14,7 +14,7 @@ import { loadTemplates, templateDoc, localName, sizeLabel, drawMiniPlan } from '
 import { toast, syncForms } from './ui.js';
 import { openCompare } from './compare.js';
 
-export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'other'];
+export const PURPOSES = ['bedroom', 'kids', 'living', 'kitchen', 'kitchenLiving', 'study', 'hall', 'bathroom', 'other'];
 
 let project = null;
 const histories = new Map();   // roomId → history.dump()

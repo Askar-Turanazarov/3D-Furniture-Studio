@@ -65,6 +65,11 @@ export function blocked(r, others, gap) {
   return false;
 }
 
+// Flat decor (rug, curtains) lies under / hangs over furniture: only the walls and the ceiling limit it.
+// It is the one exception to AABB collisions between items.
+const DECOR = new Set(['rug', 'curtains']);
+export const isDecor = it => it.layer === 'decor' || DECOR.has(it.type);
+
 export const round1 = v => Math.round(v * 10) / 10;
 
 // Dimension lines from each side of rect r to the nearest obstacle (furniture or wall).

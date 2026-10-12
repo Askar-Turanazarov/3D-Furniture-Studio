@@ -1,5 +1,5 @@
 // Validate every item: walls (with plinth), AABB overlap, min gap, ceiling height, door swing.
-import { rectOf, wallViolations, overlaps, clearance, round1, zOverlaps, zRange } from './geometry.js';
+import { rectOf, wallViolations, overlaps, clearance, round1, zOverlaps, zRange, isDecor } from './geometry.js';
 import { doorSwingRect, windowZoneRect } from './openings.js';
 import { openSpec, openZoneRect, freeDepth, wallDepth } from './zones.js';
 import { narrowPassages } from './passages.js';
@@ -17,6 +17,7 @@ export function validateAll(state) {
     }
     const top = (it.elev || 0) + it.h;
     if (top > room.H) errs.push({ key: 'err.height', params: { n: top - room.H } });
+    if (isDecor(it)) return;
     for (const o of state.openings || []) {
       // A wall cabinet above the door leaf does not block it.
       if (o.kind === 'door' && (it.elev || 0) < o.height && overlaps(rects[i], doorSwingRect(o, room))) {
@@ -37,6 +38,7 @@ export function validateAll(state) {
 
   // Opening zones: a door / drawer that hits a wall, an item or structure at its height will not open.
   items.forEach((it, i) => {
+    if (isDecor(it)) return;
     const spec = openSpec(it, state.catalog);
     const zone = openZoneRect(it, spec);
     if (!zone) return;
@@ -45,7 +47,7 @@ export function validateAll(state) {
     const wd = wallDepth(it, room);
     if (wd < spec.depth) hit(Math.ceil(spec.depth - wd), { wallBlock: true });
     items.forEach((o, j) => {
-      if (j === i || !zOverlaps(it, o) || overlaps(rects[i], rects[j]) || !overlaps(zone, rects[j])) return;
+      if (j === i || isDecor(o) || !zOverlaps(it, o) || overlaps(rects[i], rects[j]) || !overlaps(zone, rects[j])) return;
       hit(Math.ceil(spec.depth - Math.max(0, freeDepth(it, rects[j]))), { otherId: o.id });
     });
     for (const ob of state.obstacles || []) {
@@ -60,6 +62,7 @@ export function validateAll(state) {
     for (let j = i + 1; j < items.length; j++) {
       const a = rects[i], b = rects[j];
       if (!zOverlaps(items[i], items[j])) continue;   // a shelf above a desk
+      if (isDecor(items[i]) || isDecor(items[j])) continue;   // a rug under the sofa
       if (overlaps(a, b)) {
         result.get(items[i].id).push({ key: 'err.overlap', params: { otherId: items[j].id } });
         result.get(items[j].id).push({ key: 'err.overlap', params: { otherId: items[i].id } });
@@ -102,6 +105,7 @@ export function validateWarnings(state) {
   const { room, items } = state;
   const result = new Map(items.map(i => [i.id, []]));
   for (const it of items) {
+    if (isDecor(it)) continue;
     const r = rectOf(it);
     for (const o of state.openings || []) {
       const [z0, z1] = zRange(it);
@@ -111,7 +115,7 @@ export function validateWarnings(state) {
     }
   }
   // Two zones (or a zone and the room door) over the same floor: they cannot be open at once.
-  const zones = items.map(it => openZoneRect(it, openSpec(it, state.catalog)));
+  const zones = items.map(it => isDecor(it) ? null : openZoneRect(it, openSpec(it, state.catalog)));
   items.forEach((it, i) => {
     if (!zones[i]) return;
     for (const o of state.openings || []) {

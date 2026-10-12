@@ -27,6 +27,9 @@ function autoDrawers(item) {
     case 'dresser': return Math.max(1, Math.round((h - Math.min(8, h * 0.1)) / 20));
     case 'tvstand': return 4;
     case 'desk': return 3;
+    case 'basecab': return 3;
+    case 'island': return 4;
+    case 'vanity': return 2;
     default: return 0;
   }
 }

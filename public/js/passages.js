@@ -1,7 +1,7 @@
 // Narrow passages between furniture, structure and walls. Pure helpers, cm.
 // A passage = the free band between two objects that face each other over ≥ 30 cm.
 // 20 ≤ width < minPassage → narrow. Under 20 cm it is a slit ("flush"), not a passage.
-import { rectOf, overlaps } from './geometry.js';
+import { rectOf, overlaps, isDecor } from './geometry.js';
 import { openSpec, openZoneRect } from './zones.js';
 
 export const MIN_FACING = 30;   // cm the two sides must face each other
@@ -19,7 +19,7 @@ export function participants(state) {
   const p = room.plinth, BIG = 1000;
   const out = [];
   for (const it of state.items) {
-    if ((it.elev || 0) >= BODY) continue;
+    if ((it.elev || 0) >= BODY || isDecor(it)) continue;
     const zone = openZoneRect(it, openSpec(it, state.catalog));
     out.push({ ref: { itemId: it.id }, r: zone ? union(rectOf(it), zone) : rectOf(it) });
   }

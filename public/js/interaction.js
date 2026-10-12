@@ -4,7 +4,7 @@ import { state, emit, select, selected, rotateItem, removeItems, moveItems, snap
   isSelected, selectedItems, toggleSelect, selectMany,
   selectObstacle, selectedOb, updateObstacle, removeObstacle } from './state.js';
 import { obRect } from './obstacles.js';
-import { rectOf, footprint, overlaps } from './geometry.js';
+import { rectOf, footprint, overlaps, isDecor } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
 import { toWorld, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom } from './renderer.js';
 import { history } from './history.js';
@@ -339,7 +339,7 @@ function itemAt(x, y) {
   const sel = selected();
   const hits = [...state.items].reverse()
     .filter(it => { const r = rectOf(it); return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; })
-    .sort((a, b) => ((b.elev || 0) - (a.elev || 0)) || ((b === sel) - (a === sel)));
+    .sort((a, b) => (isDecor(a) - isDecor(b)) || ((b.elev || 0) - (a.elev || 0)) || ((b === sel) - (a === sel)));
   if (!hits.length) { lastPick = null; return null; }
   const tol = 4 / view.scale;
   const again = lastPick && Math.abs(lastPick.x - x) < tol && Math.abs(lastPick.y - y) < tol;

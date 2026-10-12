@@ -132,8 +132,15 @@ export function duplicate() {
 export function fillCatalog() {
   const sel = $('typeSelect');
   const cur = sel.value;
-  sel.innerHTML = state.catalog
-    .map(c => `<option value="${c.type}">${c.name[getLang()] || c.name.ru}</option>`).join('');
+  const groups = new Map();
+  for (const c of state.catalog) {
+    const k = c.cat || 'other';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(c);
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, ch => `&#${ch.charCodeAt(0)};`);
+  sel.innerHTML = [...groups].map(([k, list]) => `<optgroup label="${esc(t('cat.' + k))}">` +
+    list.map(c => `<option value="${c.type}">${esc(c.name[getLang()] || c.name.ru)}</option>`).join('') + '</optgroup>').join('');
   if (cur) sel.value = cur;
   else fillDefaults();
 }
@@ -231,7 +238,7 @@ function initObstacles() {
     const f = nf.elements;
     f.offset.value = Math.max(0, Math.round((wallLen(f.wall.value, state.room) - Number(f.width.value || 0)) / 2));
   };
-  $('nicheBtn').addEventListener('click', () => {
+  $('nicheAddBtn').addEventListener('click', () => {
     nf.hidden = !nf.hidden;
     if (!nf.hidden) {
       const f = nf.elements;
@@ -247,7 +254,7 @@ function initObstacles() {
     addNiche(f.wall.value, num(f.offset.value, 0, 3000), num(f.width.value, 1, 3000), num(f.depth.value, 1, 300));
     nf.hidden = true;
   });
-  $('nicheCancel').addEventListener('click', () => { nf.hidden = true; });
+  $('nicheFormCancel').addEventListener('click', () => { nf.hidden = true; });
   $('obList').addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
     if (li) selectObstacle(Number(li.dataset.id));

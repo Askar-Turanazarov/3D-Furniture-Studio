@@ -1,6 +1,7 @@
 // Canvas 2D top view: auto scale, grid, walls, plinth, furniture.
 import { state, itemName, isSelected } from './state.js';
-import { rectOf, rayGaps, obstacleRects, zOverlaps } from './geometry.js';
+import { drawGlyph, isLight } from './glyphs.js';
+import { rectOf, rayGaps, obstacleRects, zOverlaps, isDecor } from './geometry.js';
 import { openSpec, openZoneRect, frontFace } from './zones.js';
 import { wallLen } from './openings.js';
 import { t } from './i18n.js';
@@ -169,8 +170,9 @@ function draw() {
   drawObstacles(false);   // floor-standing structure under the furniture
   const now = performance.now();
   const sel = state.items.find(i => i.id === state.selectedId);
-  for (const it of state.items) if (it !== sel && !(it.elev > 0)) drawItem(it, now);
-  for (const it of state.items) if (it !== sel && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
+  for (const it of state.items) if (it !== sel && isDecor(it)) drawItem(it, now);   // rugs under the furniture
+  for (const it of state.items) if (it !== sel && !isDecor(it) && !(it.elev > 0)) drawItem(it, now);
+  for (const it of state.items) if (it !== sel && !isDecor(it) && it.elev > 0) drawItem(it, now);   // wall-mounted over the floor ones
   if (sel) drawItem(sel, now);
   drawObstacles(true);    // ceiling ducts and other high structure over the furniture
   if (!sheet) { drawZones(sel); drawPassages(); }
@@ -515,6 +517,7 @@ function drawItem(it, now) {
   }
 
   ctx.setLineDash([]);
+  drawGlyph(ctx, it, x, y, w, h, view.scale);
   drawSections(it, x, y, w, h);
   drawFront(it, x, y, w, h);
   drawLabel(it, x, y, w, h);
@@ -701,10 +704,11 @@ function drawLabel(it, x, y, w, h) {
   const dims = `${it.w}×${it.d}×${it.h}`;
   const size = Math.max(9, Math.min(14, Math.min(w, h) / 4));
   if (w < 30 || h < 18) return;
-  ctx.fillStyle = '#fff';
+  const light = isLight(it.color) && !(errors.get(it.id) || []).length;
+  ctx.fillStyle = light ? '#263238' : '#fff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,.45)';
+  ctx.shadowColor = light ? 'rgba(255,255,255,.8)' : 'rgba(0,0,0,.45)';
   ctx.shadowBlur = 2;
   ctx.font = `700 ${size}px system-ui, sans-serif`;
   const twoLines = h > size * 3;

@@ -49,8 +49,8 @@ test('door links: neighbour hole in local coordinates, entrance to the outside, 
   const links = doorLinks(rooms);
   assert.deepEqual(links, [
     { room: 'hall', door: 1, to: 'outside' },
-    { room: 'hall', door: 2, to: 'living', wall: 'north', offset: 50, width: 80 },
-    { room: 'hall', door: 3, to: 'bath', wall: 'west', offset: 60, width: 70 }
+    { room: 'hall', door: 2, to: 'living', wall: 'north', offset: 50, width: 80, height: 200 },
+    { room: 'hall', door: 3, to: 'bath', wall: 'west', offset: 60, width: 70, height: 200 }
   ]);
   assert.deepEqual([...reachable(rooms)].sort(), ['bath', 'hall', 'living']);
   rooms[1].pos.y = 260;   // too far for a doorway: the living room is cut off

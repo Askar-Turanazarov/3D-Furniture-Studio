@@ -38,7 +38,7 @@ function ceilLight(light, power) {
 }
 
 // Chandelier: stem, hub, five arms with glowing shades; one point light with shadows.
-function chandelier(g, L, W, H) {
+function chandelier(g, L, W, H, main) {
   const M = getMats(), cx = L / 2, cz = W / 2, y = H - 0.45;
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.4), M.metal);
   stem.position.set(cx, H - 0.2, cz);
@@ -57,11 +57,12 @@ function chandelier(g, L, W, H) {
   }
   const lamp = ceilLight(new THREE.PointLight('#ffe2b8', 0, 0, 2), 14);
   lamp.position.set(cx, y - 0.05, cz);
-  g.add(shadowed(lamp, 1024, Math.max(L, W, H) * 2));
+  g.add(main ? shadowed(lamp, 1024, Math.max(L, W, H) * 2) : lamp);
 }
 
 // Recessed spots: 2×2 … 3×3 grid of spot lights; only the first casts a shadow (performance).
-function spots(g, L, W, H) {
+// In a room without the camera: the same discs, one point light in the middle (a limit on the number of lights).
+function spots(g, L, W, H, main) {
   const nx = L > 4.2 ? 3 : 2, nz = W > 3.6 ? 3 : 2;
   const disc = new THREE.CylinderGeometry(0.05, 0.05, 0.01, 20);
   let first = true;
@@ -71,6 +72,7 @@ function spots(g, L, W, H) {
       const m = new THREE.Mesh(disc, getMats().lampShade);
       m.position.set(x, H - 0.005, z);
       g.add(m);
+      if (!main) continue;
       const s = ceilLight(new THREE.SpotLight('#ffe7c4', 0, 0, 1.0, 0.7, 2), 9);
       s.position.set(x, H - 0.02, z);
       s.target.position.set(x, 0, z);
@@ -78,6 +80,11 @@ function spots(g, L, W, H) {
       first = false;
       g.add(s, s.target);
     }
+  }
+  if (!main) {
+    const p = ceilLight(new THREE.PointLight('#ffe7c4', 0, 0, 2), 9 * nx * nz * 0.5);
+    p.position.set(L / 2, H - 0.3, W / 2);
+    g.add(p);
   }
 }
 
@@ -100,20 +107,21 @@ const FIXTURES = { chandelier, spots, panel };
  * @param size { L, W, H } in metres; win — first window { cx, cz, nx, nz } (centre, outward normal) or null
  * @param prev — levels of the replaced lights group: the new one continues from them, its fixture fades in.
  * group.userData.cur.env — environment intensity for the scene.
+ * main — the room with the camera: sky light, sun and shadows; the other rooms get only their fixture.
  */
-export function buildLights({ L, W, H }, win, lighting, prev = null) {
+export function buildLights({ L, W, H }, win, lighting, prev = null, main = true) {
   const { ceiling } = lightingOf(lighting);
   const group = new THREE.Group();
   group.name = 'lights';
 
   // Ambient: warm floor bounce + cool sky.
-  const hemi = new THREE.HemisphereLight('#f4f6ff', '#8a7660', 0);
-  group.add(hemi);
-  if (FIXTURES[ceiling]) FIXTURES[ceiling](group, L, W, H);
+  const hemi = main ? new THREE.HemisphereLight('#f4f6ff', '#8a7660', 0) : null;
+  if (hemi) group.add(hemi);
+  if (FIXTURES[ceiling]) FIXTURES[ceiling](group, L, W, H, main);
 
   // Sun from outside through the first window (north by default); it sinks and turns warm towards the evening.
   const sun = new THREE.DirectionalLight('#ffffff', 0);
-  sun.castShadow = true;
+  sun.castShadow = main;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
@@ -122,7 +130,7 @@ export function buildLights({ L, W, H }, win, lighting, prev = null) {
   const w = win || { cx: L / 2, cz: 0, nx: 0, nz: -1 };
   const depth = w.nz ? W : L;
   sun.target.position.set(w.cx - w.nx * depth * 0.6, 0, w.cz - w.nz * depth * 0.6);
-  group.add(sun, sun.target);
+  if (main) group.add(sun, sun.target);
 
   const ceil = [];
   group.traverse(o => { if (o.isLight && o.userData.ceilPower) ceil.push(o); });
@@ -167,12 +175,12 @@ export function tweenLights(group, dt) {
 
 function applyLevels(group) {
   const u = group.userData, c = u.cur, M = getMats();
-  u.hemi.intensity = c.hemi;
+  if (u.hemi) u.hemi.intensity = c.hemi;
   M.sky.color.set(c.sky);
   M.lampShade.emissiveIntensity = c.shade;
   u.sun.color.set(c.sunColor);
   u.sun.intensity = c.sunPower * u.sunScale;
-  u.sun.visible = c.sunPower > 0.01;
+  u.sun.visible = !!u.hemi && c.sunPower > 0.01;
   u.place(c.sunHeight);
   for (const l of u.ceil) l.intensity = l.userData.ceilPower * c.ceil;
 }

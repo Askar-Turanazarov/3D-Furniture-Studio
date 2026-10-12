@@ -3,24 +3,28 @@
 // Every animation frame the moving part is probed with a grid of points against the other furniture,
 // structure and the walls; on contact it turns red, stops there, and the HUD says what is in the way.
 import * as THREE from 'three';
-import { state, itemName } from '../state.js';
+import { itemName } from '../state.js';
 import { rectOf } from '../geometry.js';
+import { posOf } from '../apartment.js';
 import { t } from '../i18n.js';
 
 const SPEED = 1 / 0.6;     // a full opening takes 0.6 s
 const REACH = 2.5;         // m: how far E / the crosshair reaches when walking
 const TOL = 0.003;         // m: touching is not a hit
 
-let camera, hud, allBtn, furnGroup = null;
+let camera, hud, allBtn, onFloor = null;
+let rooms = [];            // { id, doc, furniture, shell } of every room in the scene
 const open = new Map();    // key → { cur, target } (0..1), survives rebuilds of the scene
-let movers = [];           // { key, obj, type, axis, max, part, itemId, probe: Vector3[] }
+let movers = [];           // { key, obj, type, axis, max, part, room, itemId, bounds, probe: Vector3[] }
 let anyOpen = false;
 const HIT = new THREE.MeshStandardMaterial({ color: '#ff5a5a', emissive: '#ff1a1a', emissiveIntensity: 0.45 });
 const ray = new THREE.Raycaster();
 const tmp = new THREE.Vector3();
 
-export function initAnim(cam, canvas, el) {
+// floorClick(roomId) — a click on the floor of a room (nothing to open there).
+export function initAnim(cam, canvas, el, floorClick) {
   camera = cam;
+  onFloor = floorClick;
   hud = el.querySelector('#anim3d');
   allBtn = el.querySelector('#openAllBtn');
   allBtn.addEventListener('click', () => { toggleAll(); allBtn.blur(); });
@@ -48,21 +52,45 @@ export function initAnim(cam, canvas, el) {
 }
 
 // ---- registration after every rebuild ----
-export function attach(furniture, room) {
+// entries: [{ id, doc, furniture, shell }] — every room with its live doc, furniture group and shell.
+export function attach(entries) {
   movers = [];
-  furnGroup = furniture;
-  furniture.updateMatrixWorld(true);
-  furniture.children.forEach(obj => {
-    (obj.userData.movers || []).forEach((m, i) => add({ ...m, key: `i${obj.userData.itemId}:${i}`, itemId: obj.userData.itemId }));
-  });
-  for (const pivot of room?.doors || []) {
-    pivot.updateMatrixWorld(true);
-    add({ obj: pivot, type: 'hinge', axis: 'y', max: pivot.userData.door.max, part: 'roomDoor', key: `d${pivot.userData.door.id}`, itemId: null });
+  rooms = entries;
+  for (const r of entries) {
+    const { x, y } = posOf(r.doc.pos), { L, W, H } = r.doc.room;
+    const bounds = { x0: x / 100, z0: y / 100, x1: (x + L) / 100, z1: (y + W) / 100, H: H / 100 };
+    r.furniture.updateMatrixWorld(true);
+    r.furniture.children.forEach(obj => {
+      const id = obj.userData.itemId;
+      (obj.userData.movers || []).forEach((m, i) => add({ ...m, key: `i${r.id}:${id}:${i}`, room: r.id, itemId: id, bounds }));
+    });
+    for (const pivot of r.shell?.doors || []) {
+      pivot.updateMatrixWorld(true);
+      add({ obj: pivot, type: 'hinge', axis: 'y', max: pivot.userData.door.max, part: 'roomDoor',
+        key: doorKey(r.id, pivot.userData.door.id), room: r.id, itemId: null, bounds });
+    }
   }
-  // Forget parts that are gone (deleted items, a different room).
+  // Forget parts that are gone (deleted items, removed rooms).
   const keys = new Set(movers.map(m => m.key));
   for (const k of open.keys()) if (!keys.has(k)) open.delete(k);
   updateAllBtn();
+}
+
+const doorKey = (roomId, doorId) => `d${roomId}:${doorId}`;
+
+// A room door is passable when it is (almost) open or has no leaf (rough finish).
+export function doorOpen(roomId, doorId) {
+  const key = doorKey(roomId, doorId);
+  if (!movers.some(m => m.key === key)) return true;
+  return (open.get(key)?.cur || 0) > 0.8;
+}
+
+// The walker pushes a closed door: it opens (unless something is in the way).
+export function openDoor(roomId, doorId) {
+  const key = doorKey(roomId, doorId), s = open.get(key) || { cur: 0, target: 0 };
+  if (s.target === 1) return;
+  s.target = 1;
+  open.set(key, s);
 }
 
 function add(m) {
@@ -98,12 +126,21 @@ function pick(ndc, far) {
   ray.setFromCamera(ndc, camera);
   ray.far = far;
   const doors = movers.filter(m => m.itemId === null).map(m => m.obj);
-  const hits = ray.intersectObjects([...(furnGroup?.children || []), ...doors], true).filter(h => visible(h.object));
+  const floors = rooms.map(r => r.shell?.floor).filter(Boolean);
+  const things = [...rooms.flatMap(r => r.furniture.children), ...doors, ...floors];
+  const hits = ray.intersectObjects(things, true).filter(h => visible(h.object));
   for (const h of hits) {
+    if (h.object.userData.floor) {
+      const r = rooms.find(x => x.shell?.floor === h.object);
+      if (r) onFloor?.(r.id);
+      return;
+    }
     let o = h.object;
     while (o && o.userData.itemId === undefined && !o.userData.door) o = o.parent;
     if (!o) continue;
-    const own = o.userData.door ? movers.filter(m => m.obj === o) : movers.filter(m => m.itemId === o.userData.itemId);
+    const furn = o.parent;
+    const own = o.userData.door ? movers.filter(m => m.obj === o)
+      : movers.filter(m => m.itemId === o.userData.itemId && rooms.find(r => r.id === m.room)?.furniture === furn);
     if (own.length) toggle(own);
     return;       // only the nearest thing counts
   }
@@ -159,30 +196,35 @@ export function update(dt) {
   if (changed) updateAllBtn();
 }
 
-// Other furniture, structure (boxes in metres, world space) and the room interior.
+// Furniture and structure of every room (boxes in metres, world space).
 function solids() {
   const out = [];
-  for (const it of state.items) {
-    const r = rectOf(it), e = (it.elev || 0) / 100;
-    out.push({ id: it.id, name: `«${itemName(it)}»`, x0: r.x / 100, x1: (r.x + r.w) / 100, z0: r.y / 100, z1: (r.y + r.h) / 100, y0: e, y1: e + it.h / 100 });
-  }
-  for (const o of state.obstacles || []) {
-    out.push({ id: null, name: `«${t('ob.' + o.kind)}»`, x0: o.x / 100, x1: (o.x + o.w) / 100, z0: o.y / 100, z1: (o.y + o.d) / 100, y0: o.elev / 100, y1: (o.elev + o.h) / 100 });
+  for (const r of rooms) {
+    const { x, y } = posOf(r.doc.pos), ox = x / 100, oz = y / 100;
+    for (const it of r.doc.items || []) {
+      const q = rectOf(it), e = (it.elev || 0) / 100;
+      out.push({ room: r.id, id: it.id, name: `«${itemName(it)}»`,
+        x0: ox + q.x / 100, x1: ox + (q.x + q.w) / 100, z0: oz + q.y / 100, z1: oz + (q.y + q.h) / 100, y0: e, y1: e + it.h / 100 });
+    }
+    for (const o of r.doc.obstacles || []) {
+      out.push({ room: r.id, id: null, name: `«${t('ob.' + o.kind)}»`,
+        x0: ox + o.x / 100, x1: ox + (o.x + o.w) / 100, z0: oz + o.y / 100, z1: oz + (o.y + o.d) / 100, y0: o.elev / 100, y1: (o.elev + o.h) / 100 });
+    }
   }
   return out;
 }
 
 function collide(m, boxes) {
-  const { L, W, H } = state.room;
+  const b0 = m.bounds;
   const inside = m.part !== 'roomDoor';     // a room door starts inside its wall
   for (const p of m.probe) {
     tmp.copy(p).applyMatrix4(m.obj.matrixWorld);
     if (inside) {
-      if (tmp.x < -TOL || tmp.z < -TOL || tmp.x > L / 100 + TOL || tmp.z > W / 100 + TOL) return { name: t('anim.wall') };
-      if (tmp.y < -TOL || tmp.y > H / 100 + TOL) return { name: t('anim.floor') };
+      if (tmp.x < b0.x0 - TOL || tmp.z < b0.z0 - TOL || tmp.x > b0.x1 + TOL || tmp.z > b0.z1 + TOL) return { name: t('anim.wall') };
+      if (tmp.y < -TOL || tmp.y > b0.H + TOL) return { name: t('anim.floor') };
     }
     for (const b of boxes) {
-      if (b.id !== null && b.id === m.itemId) continue;
+      if (b.id !== null && b.id === m.itemId && b.room === m.room) continue;
       if (tmp.x > b.x0 + TOL && tmp.x < b.x1 - TOL && tmp.z > b.z0 + TOL && tmp.z < b.z1 - TOL && tmp.y > b.y0 + TOL && tmp.y < b.y1 - TOL) return b;
     }
   }

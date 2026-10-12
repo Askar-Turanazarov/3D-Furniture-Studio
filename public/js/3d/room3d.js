@@ -23,7 +23,7 @@ function mesh(geom, mat, { cast = true, receive = true } = {}) {
 }
 
 // Wall as an extruded shape (x along the wall, y up) with optional rectangular holes.
-function wallMesh(x0, x1, H, holes, mat) {
+function wallMesh(x0, x1, H, holes, mat, depth = T) {
   const shape = new THREE.Shape();
   shape.moveTo(x0, 0); shape.lineTo(x1, 0); shape.lineTo(x1, H); shape.lineTo(x0, H); shape.closePath();
   for (const h of holes) {
@@ -32,7 +32,7 @@ function wallMesh(x0, x1, H, holes, mat) {
     shape.holes.push(p);
   }
   // Shape UVs are already in metres (x, y), so 1 tile = 1 m.
-  return mesh(new THREE.ExtrudeGeometry(shape, { depth: T, bevelEnabled: false }), mat);
+  return mesh(new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false }), mat);
 }
 
 const box = (w, h, d, mat, opts) => mesh(new THREE.BoxGeometry(w, h, d), mat, opts);
@@ -57,9 +57,11 @@ function localOpening(o, L, W) {
 
 /**
  * @param room { L, W, H, plinth } in cm; openings — windows / doors (see openings.js)
+ * @param opts.holes doorways of the neighbours' doors in this room's walls: [{ wall, offset, width, height }] (cm)
+ * @param opts.thick wall thickness outwards per side, m (half the partition next to a neighbour, so walls do not overlap)
  * @returns { group, walls: { north, south, west, east }, ceiling, windows: [{ cx, cz, nx, nz }] }
  */
-export function buildRoom(room, openings = [], style) {
+export function buildRoom(room, openings = [], style, { holes: extraHoles = [], thick = {} } = {}) {
   const M = getMats(), st = styleOf(style), F = finishMats(st);
   const wallOf = name => st.accentWall === name ? F.accent : F.wall;
   const L = room.L / 100, W = room.W / 100, H = room.H / 100;
@@ -71,6 +73,7 @@ export function buildRoom(room, openings = [], style) {
   const floor = mesh(scaleUV(new THREE.PlaneGeometry(L, W), L, W), F.floor, { cast: false });
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(L / 2, 0, W / 2);
+  floor.userData.floor = true;
   group.add(floor);
 
   const ceiling = mesh(new THREE.PlaneGeometry(L, W), F.ceiling, { cast: false });
@@ -108,21 +111,26 @@ export function buildRoom(room, openings = [], style) {
     }
     walls[o.wall].add(g);
   }
+  for (const h of extraHoles) {
+    const y = 0, hh = Math.min(h.height / 100, H - 0.01);
+    holes[h.wall].push({ x: h.offset / 100, y, w: h.width / 100, h: hh });
+  }
   // North (z = 0, extruded to -T).
-  const north = wallMesh(-T, L + T, H, holes.north, wallOf('north'));
-  north.position.z = -T;
+  const tk = side => Math.max(0.005, thick[side] ?? T);
+  const north = wallMesh(-tk('west'), L + tk('east'), H, holes.north, wallOf('north'), tk('north'));
+  north.position.z = -tk('north');
   walls.north.add(north);
   // South (z = W, extruded to W + T).
-  const south = wallMesh(-T, L + T, H, holes.south, wallOf('south'));
+  const south = wallMesh(-tk('west'), L + tk('east'), H, holes.south, wallOf('south'), tk('south'));
   south.position.z = W;
   walls.south.add(south);
   // West / east: local X → world Z, extrusion → world −X.
-  const west = wallMesh(0, W, H, holes.west, wallOf('west'));
+  const west = wallMesh(0, W, H, holes.west, wallOf('west'), tk('west'));
   west.rotation.y = -Math.PI / 2;
   walls.west.add(west);
-  const east = wallMesh(0, W, H, holes.east, wallOf('east'));
+  const east = wallMesh(0, W, H, holes.east, wallOf('east'), tk('east'));
   east.rotation.y = -Math.PI / 2;
-  east.position.x = L + T;
+  east.position.x = L + tk('east');
   walls.east.add(east);
 
   // Plinths along the inner faces (thickness = room plinth); not yet installed in rough / pre-finish.
@@ -134,7 +142,7 @@ export function buildRoom(room, openings = [], style) {
   }
 
   Object.values(walls).forEach(g => group.add(g));
-  return { group, walls, ceiling, windows, doors, size: { L, W, H } };
+  return { group, walls, ceiling, floor, windows, doors, size: { L, W, H } };
 }
 
 // Window centre on the inner wall face and the outward normal (for the sun direction).
@@ -164,6 +172,7 @@ function windowParts(win, M) {
   // Glass (no shadows so the sun passes through) + sky backdrop outside.
   parts.push(at(box(win.w, win.h, 0.01, M.glass, { cast: false, receive: false }), cx, cy, -T / 2));
   const sky = new THREE.Mesh(new THREE.PlaneGeometry(win.w * 3, win.h * 3), M.sky);
+  sky.userData.sky = true;     // only for views from inside; hidden in the overview
   parts.push(at(sky, cx, cy, -1.2));
   // Window sill on the inside.
   parts.push(at(box(win.w + 0.1, 0.03, 0.2, M.frame), cx, win.y - 0.015, 0.05));
@@ -191,6 +200,24 @@ function doorParts(d, hingeAtStart, M) {
   leaf.add(at(box(0.12, 0.02, 0.04, M.metal), hdx, Math.min(1.0, dh * 0.5), -T / 2 + 0.04));
   parts.push(pivot);
   return parts;
+}
+
+// Doorway through a partition: floor strip, jambs and lintel across the gap between the two inner wall faces.
+// In the owner room's frame (cm in): wall of the door, offset, width, height, gap; room L, W.
+export function revealParts(wall, off, width, height, gap, L, W, style) {
+  const F = finishMats(styleOf(style)), g = new THREE.Group();
+  if (gap <= 0) return g;
+  const a0 = off / 100, a1 = (off + width) / 100, h = height / 100, d = gap / 100;
+  const horiz = wall === 'north' || wall === 'south';
+  const c0 = wall === 'north' ? -d : wall === 'south' ? W / 100 : wall === 'west' ? -d : L / 100;
+  const c1 = c0 + d, j = 0.02;
+  const part = (s0, s1, y0, y1, mat) => {
+    const m = box(horiz ? s1 - s0 : d, y1 - y0, horiz ? d : s1 - s0, mat, { cast: false });
+    m.position.set(horiz ? (s0 + s1) / 2 : (c0 + c1) / 2, (y0 + y1) / 2, horiz ? (c0 + c1) / 2 : (s0 + s1) / 2);
+    return m;
+  };
+  g.add(part(a0, a1, -0.01, 0.001, F.floor), part(a0, a0 + j, 0, h, F.wall), part(a1 - j, a1, 0, h, F.wall), part(a0, a1, h, h + j, F.wall));
+  return g;
 }
 
 export function disposeGroup(group) {

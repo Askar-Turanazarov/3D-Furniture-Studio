@@ -1,8 +1,11 @@
 // 3D view: renderer, camera, render loop. Scene units are metres (cm / 100).
 import * as THREE from 'three';
 import { t, onLangChange } from '../i18n.js';
-import { state, onChange, emit } from '../state.js';
-import { buildRoom, disposeGroup } from './room3d.js';
+import { state, onChange, emit, roomView } from '../state.js';
+import { buildRoom, disposeGroup, revealParts } from './room3d.js';
+import { liveRooms } from '../renderer.js';
+import { doorLinks, adjacent, wallLine, posOf, roomRect } from '../apartment.js';
+import { switchRoom } from '../projects.js';
 import { buildObstacles } from './obstacles3d.js';
 import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights } from './lights3d.js';
 import { lampsOn } from '../lighting.js';
@@ -18,10 +21,10 @@ import { compose, savePicture, canShareFiles } from '../snapshot.js';
 
 let renderer, scene, camera, container, clock;
 let running = false;
-let roomKey = '', lightKey = '';
-let room = null;
-let lights = null;
-let furniture = null;
+// Every room of the apartment: { group (at pos), doc, shell, key, furniture, fkey, lights, lkey }.
+const rooms3d = new Map();
+let outline = '';
+let mainLights = null;     // lights of the active room (the walker's): sky, sun, shadows
 let foundTimer = null;
 // Ambient occlusion (GTAO) in Photo mode: composer is loaded on first use, switched off when FPS drops.
 let quality = 'simple', aoWanted = false, composer = null, aoPass = null;
@@ -80,14 +83,14 @@ function init(el) {
     emit();
   }));
   // A photo-library set has arrived: rebuild the shell and furniture with it.
-  onLibLoaded(() => { roomKey = ''; if (running) rebuild(); });
+  onLibLoaded(() => { forget(); if (running) rebuild(); });
   el.querySelector('#ceilSel').addEventListener('change', e => {
     state.lighting = { ...lightingOf(state.lighting), ceiling: e.target.value };
     emit();
   });
   fillCeilSel();
   onLangChange(fillCeilSel);
-  anim.initAnim(camera, renderer.domElement, el);
+  anim.initAnim(camera, renderer.domElement, el, id => { if (id !== state.activeRoomId) switchRoom(id); });
   onLangChange(anim.onLang);
 
   new ResizeObserver(resize).observe(el);
@@ -116,60 +119,132 @@ async function applyQuality(q) {
   syncAo();
   try { localStorage.setItem('fsp3d.quality', q); } catch { /* ignore */ }
   if (!ok) toast(t('v3d.photoFail'), true);
-  roomKey = '';
+  forget();
   if (running) rebuild();
 }
 
-// Rebuild the room only when its size or openings change; furniture on every change.
-// The camera is re-aimed only when the room size changes.
-function rebuild() {
-  const { L, W, H, plinth } = state.room;
-  let roomChanged = false;
-  const sizeKey = [L, W, H, plinth].join('x');
-  const key = sizeKey + JSON.stringify(state.openings) + JSON.stringify(state.obstacles) + JSON.stringify(state.style);
-  if (key !== roomKey) {
-    roomChanged = roomKey === '' ? !room : !roomKey.startsWith(sizeKey + '[');
-    roomKey = key;
-    if (room) disposeGroup(room.group);
-    room = buildRoom(state.room, state.openings || [], state.style);
-    room.group.add(buildObstacles(state.obstacles));
-    scene.add(room.group);
-    lightKey = '';
-  }
-  // Lights are rebuilt only for a new room or fixture type; scene and 💡 changes are tweened.
-  const lk = lightingOf(state.lighting).ceiling;
-  if (lk !== lightKey) {
-    lightKey = lk;
-    const prev = lights?.userData.cur;
-    if (lights) disposeGroup(lights);
-    lights = buildLights(room.size, room.windows[0] || null, state.lighting, prev);
-    scene.add(lights);
-  } else {
-    setLightTargets(lights, state.lighting);
-  }
-  scene.environmentIntensity = lights.userData.cur.env;
-  syncLightHud();
-  controls.setRoom(room, roomChanged);
-  buildFurniture();
+// Shells and furniture are rebuilt with new materials.
+function forget() {
+  for (const e of rooms3d.values()) e.key = e.fkey = '';
 }
 
-// Furniture: red tint for items with errors, green for a freshly auto-placed one.
-function buildFurniture() {
-  if (furniture) disposeGroup(furniture);
-  furniture = new THREE.Group();
-  furniture.name = 'furniture';
-  const errors = validateAll(state);
-  const now = performance.now();
-  const found = state.found && now < state.found.until ? state.found : null;
-  for (const it of state.items) {
-    const status = (errors.get(it.id) || []).length ? 'bad' : found && found.id === it.id ? 'found' : 'ok';
-    furniture.add(buildItem(it, status, state.materials, state.style, state.catalog));
+const T = 10;   // outer wall thickness, cm
+
+// Rebuild only what changed: a room shell when its size, openings, structure, style or doorways change,
+// its furniture when its items or their errors change. The overview is re-aimed when the outline changes.
+function rebuild() {
+  const rooms = liveRooms();
+  const links = doorLinks(rooms);
+  for (const [id, e] of rooms3d) {
+    if (rooms.some(r => r.id === id)) continue;
+    disposeGroup(e.group);
+    rooms3d.delete(id);
   }
-  applyFixtures(furniture, lights.userData.cur.fix);
-  anim.attach(furniture, room);
-  scene.add(furniture);
-  clearTimeout(foundTimer);
-  if (found) foundTimer = setTimeout(() => { if (running) buildFurniture(); }, found.until - now + 20);
+  let changed = false;
+  for (const r of rooms) {
+    let e = rooms3d.get(r.id);
+    if (!e) {
+      e = { group: new THREE.Group(), key: '', fkey: '', lkey: '' };
+      scene.add(e.group);
+      rooms3d.set(r.id, e);
+    }
+    const { x, y } = posOf(r.pos);
+    e.group.position.set(x / 100, 0, y / 100);
+    e.doc = r;
+    // Doorways of the neighbours' doors in this room's walls, the doorways it owns, half partitions.
+    const holes = links.filter(l => l.to === r.id).map(l => ({ wall: l.wall, offset: l.offset, width: l.width, height: l.height }));
+    const own = links.filter(l => l.room === r.id && l.to !== 'outside').map(l => {
+      const o = r.openings.find(d => d.id === l.door), b = rooms.find(q => q.id === l.to);
+      return { wall: o.wall, offset: o.offset, width: o.width, height: o.height,
+        gap: Math.abs(wallLine(b, l.wall).at - wallLine(r, o.wall).at) };
+    });
+    const thick = {};
+    for (const b of rooms) {
+      if (b === r) continue;
+      for (const a of adjacent(r, b, 2 * T)) thick[a.wallA] = Math.min(thick[a.wallA] ?? T / 100, a.gap / 200);
+    }
+    const key = JSON.stringify([r.room, r.openings, r.obstacles, r.style, holes, own, thick]);
+    if (key !== e.key) {
+      e.key = key;
+      if (e.shell) disposeGroup(e.shell.group);
+      e.shell = buildRoom(r.room, r.openings || [], r.style, { holes, thick });
+      e.shell.group.add(buildObstacles(r.obstacles));
+      for (const d of own) e.shell.group.add(revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style));
+      e.group.add(e.shell.group);
+      changed = true;
+    }
+    if (buildFurniture(e, r)) changed = true;
+  }
+  const rs = rooms.map(roomRect);
+  const bx = Math.min(...rs.map(q => q.x)), by = Math.min(...rs.map(q => q.y));
+  const bounds = {
+    x: bx / 100, z: by / 100, w: (Math.max(...rs.map(q => q.x + q.w)) - bx) / 100, d: (Math.max(...rs.map(q => q.y + q.h)) - by) / 100,
+    H: Math.max(...rooms.map(r => r.room.H)) / 100
+  };
+  const ok = JSON.stringify(bounds);
+  const resetView = ok !== outline;
+  outline = ok;
+  const entries = [...rooms3d].map(([id, e]) => ({ id, doc: e.doc, shell: e.shell, furniture: e.furniture, x: e.group.position.x, z: e.group.position.z }));
+  if (changed) anim.attach(entries);
+  controls.setApartment({
+    rooms: entries, bounds,
+    doorOpen: anim.doorOpen, openDoor: anim.openDoor,
+    onEnter: id => switchRoom(id)
+  }, resetView);
+  buildAllLights();
+  syncLightHud();
+  syncRoomHud(rooms);
+}
+
+// Lights: the active room (where the walker is) gets sky light, sun and shadows, the others only their fixture.
+// Rebuilt only for a new shell, fixture type or main room; scene and lamp changes are tweened.
+function buildAllLights() {
+  const ceiling = lightingOf(state.lighting).ceiling;
+  const prev = mainLights?.userData.cur;
+  for (const [id, e] of rooms3d) {
+    const main = id === state.activeRoomId || rooms3d.size === 1;
+    const lk = [ceiling, main, e.key].join('|');
+    if (lk !== e.lkey) {
+      e.lkey = lk;
+      if (e.lights) disposeGroup(e.lights);
+      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main);
+      e.group.add(e.lights);
+    } else {
+      setLightTargets(e.lights, state.lighting);
+    }
+    if (main) mainLights = e.lights;
+  }
+  scene.environmentIntensity = mainLights.userData.cur.env;
+  for (const e of rooms3d.values()) if (e.furniture) applyFixtures(e.furniture, mainLights.userData.cur.fix);
+}
+
+// Furniture of one room: red tint for items with errors, green for a freshly auto-placed one. True when rebuilt.
+function buildFurniture(e, r) {
+  const errors = validateAll(roomView(r.id));
+  const now = performance.now();
+  const found = r.id === state.activeRoomId && state.found && now < state.found.until ? state.found : null;
+  const status = it => (errors.get(it.id) || []).length ? 'bad' : found && found.id === it.id ? 'found' : 'ok';
+  const fkey = JSON.stringify([r.items, r.items.map(status), r.style, state.materials]);
+  if (found) {
+    clearTimeout(foundTimer);
+    foundTimer = setTimeout(() => { if (running) rebuild(); }, found.until - now + 20);
+  }
+  if (fkey === e.fkey) return false;
+  e.fkey = fkey;
+  if (e.furniture) disposeGroup(e.furniture);
+  e.furniture = new THREE.Group();
+  e.furniture.name = 'furniture';
+  for (const it of r.items) e.furniture.add(buildItem(it, status(it), state.materials, r.style, state.catalog));
+  e.group.add(e.furniture);
+  return true;
+}
+
+// Name of the active room (the one the walker is in) when the apartment has several.
+function syncRoomHud(rooms) {
+  const el = container.querySelector('#room3d');
+  const r = rooms.find(q => q.id === state.activeRoomId);
+  el.hidden = rooms.length < 2 || !r;
+  if (r) el.textContent = '\u{1F4CD} ' + r.name;
 }
 
 function fillCeilSel() {
@@ -251,9 +326,11 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.25);
   controls.update(dt);
   anim.update(dt);
-  if (lights && tweenLights(lights, dt)) {
-    scene.environmentIntensity = lights.userData.cur.env;
-    if (furniture) applyFixtures(furniture, lights.userData.cur.fix);
+  let tweened = false;
+  for (const e of rooms3d.values()) if (e.lights && tweenLights(e.lights, dt)) tweened = true;
+  if (tweened && mainLights) {
+    scene.environmentIntensity = mainLights.userData.cur.env;
+    for (const e of rooms3d.values()) if (e.furniture) applyFixtures(e.furniture, mainLights.userData.cur.fix);
   }
   draw();
   watchFps(dt);

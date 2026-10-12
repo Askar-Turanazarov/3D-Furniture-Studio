@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { state, itemName } from '../state.js';
-import { rectOf, isDecor } from '../geometry.js';
+import { walkMap } from '../walkMap.js';
 import { t, getLang } from '../i18n.js';
 
 const NORMALS = {
@@ -20,7 +20,11 @@ const keys = new Set();
 const downAt = new Map();
 // active = walking without pointer lock (touch, or a browser that refuses the lock).
 export const touchInput = { f: 0, r: 0, active: false };
-let room = null;           // result of buildRoom()
+// The apartment in the scene: { rooms: [{ id, doc, shell, x, z }], bounds: { x, z, w, d, H } (m),
+// doorOpen(roomId, doorId), openDoor(roomId, doorId), onEnter(roomId) }.
+let apt = null;
+let map = null;             // walkMap of the apartment, rebuilt lazily
+let here = null;            // id of the room the camera stands in
 let mode = 'orbit';
 const tmp = new THREE.Vector3();
 let personH = 170;          // cm, eyes ≈ 93 % of the height
@@ -86,7 +90,8 @@ export function initControls(cam, dom, el) {
   sel.addEventListener('change', () => {
     personH = Number(sel.value);
     try { localStorage.setItem('fsp3d.height', personH); } catch { /* ignore */ }
-    if (room && mode === 'walk') camera.position.y = eyeHeight();
+    map = null;
+    if (apt && mode === 'walk') camera.position.y = eyeHeight();
     sel.blur();   // WASD / arrows must move the person, not the select
   });
 }
@@ -98,18 +103,27 @@ function fillHeights() {
   sel.value = personH;
 }
 
-// New room geometry: re-aim the overview camera.
-export function setRoom(r, resetView) {
-  room = r;
-  if (!resetView) return;
-  if (mode === 'orbit') overview(); else spawn();
+// New apartment data. The overview is re-aimed when its outline changed; a walker stays where he is unless
+// that place became blocked.
+export function setApartment(a, resetView) {
+  apt = a;
+  map = null;
+  if (!apt.rooms.some(r => r.id === here)) here = null;
+  if (resetView) { if (mode === 'orbit') overview(); else spawn(); }
+  else if (mode === 'walk' && mapOf().blocked(camera.position.x * 100, camera.position.z * 100)) spawn();
 }
 
+const mapOf = () => (map ||= walkMap(apt.rooms.map(r => r.doc), {
+  radius: RADIUS * 100, personH, feet: FEET, doorOpen: (r, d) => apt.doorOpen(r, d)
+}));
+const entryOf = id => apt.rooms.find(r => r.id === id) || null;
+
 function overview() {
-  const { L, W, H } = room.size;
-  orbit.target.set(L / 2, H * 0.3, W / 2);
-  const dist = Math.max(L, W) * 1.25 + 1;
-  camera.position.set(L / 2 + dist * 0.55, H + dist * 0.6, W / 2 + dist * 0.8);
+  const { x, z, w, d, H } = apt.bounds;
+  orbit.target.set(x + w / 2, H * 0.3, z + d / 2);
+  // A steep view, so partitions hide less of the rooms behind them.
+  const dist = Math.max(w, d) * 0.9 + 1;
+  camera.position.set(x + w / 2 + dist * 0.45, H + dist * 0.95, z + d / 2 + dist * 0.65);
   orbit.update();
 }
 
@@ -159,51 +173,37 @@ function stopFree() {
 
 export const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
-const eyeHeight = () => Math.min(personH * 0.93 / 100, room.size.H - 0.15);
+const eyeHeight = () => {
+  const r = entryOf(here) || entryOf(state.activeRoomId) || apt.rooms[0];
+  return Math.min(personH * 0.93 / 100, r.doc.room.H / 100 - 0.15);
+};
 
-// Furniture and structure footprints in metres. Structure above the head (a ceiling duct) does not block.
-function obstacles() {
-  // Wall-mounted furniture above the head does not block the walk either.
-  const out = state.items.filter(it => (it.elev || 0) < personH && !isDecor(it)).map(it => {
-    const r = rectOf(it);
-    return { x: r.x / 100, z: r.y / 100, w: r.w / 100, d: r.h / 100 };
-  });
-  for (const o of state.obstacles || []) {
-    if (o.elev < personH) out.push({ x: o.x / 100, z: o.y / 100, w: o.w / 100, d: o.d / 100 });
-  }
-  return out;
-}
+const blocked = (x, z) => mapOf().blocked(x * 100, z * 100);
 
-function blockedAt(x, z, obs) {
-  const { L, W } = room.size;
-  const p = state.room.plinth / 100 + RADIUS;
-  if (x < p || x > L - p || z < p || z > W - p) return true;
-  return obs.some(o => x > o.x - RADIUS && x < o.x + o.w + RADIUS && z > o.z - RADIUS && z < o.z + o.d + RADIUS);
-}
-
-// Start just inside the first door, else the nearest free point to the room centre.
+// Start in the active room just inside its first door, else at the nearest free point to its centre.
 function spawn() {
-  const { L, W } = room.size;
-  const obs = obstacles();
+  const r = entryOf(state.activeRoomId) || apt.rooms[0];
+  const L = r.doc.room.L / 100, W = r.doc.room.W / 100;
   const cands = [];
-  const door = (state.openings || []).find(o => o.kind === 'door');
+  const door = (r.doc.openings || []).find(o => o.kind === 'door');
   if (door) {
     const c = (door.offset + door.width / 2) / 100, inset = door.width / 100 + 0.3;
-    const p = { north: [c, inset], south: [c, W - inset], west: [inset, c], east: [L - inset, c] }[door.wall];
-    cands.push(p);
+    cands.push({ north: [c, inset], south: [c, W - inset], west: [inset, c], east: [L - inset, c] }[door.wall]);
   }
-  for (let r = 0; r < Math.max(L, W); r += 0.1) {
-    for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) cands.push([L / 2 + Math.cos(a) * r, W / 2 + Math.sin(a) * r]);
+  for (let d = 0; d < Math.max(L, W); d += 0.1) {
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) cands.push([L / 2 + Math.cos(a) * d, W / 2 + Math.sin(a) * d]);
   }
-  const [x, z] = cands.find(([x, z]) => !blockedAt(x, z, obs)) || [L / 2, W / 2];
-  camera.position.set(x, eyeHeight(), z);
-  // Look towards the room centre; from the centre itself look at the window (north).
-  let tx = L / 2 - x, tz = W / 2 - z;
+  const [lx, lz] = cands.find(([x, z]) => !blocked(r.x + x, r.z + z)) || [L / 2, W / 2];
+  here = r.id;
+  camera.position.set(r.x + lx, eyeHeight(), r.z + lz);
+  // Look towards the room centre; from the centre itself look at the north wall.
+  let tx = L / 2 - lx, tz = W / 2 - lz;
   if (Math.hypot(tx, tz) < 0.3) { tx = 0; tz = -1; }
-  camera.lookAt(x + tx, eyeHeight() * 0.9, z + tz);
+  camera.lookAt(r.x + lx + tx, eyeHeight() * 0.9, r.z + lz + tz);
 }
 
-// Move with sliding along obstacles: try X and Z separately.
+// Move with sliding along obstacles: try X and Z separately. A closed door in the way is pushed open;
+// stepping into another room makes it the active one.
 function walk(dt) {
   const active = plc.isLocked || touchInput.active;
   if (!active) return;
@@ -220,10 +220,16 @@ function walk(dt) {
   fwd.y = 0; fwd.normalize();
   const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const dx = (fwd.x * f + right.x * r) * speed, dz = (fwd.z * f + right.z * r) * speed;
-  const obs = obstacles();
   const pos = camera.position;
-  if (!blockedAt(pos.x + dx, pos.z, obs)) pos.x += dx;
-  if (!blockedAt(pos.x, pos.z + dz, obs)) pos.z += dz;
+  const door = mapOf().closedDoorAt((pos.x + dx) * 100, (pos.z + dz) * 100);
+  if (door) apt.openDoor(door.room, door.door);
+  if (!blocked(pos.x + dx, pos.z)) pos.x += dx;
+  if (!blocked(pos.x, pos.z + dz)) pos.z += dz;
+  const id = mapOf().roomIdAt(pos.x * 100, pos.z * 100);
+  if (id && id !== here) {
+    here = id;
+    if (id !== state.activeRoomId) apt.onEnter(id);
+  }
   pos.y = eyeHeight();
 }
 
@@ -236,18 +242,27 @@ export function look(dx, dy) {
   camera.quaternion.setFromEuler(euler);
 }
 
-// Dollhouse cutaway: hide walls between the camera and the room, and the ceiling from above.
+// Dollhouse cutaway: hide the walls of every room that face the camera, and the ceilings from above.
 function cutaway() {
-  if (!room) return;
-  const { L, W, H } = room.size;
+  if (!apt) return;
   const showAll = mode !== 'orbit';
-  for (const [side, group] of Object.entries(room.walls)) {
-    const c = side === 'north' ? tmp.set(L / 2, 0, 0) : side === 'south' ? tmp.set(L / 2, 0, W)
-      : side === 'west' ? tmp.set(0, 0, W / 2) : tmp.set(L, 0, W / 2);
-    const outside = camera.position.clone().sub(c).dot(NORMALS[side]) > 0;
-    group.visible = showAll || !outside;
+  for (const r of apt.rooms) {
+    if (!r.shell) continue;
+    const { L, W, H } = r.shell.size;
+    for (const [side, group] of Object.entries(r.shell.walls)) {
+      const c = side === 'north' ? tmp.set(L / 2, 0, 0) : side === 'south' ? tmp.set(L / 2, 0, W)
+        : side === 'west' ? tmp.set(0, 0, W / 2) : tmp.set(L, 0, W / 2);
+      c.x += r.x; c.z += r.z;
+      const outside = camera.position.clone().sub(c).dot(NORMALS[side]) > 0;
+      group.visible = showAll || !outside;
+    }
+    r.shell.ceiling.visible = showAll || camera.position.y < H;
+    if (r.shell.skies === undefined) {
+      r.shell.skies = [];
+      r.shell.group.traverse(o => { if (o.userData.sky) r.shell.skies.push(o); });
+    }
+    for (const sky of r.shell.skies) sky.visible = showAll;
   }
-  room.ceiling.visible = showAll || camera.position.y < H;
 }
 
 export function update(dt) {
@@ -256,58 +271,26 @@ export function update(dt) {
   if (mode === 'walk' && performance.now() - distAt > 100) { distAt = performance.now(); showDistance(); }
 }
 
-// Straight distance along the floor from the person's feet (camera projected down)
-// in the looking direction to the first furniture footprint or wall.
+// Straight distance along the floor from the person's feet (camera projected down) in the looking direction
+// to the first furniture footprint, structure or wall; open doorways let it through into the next room.
 function showDistance() {
   const el = container.querySelector('#dist3d');
-  if (el.hidden || !room) return;
+  if (el.hidden || !apt) return;
   const fwd = new THREE.Vector3();
   camera.getWorldDirection(fwd);
   fwd.y = 0;
   if (fwd.lengthSq() < 1e-6) return;
   fwd.normalize();
-  const ox = camera.position.x, oz = camera.position.z;
-  const { L, W } = room.size;
-  // Walls: inner faces.
-  let best = { d: Infinity, wall: null, item: null };
-  for (const [wall, d] of [
-    ['west', fwd.x < 0 ? -ox / fwd.x : Infinity], ['east', fwd.x > 0 ? (L - ox) / fwd.x : Infinity],
-    ['north', fwd.z < 0 ? -oz / fwd.z : Infinity], ['south', fwd.z > 0 ? (W - oz) / fwd.z : Infinity]
-  ]) if (d < best.d) best = { d, wall, item: null };
-  // Furniture: ray vs AABB (slab method).
-  state.items.forEach(it => {
-    if ((it.elev || 0) > FEET) return;   // a shelf does not catch the ray from the feet
-    const r = rectOf(it);
-    const d = rayBox(ox, oz, fwd.x, fwd.z, r.x / 100, r.y / 100, (r.x + r.w) / 100, (r.y + r.h) / 100);
-    if (d !== null && d < best.d) best = { d, wall: null, item: it };
-  });
-  // Structure at foot level (≤ 50 cm), e.g. a column or a radiator, not a ceiling duct.
-  for (const o of state.obstacles || []) {
-    if (o.elev > FEET) continue;
-    const d = rayBox(ox, oz, fwd.x, fwd.z, o.x / 100, o.y / 100, (o.x + o.w) / 100, (o.y + o.d) / 100);
-    if (d !== null && d < best.d) best = { d, wall: null, item: null, ob: o };
-  }
-  if (!isFinite(best.d)) return;
-  const m = best.d < 0.01 ? t('v3d.distTouch') : best.d.toLocaleString(getLang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const cm = Math.round(best.d * 100);
-  const text = best.item ? t('v3d.distItem', { name: itemName(best.item), m })
-    : best.ob ? t('v3d.distItem', { name: t('ob.' + best.ob.kind), m })
-    : t('v3d.distWall', { wall: t('wallShort.' + best.wall), m });
+  const hit = mapOf().ray(camera.position.x * 100, camera.position.z * 100, fwd.x, fwd.z);
+  if (!hit) return;
+  const d = hit.d / 100;
+  const m = d < 0.01 ? t('v3d.distTouch') : d.toLocaleString(getLang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const cm = Math.round(hit.d);
+  const text = hit.item ? t('v3d.distItem', { name: itemName(hit.item), m })
+    : hit.ob ? t('v3d.distItem', { name: t('ob.' + hit.ob.kind), m })
+    : t('v3d.distWall', { wall: t('wallShort.' + hit.wall), m });
   el.innerHTML = '';
   el.append(text, Object.assign(document.createElement('small'), { textContent: `${cm} ${t('unit.cm')} · ${t('v3d.fromFeet')}` }));
-}
-
-function rayBox(ox, oz, dx, dz, x0, z0, x1, z1) {
-  let tmin = 0, tmax = Infinity;
-  for (const [o, d, a, b] of [[ox, dx, x0, x1], [oz, dz, z0, z1]]) {
-    if (Math.abs(d) < 1e-9) { if (o < a || o > b) return null; continue; }
-    let t1 = (a - o) / d, t2 = (b - o) / d;
-    if (t1 > t2) [t1, t2] = [t2, t1];
-    tmin = Math.max(tmin, t1);
-    tmax = Math.min(tmax, t2);
-    if (tmin > tmax) return null;
-  }
-  return tmin;
 }
 
 export const getMode = () => mode;

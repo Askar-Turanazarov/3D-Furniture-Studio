@@ -46,7 +46,7 @@ export function overlapsRooms(rooms) {
 
 // A wall as a segment on the apartment plan: horizontal (north / south) or vertical (west / east).
 const OPPOSITE = { north: 'south', south: 'north', west: 'east', east: 'west' };
-function wallLine(r, wall) {
+export function wallLine(r, wall) {
   const b = roomRect(r);
   if (wall === 'north') return { at: b.y, from: b.x, to: b.x + b.w, out: -1 };
   if (wall === 'south') return { at: b.y + b.h, from: b.x, to: b.x + b.w, out: 1 };
@@ -82,7 +82,7 @@ export function doorLinks(rooms) {
         if (b === a) continue;
         const wall = OPPOSITE[o.wall], lb = wallLine(b, wall), gap = (lb.at - la.at) * la.out;
         if (gap >= 0 && gap <= LINK_GAP && lb.from <= from && to <= lb.to) {
-          link = { room: a.id, door: o.id, to: b.id, wall, offset: from - lb.from, width: o.width };
+          link = { room: a.id, door: o.id, to: b.id, wall, offset: from - lb.from, width: o.width, height: o.height };
           break;
         }
       }

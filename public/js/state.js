@@ -5,11 +5,11 @@
 import { footprint, rectOf, insideRoom, blocked } from './geometry.js';
 import { findSpot } from './autoplace.js';
 import { getLang } from './i18n.js';
-import { newOpening, clampOpening, doorSwingRect, defaultOpenings } from './openings.js';
+import { newOpening, clampOpening, defaultOpenings } from './openings.js';
 import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 import { styleOf } from './style.js';
 import { DEFAULT_LIGHTING } from './lighting.js';
-import { roomView as aptRoomView, moveItemBetween, posOf } from './apartment.js';
+import { roomView as aptRoomView, moveItemBetween, posOf, doorZones } from './apartment.js';
 
 export const state = {
   rooms: [],          // the apartment: room docs with pos (see storage.js); the active one is mirrored below
@@ -198,7 +198,7 @@ export function duplicateItem(item) {
   const { room, settings } = state;
   const r = rectOf(item), g = settings.gap;
   const others = state.items.map(i => rectOf(i))
-    .concat((state.openings || []).filter(o => o.kind === 'door').map(o => doorSwingRect(o, room)));
+    .concat(doorZones(state));
   let placed = false;
   for (const [dx, dy] of [[r.w + g, 0], [0, r.h + g], [-(r.w + g), 0], [0, -(r.h + g)]]) {
     const c = rectOf(copy, item.x + dx, item.y + dy);
@@ -230,7 +230,7 @@ export function duplicateItems(items) {
   const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y));
   const bw = Math.max(...rs.map(r => r.x + r.w)) - x0, bh = Math.max(...rs.map(r => r.y + r.h)) - y0;
   const others = state.items.map(i => rectOf(i))
-    .concat((state.openings || []).filter(o => o.kind === 'door').map(o => doorSwingRect(o, room)));
+    .concat(doorZones(state));
   let shift = null;
   for (const [dx, dy] of [[bw + g, 0], [0, bh + g], [-(bw + g), 0], [0, -(bh + g)]]) {
     const moved = rs.map(r => ({ ...r, x: r.x + dx, y: r.y + dy }));

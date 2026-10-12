@@ -57,6 +57,18 @@ test('door links: neighbour hole in local coordinates, entrance to the outside, 
   assert.deepEqual([...reachable(rooms)].sort(), ['bath', 'hall']);
 });
 
+test('doorway from a neighbour: furniture in front of it is an error, also for the active room', () => {
+  const rooms = flat();
+  // The hall door 2 (south, 50…130) opens into the living room's north wall: 60 cm in front must stay free.
+  rooms[1].items = [item({ id: 1, type: 'wardrobe', w: 100, d: 60, h: 220, x: 60, y: 2 }), item({ id: 2, type: 'dresser', w: 80, d: 45, h: 80, x: 200, y: 2 })];
+  const errs = validateAll(roomView({ rooms, settings: fixture().settings }, 'living'));
+  assert.deepEqual(errs.get(1).map(e => [e.key, e.params.room]), [['err.doorway', 'hall']]);
+  assert.deepEqual(errs.get(2), [], 'beside the doorway');
+  applyDoc({ rooms, settings: fixture().settings, lighting: {} });
+  setActiveRoom('living');
+  assert.deepEqual(validateAll(state).get(1).map(e => e.key), ['err.doorway']);
+});
+
 test('room magnet: aligned or one partition away', () => {
   const rooms = flat();
   assert.deepEqual(snapRoom(rooms, 'bath', 318, 7), { x: 310, y: 0 });
@@ -79,7 +91,7 @@ test('roomView gives every room the old single-room shape', () => {
   const res = validateApartment(apt);
   assert.ok(res.rooms.get('living').get(apt.rooms[1].items[0].id).length);
   assert.ok(apartmentHasErrors(res));
-  apt.rooms[1].items[0].x = 2;
+  apt.rooms[1].items[0].x = 200;   // inside and clear of the doorway from the hall
   assert.ok(!apartmentHasErrors(validateApartment(apt)));
 });
 

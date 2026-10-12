@@ -3,6 +3,7 @@
 // pos — the top-left corner of the room interior on the apartment plan; inside a room local coordinates stay
 // (x along L from the west wall, y along W from the north wall), so per-room rules work unchanged.
 import { validateAll } from './validate.js';
+import { doorSwingRect, doorwayRect } from './openings.js';
 
 export const PARTITION = 10;   // interior partition between two rooms, cm
 export const ROW_GAP = 20;     // rooms of an old project are put in a row with this gap
@@ -27,9 +28,36 @@ export function roomView(apt, id) {
   return {
     id: r.id, name: r.name, purpose: r.purpose, pos: posOf(r.pos),
     room: r.room, items: r.items || [], openings: r.openings || [], obstacles: r.obstacles || [], style: r.style,
+    doorways: incomingDoorways(liveRoomsOf(apt), id),
     settings: apt.settings, lighting: apt.lighting,
     catalog: apt.catalog || [], materials: apt.materials || [], pricing: apt.pricing || {}
   };
+}
+
+// Rooms of an apartment state with the active one live (its fields sit on the state itself).
+export function liveRoomsOf(s) {
+  return (s.rooms || []).map(r => r.id !== s.activeRoomId || !s.room ? r
+    : { ...r, room: s.room, items: s.items, openings: s.openings, obstacles: s.obstacles });
+}
+
+// Doorways of the neighbours' doors in the walls of room `id`: they need free floor in front, like a door swing.
+export function incomingDoorways(rooms, id) {
+  const names = new Map(rooms.map(r => [r.id, r.name]));
+  return doorLinks(rooms).filter(l => l.to === id)
+    .map(l => ({ kind: 'doorway', wall: l.wall, offset: l.offset, width: l.width, height: l.height ?? 200, from: l.room, fromName: names.get(l.room) || '' }));
+}
+
+// Doorways of a room view, or of the active room of an apartment state.
+export function doorwaysOf(s) {
+  if (s.doorways) return s.doorways;
+  if (!s.rooms || s.activeRoomId == null) return [];
+  return incomingDoorways(liveRoomsOf(s), s.activeRoomId);
+}
+
+// Floor that must stay free in front of doors and doorways (for an item at height `elev`).
+export function doorZones(s, elev = 0) {
+  return (s.openings || []).filter(o => o.kind === 'door' && elev < o.height).map(o => doorSwingRect(o, s.room))
+    .concat(doorwaysOf(s).filter(d => elev < d.height).map(d => doorwayRect(d, s.room)));
 }
 
 // Pairs of rooms whose interiors overlap (touching or a partition gap is fine).

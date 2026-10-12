@@ -1,6 +1,7 @@
 // Validate every item: walls (with plinth), AABB overlap, min gap, ceiling height, door swing.
 import { rectOf, wallViolations, overlaps, clearance, round1, zOverlaps, zRange, isDecor } from './geometry.js';
-import { doorSwingRect, windowZoneRect } from './openings.js';
+import { doorSwingRect, windowZoneRect, doorwayRect } from './openings.js';
+import { doorwaysOf } from './apartment.js';
 import { openSpec, openZoneRect, freeDepth, wallDepth } from './zones.js';
 import { narrowPassages } from './passages.js';
 
@@ -9,6 +10,7 @@ export function validateAll(state) {
   const { room, settings, items } = state;
   const result = new Map(items.map(i => [i.id, []]));
   const rects = items.map(i => rectOf(i));
+  const doorways = doorwaysOf(state);
 
   items.forEach((it, i) => {
     const errs = result.get(it.id);
@@ -23,6 +25,10 @@ export function validateAll(state) {
       if (o.kind === 'door' && (it.elev || 0) < o.height && overlaps(rects[i], doorSwingRect(o, room))) {
         errs.push({ key: 'err.door', params: {} });
       }
+    }
+    // A neighbour's door opens here: the doorway must stay passable.
+    for (const d of doorways) {
+      if ((it.elev || 0) < d.height && overlaps(rects[i], doorwayRect(d, room))) errs.push({ key: 'err.doorway', params: { room: d.fromName } });
     }
     // Structure: only obstacles at the item's height count (a ceiling duct is above a low cabinet).
     for (const ob of state.obstacles || []) {

@@ -52,6 +52,18 @@ export function doorSwingRect(o, room) {
   }
 }
 
+// Doorway of a neighbour's door in this room's wall (no leaf here): this much free floor in front of it.
+export const DOORWAY_DEPTH = 60;
+export function doorwayRect(o, room) {
+  const d = DOORWAY_DEPTH + room.plinth;
+  switch (o.wall) {
+    case 'north': return { x: o.offset, y: 0, w: o.width, h: d };
+    case 'south': return { x: o.offset, y: room.W - d, w: o.width, h: d };
+    case 'west':  return { x: 0, y: o.offset, w: d, h: o.width };
+    default:      return { x: room.L - d, y: o.offset, w: d, h: o.width };
+  }
+}
+
 // Thin strip in front of a window: tall furniture standing there covers the window.
 export function windowZoneRect(o, room) {
   const z = WINDOW_ZONE + room.plinth;

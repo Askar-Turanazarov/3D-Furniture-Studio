@@ -488,7 +488,11 @@ async function loadComposer() {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     aoPass = new GTAOPass(scene, camera, w, h);
-    aoPass.updateGtaoMaterial({ radius: 0.35, distanceFallOff: 1, thickness: 1, scale: 1 });
+    // Contact shadows only: a thin depth window (thickness) so a cabinet does not darken the wall half a metre
+    // behind it (a grey band along its silhouette), a short radius, and a softer blend.
+    aoPass.updateGtaoMaterial({ radius: 0.22, distanceFallOff: 0.6, thickness: 0.15, scale: 1, samples: 16 });
+    aoPass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+    aoPass.blendIntensity = 0.85;
     composer.addPass(aoPass);
     composer.addPass(new OutputPass());
     resize();

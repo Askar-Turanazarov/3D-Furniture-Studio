@@ -548,6 +548,16 @@ body.embed .topbar, body.embed .sidebar, body.embed .apt-head, body.embed .stage
 body.embed .notes, body.embed .legend { display: none; }
 body.embed .stage { padding: 0; gap: 0; }
 body.embed .canvas-wrap { border-radius: 0; border: 0; }
+.floor3d-box { position: relative; }
+.floor3d-load {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 12px;
+  background: #1e2235; color: #fff; font-size: 16px; border-radius: 10px;
+}
+.floor3d-load[hidden] { display: none; }
+.floor3d-load .spinner {
+  width: 22px; height: 22px; border: 3px solid rgba(255, 255, 255, .3); border-top-color: #fff; border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
 .floor3d-frame { display: block; width: 100%; height: min(72vh, 680px); border: 0; border-radius: 10px; background: #1e2235; }
 dialog.floor3d-dlg { width: min(1200px, 96vw); }
 

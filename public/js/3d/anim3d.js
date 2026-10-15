@@ -130,6 +130,8 @@ function setValue(m, v) {
 
 // fn(roomId, doorId) → true when the door is handled elsewhere (locked, leads to another apartment).
 export const setDoorHook = fn => { doorHook = fn; };
+// Walking into a door that leads off the plan: the same as clicking it.
+export const useDoor = (roomId, doorId) => !!doorHook?.(roomId, doorId);
 
 // ---- toggling ----
 function pick(ndc, far) {

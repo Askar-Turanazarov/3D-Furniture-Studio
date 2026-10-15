@@ -379,7 +379,7 @@ function rebuild() {
   if (changed) anim.attach(entries);
   controls.setApartment({
     rooms: entries, bounds,
-    doorOpen: anim.doorOpen, openDoor: anim.openDoor,
+    doorOpen: anim.doorOpen, openDoor: anim.openDoor, useDoor: anim.useDoor,
     onEnter: id => switchRoom(id)
   }, resetView);
   buildAllLights();

@@ -65,6 +65,23 @@ export function walkMap(rooms, { radius = 25, personH = 170, feet = 50, doorOpen
     return p && !doorOpen(p.room, p.door) ? p : null;
   }
 
+  // Doors that lead nowhere on this plan (the street, a lift, a neighbour's apartment): the strip in front of each,
+  // as deep as the walker can come up to the wall. Bumping into it may "use" the door (see controls3d).
+  const outer = [];
+  for (const r of rooms) {
+    for (const o of r.openings || []) {
+      if (o.kind !== 'door') continue;
+      const linked = links.some(k => (k.room === r.id && k.door === o.id)
+        || (k.to === r.id && k.wall === o.wall && k.offset < o.offset + o.width && k.offset + k.width > o.offset));
+      if (linked) continue;
+      const l = wallLine(r, o.wall), d = (r.room.plinth || 0) + radius + 6;
+      const s0 = l.from + o.offset + 10, s1 = l.from + o.offset + o.width - 10;
+      const horiz = o.wall === 'north' || o.wall === 'south';
+      outer.push({ room: r.id, door: o.id, ...(horiz ? { x0: s0, x1: s1, y0: l.at - d, y1: l.at + d } : { x0: l.at - d, x1: l.at + d, y0: s0, y1: s1 }) });
+    }
+  }
+  const outerDoorAt = (x, y) => outer.find(q => inRect(q, x, y)) || null;
+
   const roomIdAt = (x, y) => rooms.find(r => {
     const b = roomRect(r);
     return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
@@ -109,7 +126,7 @@ export function walkMap(rooms, { radius = 25, personH = 170, feet = 50, doorOpen
     return best;
   }
 
-  return { blocked, closedDoorAt, roomIdAt, ray, passages };
+  return { blocked, closedDoorAt, outerDoorAt, roomIdAt, ray, passages };
 }
 
 export function rayBox(ox, oz, dx, dz, x0, z0, x1, z1) {

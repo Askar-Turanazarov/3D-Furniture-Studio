@@ -105,6 +105,11 @@ export function createStreetWalk({ camera, dom, walk, obstacles, onDoor, onStop 
     const atDoor = pos.x > d.x0 && pos.x < d.x1 && pos.z + dz - R < d.z + 0.05;
     if (atDoor && !entered) {
       entered = true;
+      // Let go of the mouse and the keys before the lobby opens: the dialog needs the cursor.
+      keys.clear();
+      pad.f = 0;
+      drag = null;
+      if (document.pointerLockElement === dom) document.exitPointerLock();
       onDoor?.();
       return true;
     }

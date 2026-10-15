@@ -115,7 +115,10 @@
       <h2 id="floor3dTitle"></h2>
       <button type="button" class="btn icon ghost" id="floor3dClose" aria-label="Close">✕</button>
     </div>
-    <iframe id="floor3dFrame" class="floor3d-frame" allow="fullscreen" title="3D"></iframe>
+    <div class="floor3d-box">
+      <iframe id="floor3dFrame" class="floor3d-frame" allow="fullscreen" title="3D"></iframe>
+      <div class="floor3d-load" id="floor3dLoad" role="status" hidden><span class="spinner"></span><span id="floor3dLoadText"></span></div>
+    </div>
   </dialog>
 
   <dialog id="reqDlg">

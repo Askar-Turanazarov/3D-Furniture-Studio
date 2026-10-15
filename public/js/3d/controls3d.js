@@ -21,7 +21,7 @@ const downAt = new Map();
 // active = walking without pointer lock (touch, or a browser that refuses the lock).
 export const touchInput = { f: 0, r: 0, active: false };
 // The apartment in the scene: { rooms: [{ id, doc, shell, x, z }], bounds: { x, z, w, d, H } (m),
-// doorOpen(roomId, doorId), openDoor(roomId, doorId), onEnter(roomId) }.
+// doorOpen(roomId, doorId), openDoor(roomId, doorId), useDoor(roomId, doorId), onEnter(roomId) }.
 let apt = null;
 let map = null;             // walkMap of the apartment, rebuilt lazily
 let here = null;            // id of the room the camera stands in
@@ -32,6 +32,7 @@ try { personH = Number(localStorage.getItem('fsp3d.height')) || 170; } catch { /
 const HEIGHTS = [120, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200];
 const PRESETS = { 120: 'v3d.child', 165: 'v3d.woman', 180: 'v3d.man' };
 let distAt = 0;
+let pushed = null;          // the off-plan door the walker leans on (used once per contact)
 let locked = false;         // pointer lock state, see the lock / unlock listeners
 
 export function initControls(cam, dom, el) {
@@ -223,8 +224,14 @@ function walk(dt) {
   const pos = camera.position;
   const door = mapOf().closedDoorAt((pos.x + dx) * 100, (pos.z + dz) * 100);
   if (door) apt.openDoor(door.room, door.door);
-  if (!blocked(pos.x + dx, pos.z)) pos.x += dx;
-  if (!blocked(pos.x, pos.z + dz)) pos.z += dz;
+  const bx = blocked(pos.x + dx, pos.z), bz = blocked(pos.x, pos.z + dz);
+  if (!bx) pos.x += dx;
+  if (!bz) pos.z += dz;
+  // Pushing into a door that leads off the plan (street, lift, a neighbour): use it once per contact.
+  const out = (bx || bz) && mapOf().outerDoorAt((pos.x + (fwd.x * f + right.x * r) / len * 0.1) * 100, (pos.z + (fwd.z * f + right.z * r) / len * 0.1) * 100);
+  const key = out ? out.room + ':' + out.door : null;
+  if (key && key !== pushed) apt.useDoor?.(out.room, out.door);
+  pushed = key;
   const id = mapOf().roomIdAt(pos.x * 100, pos.z * 100);
   if (id && id !== here) {
     here = id;
@@ -300,6 +307,12 @@ function showDistance() {
 }
 
 export const getMode = () => mode;
+
+// Walk at once without the "click to enter" card (embedded floor view): keys + mouse drag, a click on the
+// card later still takes the pointer lock.
+export function walkNow() {
+  if (mode === 'walk' && !plc.isLocked) startFree();
+}
 
 // Leaving the 3D view: release the mouse and stop walking.
 export function release() {

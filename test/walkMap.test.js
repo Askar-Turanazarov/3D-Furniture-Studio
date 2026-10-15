@@ -55,3 +55,11 @@ test('walk: a ray along the floor passes an open doorway into the next room', ()
   const shut = walkMap(flat(), { doorOpen: () => false }).ray(90, 100, 0, 1);
   assert.equal(shut.room, 'hall', 'a closed door stops the ray');
 });
+
+test('walk: the strip in front of a door leading off the plan is found, linked doors are not', () => {
+  const m = walkMap(flat());
+  assert.deepEqual([m.outerDoorAt(140, 30)?.room, m.outerDoorAt(140, 30)?.door], ['hall', 1], 'entrance door, from inside');
+  assert.equal(m.outerDoorAt(140, 100), null, 'middle of the hall');
+  assert.equal(m.outerDoorAt(60, 30), null, 'beside the door');
+  assert.equal(m.outerDoorAt(90, 180), null, 'the door to the living room is a passage');
+});

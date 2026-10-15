@@ -321,21 +321,34 @@ function openInPlanner(a) {
 }
 
 // From the street through the doors: a short fade, then the lobby in the floor dialog (the walker at the doors).
+// The street walk ends first: the cursor and the keys belong to the dialog now.
+let entering = false;
 async function enterLobby() {
+  if (entering || $('floor3dDlg').open) return;
+  entering = true;
   const fade = Object.assign(document.createElement('div'), { className: 'fade3d' });
   $('bld3dView').append(fade);
   requestAnimationFrame(() => fade.classList.add('on'));
   await new Promise(r => setTimeout(r, 320));
-  $('floor3dTitle').textContent = `${t('bld.lobbyFloor')} · 3D`;
-  $('floor3dFrame').src = `/?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street`;
-  $('floor3dDlg').showModal();
+  ext?.endWalk();
+  sync3dHud();
+  showFloor3d(`${t('bld.lobbyFloor')} · 3D`, `/?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street`, t('bld.entering'));
   fade.remove();
+  entering = false;
 }
 
 // The floor in 3D: the planner's 3D view embedded (temporary project, nothing saved), walking from the entrance.
 function open3d(a) {
-  $('floor3dTitle').textContent = `${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`;
-  $('floor3dFrame').src = `/?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}`;
+  showFloor3d(`${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`,
+    `/?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}`, t('bld.loading3d'));
+}
+
+// The dialog shows "loading" over the frame until the scene inside reports it is ready to walk.
+function showFloor3d(title, src, note) {
+  $('floor3dTitle').textContent = title;
+  $('floor3dLoadText').textContent = note;
+  $('floor3dLoad').hidden = false;
+  $('floor3dFrame').src = src;
   $('floor3dDlg').showModal();
 }
 
@@ -490,6 +503,12 @@ function bind() {
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== $('floor3dFrame').contentWindow) return;
     // Out through the street doors of the lobby: back on the porch.
+    if (e.data?.type === 'fsp3d:ready') {
+      $('floor3dLoad').hidden = true;
+      $('floor3dFrame').focus();           // the keys walk inside the frame right away
+      $('floor3dFrame').contentWindow.focus();
+      return;
+    }
     if (e.data?.type === 'fsp3d:street') {
       $('floor3dDlg').close();
       if (ext) { ext.startWalk('porch'); sync3dHud(); }

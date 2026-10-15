@@ -198,9 +198,17 @@ async function startEmbed() {
     const controls = await import('./3d/controls3d.js');
     floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await import('./3d/anim3d.js')).setDoorHook, release: controls.release });
     controls.setMode('walk');
+    controls.walkNow();
+    const card = document.querySelector('#walkOverlay [data-i18n]');
+    card.dataset.i18n = 'v3d.clickToContinue';
+    card.textContent = t('v3d.clickToContinue');
   } catch {
     toast(t('bld.loadFail'), true);
   }
+  // The showcase hides its "loading" cover once the first frame is on screen.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (parent !== window) parent.postMessage({ type: 'fsp3d:ready' }, location.origin);
+  }));
 }
 
 async function start() {

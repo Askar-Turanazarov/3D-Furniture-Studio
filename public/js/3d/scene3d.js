@@ -157,8 +157,10 @@ function resize() {
   if (!w || !h) return;
   renderer.setSize(w, h, false);
   if (composer) {
-    composer.setPixelRatio(renderer.getPixelRatio());
-    composer.setSize(w, h);
+    // The AO buffers match the canvas pixel for pixel (whole numbers); w × 1.5 gave fractional sizes and the AO
+    // was sampled off the edges.
+    composer.setPixelRatio(1);
+    composer.setSize(renderer.domElement.width, renderer.domElement.height);
   }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -485,14 +487,12 @@ async function loadComposer() {
       import('three/addons/postprocessing/GTAOPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
     if (composer) return;
     const w = container.clientWidth || 1, h = container.clientHeight || 1;
-    composer = new EffectComposer(renderer);
+    // Same antialiasing as the plain render (MSAA): without it every edge was jagged while AO was on.
+    const aa = renderer.getContext().getContextAttributes()?.antialias;
+    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: aa ? 4 : 0 }));
     composer.addPass(new RenderPass(scene, camera));
     aoPass = new GTAOPass(scene, camera, w, h);
-    // Contact shadows only: a thin depth window (thickness) so a cabinet does not darken the wall half a metre
-    // behind it (a grey band along its silhouette), a short radius, and a softer blend.
-    aoPass.updateGtaoMaterial({ radius: 0.22, distanceFallOff: 0.6, thickness: 0.15, scale: 1, samples: 16 });
-    aoPass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
-    aoPass.blendIntensity = 0.85;
+    aoPass.updateGtaoMaterial({ radius: 0.35, distanceFallOff: 1, thickness: 1, scale: 1 });
     composer.addPass(aoPass);
     composer.addPass(new OutputPass());
     resize();

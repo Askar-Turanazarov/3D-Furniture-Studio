@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tierOf, tierFor, governor, SETTINGS, TIERS } from '../public/js/3d/perf.js';
+import { tierOf, tierFor, governor, SETTINGS, TIERS, isWeak, photoAuto } from '../public/js/3d/perf.js';
 
 test('device tier from cores, memory, touch and GPU name', () => {
   assert.equal(tierOf({ cores: 12, memory: 16, gpu: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11)' }), 'high');
@@ -52,4 +52,19 @@ test('governor ignores pauses and stops at low', () => {
   for (let i = 0; i < 10 * 10; i++) g.frame(1 / 10);
   assert.equal(g.tier, 'low');
   assert.deepEqual(log, []);
+});
+
+test('photo textures by default except on obviously weak devices', () => {
+  assert.equal(isWeak({ cores: 8, memory: 8, gpu: 'ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11)' }), false);
+  assert.equal(isWeak({ cores: 8, memory: 8, gpu: 'Google SwiftShader' }), true);
+  assert.equal(isWeak({ cores: 2, memory: 8, gpu: '' }), true);
+  assert.equal(isWeak({ cores: 8, memory: 2, gpu: '' }), true);
+  assert.equal(isWeak({ cores: 8, memory: 4, gpu: 'Mali-T860' }), true);
+  assert.equal(isWeak({ cores: 8, memory: 4, gpu: 'Mali-G78' }), false);
+  assert.equal(isWeak({ cores: 8, memory: 4, gpu: 'Adreno (TM) 506' }), false);
+  assert.equal(isWeak({ cores: 6, memory: 3, gpu: 'Adreno (TM) 330' }), true);
+  assert.equal(photoAuto('auto', () => false), true);
+  assert.equal(photoAuto('auto', () => true), false);
+  assert.equal(photoAuto('high', () => true), true);
+  assert.equal(photoAuto('low', () => false), false);
 });

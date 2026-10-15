@@ -51,6 +51,18 @@ export function savePref(p) {
 }
 export const tierFor = (pref, detect = detectTier) => (pref === 'high' ? 'high' : pref === 'low' ? 'low' : detect());
 
+// Obviously weak devices: a software renderer, ≤ 2 cores or ≤ 2 GB, old phone GPUs. Not every 'low' tier device:
+// an Intel HD / UHD laptop is 'low' (no soft lamp shadows) but shows the photo textures well enough.
+const OLD_MOBILE_GPU = /mali-?(4\d{2}|t\d{3})\b|adreno[^\d]*[2-4]\d{2}\b|powervr|apple a(8|9|10)\b/i;
+const SOFTWARE_GPU = /swiftshader|llvmpipe|software|microsoft basic/i;
+export function isWeak({ cores = 4, memory = 4, gpu = '' } = {}) {
+  return SOFTWARE_GPU.test(gpu) || OLD_MOBILE_GPU.test(gpu) || cores <= 2 || memory <= 2;
+}
+export const weakDevice = () => isWeak({ cores: navigator.hardwareConcurrency || 4, memory: navigator.deviceMemory || 4, gpu: gpuName() });
+
+/** Photo textures by default: "High" — yes, "Low" — no, "Auto" — unless the device is obviously weak. */
+export const photoAuto = (pref = readPref(), weak = weakDevice) => (pref === 'high' ? true : pref === 'low' ? false : !weak());
+
 /**
  * Frame-rate governor. frame(dt) gets the time of every frame drawn right after another one (idle time is not
  * counted). Below 30 fps for 3 s in a row → one tier down; above 55 fps for 10 s → one tier up, never above start.

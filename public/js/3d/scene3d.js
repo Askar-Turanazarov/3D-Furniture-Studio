@@ -14,8 +14,8 @@ import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import * as anim from './anim3d.js';
 import { initTouch } from './touch3d.js';
-import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, PHOTO_MB, setAnisotropy } from './textures3d.js';
-import { SETTINGS, PREFS, readPref, savePref, tierFor, governor } from './perf.js';
+import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, canFetchLib, PHOTO_MB, setAnisotropy } from './textures3d.js';
+import { SETTINGS, PREFS, readPref, savePref, tierFor, governor, photoAuto } from './perf.js';
 import { styleOf } from '../style.js';
 import { footprints, contactShadows, cornerShade } from './softShadows.js';
 import { updateSpotClip } from './spotClip.js';
@@ -69,15 +69,20 @@ function init(el) {
   clock = new THREE.Clock();
   controls.initControls(camera, renderer.domElement, el);
   initTouch(el, renderer.domElement);
-  el.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => applyQuality(b.dataset.quality)));
-  let saved = 'simple';
-  try { saved = localStorage.getItem('fsp3d.quality') || 'simple'; } catch { /* ignore */ }
+  el.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => applyQuality(b.dataset.quality, true)));
+  // Photo textures unless the viewer chose Simple (fsp3d.tex) or the device is obviously weak (perf.js).
+  let saved = null;
+  try {
+    saved = localStorage.getItem('fsp3d.tex');
+    localStorage.removeItem('fsp3d.quality');   // the old key was written by the default too: not a choice
+  } catch { /* ignore */ }
+  if (saved !== 'simple' && saved !== 'photo') saved = photoAuto() ? 'photo' : 'simple';
   try { softOn = localStorage.getItem('fsp3d.ao') !== '0'; } catch { /* ignore */ }
   el.querySelector('#aoBtn').addEventListener('click', () => setSoft(!softOn));
   syncSoft();
   if (saved !== 'simple') applyQuality(saved);
   // The texture panel changed the photo set: reload it and switch to Photo.
-  document.addEventListener('fsp3d:textures', () => { resetPhoto(); applyQuality('photo'); });
+  document.addEventListener('fsp3d:textures', () => { resetPhoto(); applyQuality('photo', true); });
 
   el.querySelector('#snap3dBtn').addEventListener('click', () => savePicture(compose(snapshotCanvas())));
   const share = el.querySelector('#share3dBtn');
@@ -111,10 +116,12 @@ function init(el) {
     if (ok) { forget(); if (running) rebuild(); }
     if (!libPending() && note.mode === 'lib') hideNote();
   });
+  // A set the finish needs is not on disk: the server downloads it at once (photo textures are the default), on
+  // obviously weak devices and static hosts the viewer is asked first.
   onLibMissing(entry => {
     if (note.dismissed.has(entry.id)) return;
     note.missing.set(entry.id, entry);
-    showMissing();
+    if (autoFetch()) { if (!note.fetching) downloadMissing(); } else showMissing();
   });
   el.querySelector('#tex3dBtns').addEventListener('click', e => {
     const b = e.target.closest('button');
@@ -222,6 +229,8 @@ function showMissing() {
     [['download', 'tex3d.download'], ['later', 'tex3d.later']]);
 }
 
+const autoFetch = () => canFetchLib() && photoAuto();
+
 // The server takes one download at a time: the sets go one after another.
 async function downloadMissing() {
   note.fetching = true;
@@ -241,6 +250,7 @@ async function downloadMissing() {
     }
   }
   note.fetching = false;
+  if (!failed && note.missing.size && autoFetch()) return downloadMissing();   // more sets asked for meanwhile
   if (failed) {
     showNote(t('tex.fetchFail'), 'error');
     hideNote(4000);
@@ -251,7 +261,7 @@ async function downloadMissing() {
 
 // Simple (procedural) / Photo (CC0) textures; the whole scene is rebuilt with new materials.
 // The first switch to Photo loads ~13 MB: the HUD says so and counts the files.
-async function applyQuality(q) {
+async function applyQuality(q, save = false) {
   const loading = q === 'photo' && !photoReady();
   const btn = container.querySelector('[data-quality="photo"]');
   if (loading) btn.classList.add('loading');
@@ -264,7 +274,7 @@ async function applyQuality(q) {
   if (q !== 'photo' && note.mode !== 'photo') hideNote();
   quality = q;
   container.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === q));
-  try { localStorage.setItem('fsp3d.quality', q); } catch { /* ignore */ }
+  if (save) try { localStorage.setItem('fsp3d.tex', q); } catch { /* ignore */ }
   if (!ok) toast(t('v3d.photoFail'), true);
   forget();
   if (running) rebuild();

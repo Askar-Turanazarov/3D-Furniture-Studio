@@ -355,6 +355,7 @@ export function resetPhoto() {
 // When a set finishes loading, the listeners rebuild the scene.
 const lib = new Map();      // id → texture set | 'loading' | null (failed)
 let libIndex = null;        // Promise<[{ id, tile, available, ... }]>
+let libServer = false;      // the index came from the server: it can download missing sets
 const libListeners = [], missingListeners = [];
 let pending = 0;            // library sets being loaded
 
@@ -367,6 +368,7 @@ export const libPending = () => pending;
 export function libraryIndex() {
   if (!libIndex) {
     libIndex = fetch('/api/textures/library').then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))
+      .then(list => { libServer = true; return list; })
       .catch(() => fetch('/textures/library.json').then(r => r.ok ? r.json() : [])
         .then(l => l.map(e => ({ available: !!e.bundled, ...e }))))
       .catch(() => []);
@@ -374,11 +376,19 @@ export function libraryIndex() {
   return libIndex;
 }
 
-// Download a library set through the server (the user asked for it), then load it into the scene.
+/** The server can download library sets (not a static host). */
+export const canFetchLib = () => libServer;
+
+// Download a library set through the server, then load it into the scene. The server downloads one set at a
+// time ('busy', e.g. the facade sets for another visitor): wait and retry.
 export async function fetchLibSet(id) {
-  const res = await fetch('/api/textures/fetch/' + encodeURIComponent(id), { method: 'POST' });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || 'download_failed');
+  for (let tries = 0; ; tries++) {
+    const res = await fetch('/api/textures/fetch/' + encodeURIComponent(id), { method: 'POST' });
+    if (res.ok) break;
+    const body = await res.json().catch(() => ({}));
+    if (res.status !== 429 || tries > 60) throw new Error(body.error || 'download_failed');
+    await new Promise(r => setTimeout(r, 2000));
+  }
   libIndex = null;
   lib.delete(id);
   mats = null;

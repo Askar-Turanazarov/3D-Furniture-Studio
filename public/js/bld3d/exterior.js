@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SLAB } from '../facade.js';
-import { SETTINGS, readPref, tierFor } from '../3d/perf.js';
+import { SETTINGS, readPref, tierFor, photoAuto } from '../3d/perf.js';
 import { createSite } from './site.js';
 import { createStreetWalk } from './streetWalk.js';
 import { applyPhotoFacade, PHOTO_UV } from './facadeTex.js';
@@ -305,11 +305,11 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
   if (shadeMesh) building.add(shadeMesh);
   scene.add(building);
   // Photo stone, concrete and timber (the library facade sets when on disk, else the bundled sets), once decoded;
-  // the procedural look until then. Called again after the facade sets are downloaded.
+  // the procedural look until then (and on obviously weak devices). Called again after the facade sets are downloaded.
   const refreshPhoto = () => applyPhotoFacade({ mats, site: site.mats, trees: site.setTreePhoto, small: tierName === 'low',
     anisotropy: Math.min(tier.anisotropy * 2, renderer.capabilities.getMaxAnisotropy()) })
     .then(ok => { if (ok) { shadows = true; dirty = true; } return ok; });
-  refreshPhoto();
+  if (photoAuto()) refreshPhoto();
 
   // Signs: "ENTRANCE 1" glowing on the canopy fascia, the same on a blade sign beside the doors (seen from
   // along the facade), the residence name in big letters on the roof parapet over the entrance.

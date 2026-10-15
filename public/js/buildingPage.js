@@ -7,6 +7,7 @@ import { roomRect, roomArea } from './apartment.js';
 import { rectOf } from './geometry.js';
 import { DEPTH, TYPES, localRoomName } from './building.js';
 import { FILE_FORMAT, VERSION } from './storage.js';
+import { photoAuto } from './3d/perf.js';
 
 const $ = id => document.getElementById(id);
 const BUILDING = new URLSearchParams(location.search).get('b') || 'novostroyka-12';
@@ -431,8 +432,9 @@ function showCue(c) {
   $('bld3dCueText').textContent = near ? t('bld3d.atDoor') : `${t('bld3d.toEntrance')} · ${Math.round(c.dist)} ${t('bld.m')}`;
 }
 
-// Photo facade: the library sets (ambientCG, CC0) are downloaded on the server when someone presses the button;
-// after that every visitor of this server gets them at once and the button is gone.
+// Photo facade: the library sets (ambientCG, CC0) are downloaded on the server by the first visitor (at once, the
+// button shows the progress; on obviously weak devices only when the button is pressed); after that every visitor
+// of this server gets them at once and the button is gone.
 let photoStep = null, photoTotal = 0;   // { done, total } while downloading; sets missing
 async function syncPhotoBtn() {
   const btn = $('bld3dPhoto');
@@ -512,7 +514,7 @@ async function init3d() {
     paint3d(); sync3dHud();
   });
   $('bld3dPhoto').addEventListener('click', loadPhotoFacade);
-  syncPhotoBtn();
+  syncPhotoBtn().then(() => { if (photoTotal && !$('bld3dPhoto').hidden && photoAuto()) loadPhotoFacade(); });
   // The facade stands still while a dialog covers it (the floor 3D has its own scene).
   const pause = () => ext.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
   for (const id of ['aptDlg', 'floor3dDlg', 'reqDlg']) new MutationObserver(pause).observe($(id), { attributes: true, attributeFilter: ['open'] });

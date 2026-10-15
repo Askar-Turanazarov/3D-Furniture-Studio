@@ -107,7 +107,7 @@ async function refresh() {
 
 // Photo quality on: the 3D scene (if loaded) reloads now, otherwise on the next open.
 function applyPhoto() {
-  try { localStorage.setItem('fsp3d.quality', 'photo'); } catch { /* ignore */ }
+  try { localStorage.setItem('fsp3d.tex', 'photo'); } catch { /* ignore */ }
   document.dispatchEvent(new Event('fsp3d:textures'));
   if (document.getElementById('view3d').hidden) document.getElementById('view3dBtn').click();
 }

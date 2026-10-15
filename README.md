@@ -20,7 +20,7 @@ A web app for custom furniture: the client plans a whole apartment (or picks one
 - **3D scene (Three.js):** room with window, door and plinths, procedural furniture models, lamp and daylight with shadows.
   - **Overview** — orbit camera, near walls are cut away.
   - **Walk** — first person, collisions with walls and furniture; person height 120–200 cm; the bottom HUD shows the floor distance from the feet to the item or wall you are looking at.
-  - **Simple / Photo** textures (procedural or CC0 photo textures).
+  - **Simple / Photo** textures (procedural or CC0 photo textures). Photo is the default (Simple on obviously weak devices: software rendering, ≤ 2 cores or ≤ 2 GB, old phone GPUs; and at Quality “Low”); the choice is remembered. Library sets a finish needs are downloaded by the server at once.
 - **Photo textures panel:** apply the built-in CC0 set in one click, download it (per surface or the whole set as ZIP), or upload your own photo for the floor, walls, furniture wood or upholstery (reset back to built-in anytime).
   - Fullscreen mode, touch joystick on mobile.
 - **Plan editing:** undo / redo (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; a whole drag is one step), duplicate (`Ctrl+D`), multi-select (`Shift`/`Ctrl`+click, `Shift`+drag box, `Ctrl+A`) with group move and an **Align / distribute** panel.
@@ -60,7 +60,7 @@ Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules
 npm install
 npm start
 ```
-Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand). Building facade photos (travertine, black stone, concrete, timber, ≈ 21 MB) and the site (grass, asphalt, pavers, leaves, bark, ≈ 35 MB): the **📷 Photo facade** button on the 3D facade downloads them to the server once — after that every visitor gets them; or in advance with `npm run textures -- --facade`. Without them the facade is composed from the bundled sets.
+Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand). Building facade photos (travertine, black stone, concrete, timber, ≈ 21 MB) and the site (grass, asphalt, pavers, leaves, bark, ≈ 35 MB): the first visitor's page downloads them to the server once by itself (on obviously weak devices — the **📷 Photo facade** button) — after that every visitor gets them; or in advance with `npm run textures -- --facade`. Without them the facade is composed from the bundled sets.
 
 **Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
 1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
@@ -142,7 +142,7 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **3D sahna (Three.js):** deraza, eshik va plintusli xona, protsedural mebel modellari, chiroq va kunduzgi yorug‘lik, soyalar bilan.
   - **Ko‘rinish** — kamera xona atrofida aylanadi, yaqin devorlar yashiriladi.
   - **Sayr** — birinchi shaxsdan, devor va mebel bilan to‘qnashuvlar; bo‘y 120–200 sm; pastdagi panel oyoqdan qaralayotgan buyum yoki devorgacha pol bo‘ylab masofani ko‘rsatadi.
-  - **Oddiy / Foto** teksturalar (protsedural yoki CC0 foto-teksturalar).
+  - **Oddiy / Foto** teksturalar (protsedural yoki CC0 foto-teksturalar). Sukut bo‘yicha — Foto (aniq kuchsiz qurilmalarda — Oddiy: dasturiy render, ≤ 2 yadro yoki ≤ 2 GB, eski telefon GPU’lari; va «Past» sifatda); tanlov eslab qolinadi. Pardoz uchun kerakli kutubxona to‘plamlarini server darhol yuklab oladi.
 - **Foto-teksturalar paneli:** tayyor CC0 to‘plamni bir bosishda qo‘llash, uni yuklab olish (har bir sirt alohida yoki butun to‘plam ZIP’da) yoki pol, devorlar, mebel yog‘ochi va qoplama uchun o‘z rasmingizni yuklash (istalgan vaqtda tayyoriga qaytarish mumkin).
   - To‘liq ekran rejimi, mobil qurilmalarda joystik.
 - **Rejani tahrirlash:** bekor qilish / qaytarish (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; butun sudrash — bitta qadam), nusxa olish (`Ctrl+D`), bir nechta tanlash (`Shift`/`Ctrl`+bosish, `Shift`+tortish — ramka, `Ctrl+A`), guruhni siljitish va **Tekislash / taqsimlash** paneli.
@@ -182,7 +182,7 @@ Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modu
 npm install
 npm start
 ```
-http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi). Bino fasadi fotolari (travertin, qora tosh, beton, yog‘och, ≈ 21 MB) va hovli (o‘t, asfalt, plitka, barglar, po‘stloq, ≈ 35 MB): 3D-fasaddagi **📷 Foto-fasad** tugmasi ularni serverga bir marta yuklaydi — keyin barcha tashrif buyuruvchilarda bo‘ladi; yoki oldindan `npm run textures -- --facade`. Ularsiz fasad ilova bilan keladigan to‘plamlardan yig‘iladi.
+http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi). Bino fasadi fotolari (travertin, qora tosh, beton, yog‘och, ≈ 21 MB) va hovli (o‘t, asfalt, plitka, barglar, po‘stloq, ≈ 35 MB): birinchi tashrif buyuruvchining sahifasi ularni serverga bir marta o‘zi yuklaydi (aniq kuchsiz qurilmalarda — **📷 Foto-fasad** tugmasi) — keyin barcha tashrif buyuruvchilarda bo‘ladi; yoki oldindan `npm run textures -- --facade`. Ularsiz fasad ilova bilan keladigan to‘plamlardan yig‘iladi.
 
 **ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
 1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
@@ -265,7 +265,7 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **3D-сцена (Three.js):** комната с окном, дверью и плинтусами, процедурные модели мебели, лампа и дневной свет с тенями.
   - **Обзор** — камера вокруг комнаты, ближние стены скрываются.
   - **Прогулка** — от первого лица, столкновения со стенами и мебелью; рост человека 120–200 см; внизу — расстояние по полу от ног до предмета или стены, куда смотрит пользователь.
-  - Текстуры **Простые / Фото** (процедурные или фото-текстуры CC0).
+  - Текстуры **Простые / Фото** (процедурные или фото-текстуры CC0). По умолчанию — Фото (на очевидно слабых устройствах — Простые: программный рендер, ≤ 2 ядер или ≤ 2 ГБ, старые GPU телефонов; и при качестве «Низкое»); выбор запоминается. Нужные отделке наборы библиотеки сервер скачивает сразу.
 - **Панель «Фото-текстуры»:** готовый набор CC0 применяется в один клик, его можно скачать (по поверхностям или весь набор ZIP) или загрузить своё фото для пола, стен, дерева мебели или обивки (в любой момент можно вернуть готовую).
   - Полноэкранный режим, джойстик на мобильных.
 - **Правка плана:** отмена / повтор (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; всё перетаскивание — один шаг), дублирование (`Ctrl+D`), выделение нескольких (`Shift`/`Ctrl`+клик, `Shift`+протяжка — рамка, `Ctrl+A`), перемещение группы и панель **Выровнять / распределить**.
@@ -305,7 +305,7 @@ Node.js + Express (статика + небольшой JSON API), чистый H
 npm install
 npm start
 ```
-Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию). Фото фасада новостройки (травертин, чёрный камень, бетон, дерево, ≈ 21 МБ) и участка (трава, асфальт, плитка, листья, кора, ≈ 35 МБ): кнопка **📷 Фото-фасад** на 3D-фасаде один раз скачивает их на сервер — дальше они сразу у всех посетителей; или заранее `npm run textures -- --facade`. Без них фасад собирается из наборов, идущих с приложением.
+Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию). Фото фасада новостройки (травертин, чёрный камень, бетон, дерево, ≈ 21 МБ) и участка (трава, асфальт, плитка, листья, кора, ≈ 35 МБ): страница первого посетителя сама один раз скачивает их на сервер (на очевидно слабых устройствах — кнопка **📷 Фото-фасад**) — дальше они сразу у всех посетителей; или заранее `npm run textures -- --facade`. Без них фасад собирается из наборов, идущих с приложением.
 
 **Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
 1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.

@@ -1,7 +1,7 @@
 // The building outside in 3D (showcase main view): light porcelain facade with anthracite frames, graphite fins
 // between apartments, a glazed ground floor with a canopy over the entrance, roof parapet and lift room.
-// Walls, bands and frames are merged into one mesh per material; the glass is two InstancedMeshes (daylight
-// reflective glass and lit windows at night), coloured per apartment. Drawn only when something changes.
+// Walls, bands and frames are merged into one mesh per material; the glass is one InstancedMesh with a room
+// behind every window (windows.js), lit at night, tinted per apartment. Drawn only when something changes.
 // Scene units: metres; the building stands centred on the origin, south (the entrance) towards +z.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -12,6 +12,7 @@ import { createSite } from './site.js';
 import { createStreetWalk } from './streetWalk.js';
 import { applyPhotoFacade, PHOTO_UV } from './facadeTex.js';
 import { TWEEN_SEC, easeInOut } from '../lighting.js';
+import { createWindows } from './windows.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
@@ -39,12 +40,6 @@ export function mixTimes(a, b, k) {
 }
 const LAMPS_ON = 0.6;     // the evening level: strips, letters and doors fully lit from here
 
-const GLASS = new THREE.Color('#41505f');       // neutral glass under the sky reflection
-const GLASS_DIM = new THREE.Color('#2b3036');
-const WARM = new THREE.Color('#ffcf8f');
-const SHOP_LIT = new THREE.Color('#fff0d4');
-const LOBBY_DAY = new THREE.Color('#d9c29a');
-const DARK_IN = new THREE.Color('#1b2129');
 
 // Seamed porcelain tiles 120 × 60 cm, in world-space UVs (1 texture = 2.4 × 1.2 m).
 function tileTexture() {
@@ -340,28 +335,20 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     dirty = true;
   }
 
-  // ---------- glass: two instanced meshes, a bay is shown in one of them ----------
-  const unit = new THREE.BoxGeometry(1, 1, 1);
-  const glassMat = new THREE.MeshStandardMaterial({ color: '#ffffff', metalness: 0.55, roughness: 0.05, envMapIntensity: 1.6 });
-  const litMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-  const glass = new THREE.InstancedMesh(unit, glassMat, bays.length);
-  const lit = new THREE.InstancedMesh(unit, litMat, bays.length);
-  glass.receiveShadow = true;
+  // ---------- glass: one instanced quad per bay with a room behind it (windows.js) ----------
+  const KIND = { window: 0, shop: 1, lobby: 2, door: 2 };
+  const q = new THREE.Quaternion(), yAxis = new THREE.Vector3(0, 1, 0);
+  const ROT = { south: 0, north: Math.PI, east: Math.PI / 2, west: -Math.PI / 2 };
   const mtx = bays.map(b => {
     const u = (b.x0 + b.x1) / 2 * M, su = (b.x1 - b.x0) * M, sy = b.h * M;
     const y = (b.floor - 1) * level + SLAB * M + b.sill * M + sy / 2;
-    const m = new THREE.Matrix4();
-    if (b.side === 'north' || b.side === 'south') {
-      m.makeScale(su, sy, 0.02).setPosition(u - hx, y, b.side === 'north' ? -hz - GLASS_D : hz + GLASS_D);
-    } else {
-      m.makeScale(0.02, sy, su).setPosition(b.side === 'west' ? -hx - GLASS_D : hx + GLASS_D, y, u - hz);
-    }
-    return m;
+    const pos = b.side === 'north' || b.side === 'south'
+      ? new THREE.Vector3(u - hx, y, b.side === 'north' ? -hz - GLASS_D : hz + GLASS_D)
+      : new THREE.Vector3(b.side === 'west' ? -hx - GLASS_D : hx + GLASS_D, y, u - hz);
+    return new THREE.Matrix4().compose(pos, q.setFromAxisAngle(yAxis, ROT[b.side]), new THREE.Vector3(su, sy, 1));
   });
-  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-  glass.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(bays.length * 3), 3);
-  lit.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(bays.length * 3), 3);
-  scene.add(glass, lit);
+  const windows = createWindows(bays, skyMat.uniforms, { simple: tierName === 'low' });
+  scene.add(windows.mesh);
   // Stable "someone is home" choice per bay for the evening and night.
   const chance = bays.map((b, i) => ((Math.sin(i * 12.9898 + (b.aptNo || 0) * 78.233) * 43758.5453) % 1 + 1) % 1);
 
@@ -436,6 +423,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     sun.position.set(Math.sin(az) * Math.cos(el) * 120, Math.sin(el) * 120, Math.cos(az) * Math.cos(el) * 120);
     renderer.toneMappingExposure = p.exposure;
     lamp.intensity = p.lamp * 30;
+    windows.setTime({ day: p.hemi, lamp: 1.1 });
     mats.strip.color.set('#d9d2c4').lerp(tmpC.set('#ffd9a0'), on);
     nameMat.color.set('#2c3036').lerp(tmpC.set('#ffe7c2'), on);     // dark letters by day, lit at dusk and night
     doorMat.color.set('#ffffff').lerp(tmpC.set('#fff1d6'), on);
@@ -465,29 +453,15 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
       const hov = b.aptNo && b.aptNo === style.hover;
       // Lit at night: chosen apartments (not dimmed) and some neighbours; shops and lobby always.
       const on = p.lit > 0 && (b.kind !== 'window' ? true : !dim && (css ? chance[i] < p.lit + 0.25 : chance[i] < p.lit));
-      if (on) {
-        tmpC.copy(b.kind === 'window' ? WARM : SHOP_LIT);
-        if (css) tmpC.lerp(tintOf(css), 0.35);
-        if (hov) tmpC.lerp(new THREE.Color('#ffffff'), 0.5);
-        lit.setColorAt(i, tmpC);
-        lit.setMatrixAt(i, mtx[i]);
-        glass.setMatrixAt(i, zero);
-      } else {
-        if (b.kind === 'door') tmpC.copy(GLASS).lerp(LOBBY_DAY, 0.55);    // the warm lobby through the doors by day
-        else if (b.kind !== 'window') tmpC.copy(DARK_IN).lerp(GLASS, 0.4);
-        else if (dim) tmpC.copy(GLASS_DIM);
-        else if (css) tmpC.copy(GLASS).lerp(tintOf(css), 0.62);
-        else tmpC.copy(GLASS);
-        if (hov) tmpC.lerp(new THREE.Color('#ffffff'), 0.55);
-        glass.setColorAt(i, tmpC);
-        glass.setMatrixAt(i, mtx[i]);
-        lit.setMatrixAt(i, zero);
-      }
+      const flat = b.kind === 'window';
+      windows.set(i, {
+        matrix: mtx[i], seed: chance[i], sill: flat ? b.sill * M : 0, kind: KIND[b.kind] ?? 0,
+        // Flats: on or off; shops and the lobby are lit by day too, brighter in the evening.
+        lit: flat ? (on ? 1 : 0) : 0.35 + 0.65 * Math.min(1, p.lamp / LAMPS_ON),
+        tint: css ? tintOf(css) : null, tintK: 0.35, dim, hover: hov
+      });
     });
-    glass.instanceMatrix.needsUpdate = lit.instanceMatrix.needsUpdate = true;
-    glass.instanceColor.needsUpdate = lit.instanceColor.needsUpdate = true;
-    glass.computeBoundingSphere();
-    lit.computeBoundingSphere();
+    windows.commit();
     dirty = true;
   }
 
@@ -513,7 +487,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hitG = ray.intersectObjects([glass, lit, building], false)[0];
+    const hitG = ray.intersectObjects([windows.mesh, building], false)[0];
     if (hitG && hitG.object !== building && hitG.instanceId != null) {
       const b = bays[hitG.instanceId];
       return { aptNo: b.aptNo, floor: b.floor };

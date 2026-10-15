@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SLAB } from '../facade.js';
 import { SETTINGS, readPref, tierFor } from '../3d/perf.js';
 import { createSite } from './site.js';
+import { createStreetWalk } from './streetWalk.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
@@ -85,7 +86,7 @@ function skyMaterial() {
  * → { paint({ colorOf, dim, hover }), setFloor, setTime, setAuto, setTitle, pause, flyToFloor, requestRender }
  * colorOf(aptNo) → CSS colour or null (neutral glass); dim(aptNo) → true when it does not match the filters.
  */
-export function createExterior(container, { bld, fac, title = '', onHover = () => {}, onPick = () => {}, onFloor = () => {} }) {
+export function createExterior(container, { bld, fac, title = '', onHover = () => {}, onPick = () => {}, onFloor = () => {}, onDoor = null, onWalk = null }) {
   const tier = SETTINGS[tierFor(readPref())];
   const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier.pixelRatio));
@@ -420,7 +421,7 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   let down = null, hoverFrame = 0;
   cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; lastTouch = performance.now(); });
   cv.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'mouse' || hoverFrame) return;
+    if (e.pointerType !== 'mouse' || hoverFrame || walker.active) return;
     hoverFrame = requestAnimationFrame(() => {
       hoverFrame = 0;
       const h = pick(e);
@@ -429,6 +430,7 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     });
   });
   cv.addEventListener('click', e => {
+    if (walker.active) return;
     if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) return;
     const h = pick(e);
     if (!h) return;
@@ -436,10 +438,34 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     if (h.aptNo) onPick(h.aptNo);
   });
   cv.addEventListener('dblclick', e => {
+    if (walker.active) return;
     const h = pick(e);
     if (h?.floor) flyToFloor(h.floor);
   });
   controls.addEventListener('start', () => { lastTouch = performance.now(); fly = null; });
+
+  // ---------- walking on the site ----------
+  const walker = createStreetWalk({ camera, dom: renderer.domElement, walk: site.walk, obstacles: site.obstacles,
+    onDoor: () => onDoor?.(), onStop: () => endWalk(true) });
+  function startWalk(at = 'street') {
+    fly = null;
+    controls.enabled = false;
+    controls.autoRotate = false;
+    walker.start(at);
+    onHover(null);
+    cv.style.cursor = 'crosshair';
+    dirty = true;
+    onWalk?.(true);
+  }
+  function endWalk(fromKey = false) {
+    if (!walker.active && !fromKey) return;
+    walker.stop();
+    controls.enabled = true;
+    lastTouch = performance.now();
+    cv.style.cursor = '';
+    dirty = true;
+    onWalk?.(false);
+  }
   controls.addEventListener('change', () => { dirty = true; });
 
   // ---------- loop: draws only on change; the auto-orbit draws every frame while it turns ----------
@@ -459,6 +485,14 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     requestAnimationFrame(frame);
     let dt = Math.min(clock.getDelta(), 0.1);
     if (paused || !visible || !onScreen) return;
+    if (walker.active) {
+      if (walker.update(dt)) dirty = true;
+      if (!dirty) return;
+      dirty = false;
+      if (shadows) { renderer.shadowMap.needsUpdate = true; shadows = false; }
+      renderer.render(scene, camera);
+      return;
+    }
     controls.autoRotate = auto && !pointerIn && !fly && performance.now() - lastTouch > 8000;
     // The slow orbit alone does not need the screen's full rate: 40 frames a second.
     if (controls.autoRotate && !fly && !dirty) {
@@ -489,7 +523,8 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   frame();
 
   return {
-    paint, setFloor, setTime, setTitle, flyToFloor,
+    paint, setFloor, setTime, setTitle, flyToFloor, startWalk, endWalk,
+    isWalking: () => walker.active, walkPad: walker.pad,
     getTime: () => time,
     setAuto(on) { auto = on; if (on) lastTouch = -1e9; dirty = true; },
     getAuto: () => auto,

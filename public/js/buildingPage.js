@@ -320,6 +320,18 @@ function openInPlanner(a) {
   location.href = '/';
 }
 
+// From the street through the doors: a short fade, then the lobby in the floor dialog (the walker at the doors).
+async function enterLobby() {
+  const fade = Object.assign(document.createElement('div'), { className: 'fade3d' });
+  $('bld3dView').append(fade);
+  requestAnimationFrame(() => fade.classList.add('on'));
+  await new Promise(r => setTimeout(r, 320));
+  $('floor3dTitle').textContent = `${t('bld.lobbyFloor')} · 3D`;
+  $('floor3dFrame').src = `/?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street`;
+  $('floor3dDlg').showModal();
+  fade.remove();
+}
+
 // The floor in 3D: the planner's 3D view embedded (temporary project, nothing saved), walking from the entrance.
 function open3d(a) {
   $('floor3dTitle').textContent = `${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`;
@@ -384,9 +396,12 @@ function sync3dHud() {
     x.classList.toggle('active', x.dataset.time === ext.getTime());
     x.title = t('bld3d.' + x.dataset.time);
   });
-  $('bld3dOrbit').classList.toggle('active', ext.getAuto());
+  $('bld3dOrbit').classList.toggle('active', ext.getAuto() && !ext.isWalking());
+  $('bld3dWalk').classList.toggle('active', ext.isWalking());
+  $('bld3dPad').hidden = !(ext.isWalking() && matchMedia('(pointer: coarse)').matches);
   $('bld3dTint').classList.toggle('active', tint3d);
-  $('bld3dHint').textContent = t(matchMedia('(pointer: coarse)').matches ? 'bld3d.hintTouch' : 'bld3d.hint');
+  const touch = matchMedia('(pointer: coarse)').matches;
+  $('bld3dHint').textContent = t(ext.isWalking() ? (touch ? 'bld3d.walkHintTouch' : 'bld3d.walkHint') : touch ? 'bld3d.hintTouch' : 'bld3d.hint');
 }
 
 async function init3d() {
@@ -399,7 +414,9 @@ async function init3d() {
         showTip(no ? byNo(no) : null, e, $('bld3dView'), $('bld3dTip'));
       },
       onPick: no => { const a = byNo(no); setFloor(a.floor); openCard(a); },
-      onFloor: n => { if (n !== floorN) setFloor(n); }
+      onFloor: n => { if (n !== floorN) setFloor(n); },
+      onDoor: enterLobby,
+      onWalk: () => sync3dHud()
     });
   } catch {
     $('bld3dCard').hidden = true;   // no WebGL: the floor grid and plan remain
@@ -409,7 +426,18 @@ async function init3d() {
     const x = e.target.closest('[data-time]');
     if (x) { ext.setTime(x.dataset.time); sync3dHud(); }
   });
-  $('bld3dOrbit').addEventListener('click', () => { ext.setAuto(!ext.getAuto()); sync3dHud(); });
+  $('bld3dOrbit').addEventListener('click', () => { ext.endWalk(); ext.setAuto(!ext.getAuto()); sync3dHud(); });
+  $('bld3dWalk').addEventListener('click', () => {
+    if (ext.isWalking()) ext.endWalk(); else ext.startWalk('street');
+    $('bld3dWalk').blur();
+    sync3dHud();
+  });
+  // Touch: hold ▲ / ▼ to walk.
+  for (const btn of $('bld3dPad').querySelectorAll('[data-f]')) {
+    const set = v => e => { e.preventDefault(); ext.walkPad.f = v; ext.requestRender(); };
+    btn.addEventListener('pointerdown', set(Number(btn.dataset.f)));
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, set(0));
+  }
   $('bld3dTint').addEventListener('click', () => { tint3d = !tint3d; paint3d(); sync3dHud(); });
   // The facade stands still while a dialog covers it (the floor 3D has its own scene).
   const pause = () => ext.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
@@ -460,7 +488,14 @@ function bind() {
   $('floor3dDlg').addEventListener('close', () => { $('floor3dFrame').src = 'about:blank'; });
   // The walker went into another apartment of the floor: the dialog title follows.
   window.addEventListener('message', e => {
-    if (e.origin !== location.origin || e.source !== $('floor3dFrame').contentWindow || e.data?.type !== 'fsp3d:place') return;
+    if (e.origin !== location.origin || e.source !== $('floor3dFrame').contentWindow) return;
+    // Out through the street doors of the lobby: back on the porch.
+    if (e.data?.type === 'fsp3d:street') {
+      $('floor3dDlg').close();
+      if (ext) { ext.startWalk('porch'); sync3dHud(); }
+      return;
+    }
+    if (e.data?.type !== 'fsp3d:place') return;
     const a = byNo(e.data.no), n = Number(e.data.floor);
     if (a) $('floor3dTitle').textContent = `${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`;
     else if (n === 1) $('floor3dTitle').textContent = `${t('bld.lobbyFloor')} · 3D`;

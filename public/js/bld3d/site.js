@@ -62,7 +62,7 @@ function planarUV(geo, tile) {
 }
 
 /**
- * createSite({ fac, site, seed, wallT, lampLights }) → { group, setTime(p), obstacles }
+ * createSite({ fac, site, seed, wallT, lampLights }) → { group, setTime(p), obstacles, walk }
  * obstacles: footprints (x0, z0, x1, z1 in metres) of trees, benches, lamps and cars, for walking later.
  */
 export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights = true }) {
@@ -264,5 +264,13 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
     for (const l of lights) l.intensity = p.lamp * 25;
   }
 
-  return { group, setTime, obstacles, trees: trees.length };
+  // Where a walker may go: the street doors, the start on the sidewalk, the porch, the site and the house.
+  const dw = (ent.x1 - ent.x0) * M;
+  const walk = {
+    door: { x0: ex - dw / 2, x1: ex + dw / 2, z: hz },
+    street: { x: ex, z: walkZ0 + 1.6 }, porch: { x: ex, z: hz + 2.2 },
+    bounds: { x0: -SL + 1, x1: SL - 1, z0: -SW + 1, z1: walkZ1 - 0.3 },
+    house: { x0: -hx, z0: -hz, x1: hx, z1: hz }
+  };
+  return { group, setTime, obstacles, walk, trees: trees.length };
 }

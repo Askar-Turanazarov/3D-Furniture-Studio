@@ -28,7 +28,7 @@ export function embedParams(search = location.search) {
   if (!/^[a-z0-9-]{1,60}$/.test(b)) return null;
   const apt = Number(q.get('apt')), floor = Number(q.get('floor'));
   if (mode === 'floor' && Number.isInteger(apt) && apt > 0) return { b, apt };
-  if (mode === 'building') return { b, floor: Number.isInteger(floor) && floor > 0 ? floor : 1 };
+  if (mode === 'building') return { b, floor: Number.isInteger(floor) && floor > 0 ? floor : 1, street: q.get('from') === 'street' };
   return null;
 }
 
@@ -145,7 +145,7 @@ export function lobbyRooms(bld) {
  * The project of a floor: the apartment `a` (names "Apt. №N · room", the walker in its hall) plus the corridor,
  * or only the corridor (the walker at the lift), or on floor 1 the lobby.
  */
-function floorProject(bld, floor, a, keep = null) {
+function floorProject(bld, floor, a, keep = null, fromStreet = false) {
   const lang = getLang();
   let rooms = [], start = null;
   if (a) {
@@ -155,7 +155,7 @@ function floorProject(bld, floor, a, keep = null) {
   const extra = floor === 1 ? lobbyRooms(bld) : corridorRooms(bld, floor, a?.no);
   if (extra) {
     rooms.push(...extra.rooms);
-    start ||= extra.rooms[0].id;
+    start ||= (fromStreet && extra.rooms.find(r => r.id === PASSAGE_ID)?.id) || extra.rooms[0].id;
   }
   if (!rooms.length) throw new Error('empty floor');
   if (keep?.finish) for (const r of rooms) r.style = { ...styleOf(r.style), finish: keep.finish };
@@ -168,14 +168,14 @@ function floorProject(bld, floor, a, keep = null) {
 }
 
 // Load the building, open the apartment and its corridor (or a floor) as a temporary project.
-export async function openFloor({ b, apt, floor }) {
+export async function openFloor({ b, apt, floor, street = false }) {
   const res = await fetch('/api/buildings/' + encodeURIComponent(b));
   if (!res.ok) throw new Error(res.status);
   const bld = await res.json();
   const a = apt ? bld.floorsData.flatMap(f => f.apartments || []).find(q => q.no === apt) : null;
   if (apt && !a) throw new Error('no apartment');
   const n = a ? a.floor : Math.min(floor, bld.floorsData.length);
-  const { p, doors } = floorProject(bld, n, a);
+  const { p, doors } = floorProject(bld, n, a, null, street && n === 1);
   openTemporary(p);
   return { bld, a, floor: n, doors };
 }
@@ -329,7 +329,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
  */
 export function corridorDoor(roomId, doorId, enter = enterApartment) {
   const meta = ctx?.doors.get(`${roomId}:${doorId}`);
-  if (!meta || meta.street) return false;
+  if (!meta) return false;
+  // The street doors lead back out to the showcase's site walk (only inside the showcase).
+  if (meta.street) {
+    if (window.parent === window) return false;
+    window.parent.postMessage({ type: 'fsp3d:street' }, location.origin);
+    return true;
+  }
   if (meta.aptNo) {
     const o = ctx.bld.floorsData.flatMap(f => f.apartments || []).find(q => q.no === meta.aptNo);
     if (o?.status === 'sold') toast(t('floor3d.sold', { no: o.no }));

@@ -10,6 +10,7 @@ import { SLAB } from '../facade.js';
 import { SETTINGS, readPref, tierFor } from '../3d/perf.js';
 import { createSite } from './site.js';
 import { createStreetWalk } from './streetWalk.js';
+import { applyPhotoFacade, PHOTO_UV } from './facadeTex.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
@@ -52,6 +53,7 @@ function tileTexture() {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
+  t.repeat.set(2, 2);     // the wall UVs repeat every 4.8 × 2.4 m (the photo panels), this tile is 2.4 × 1.2
   return t;
 }
 
@@ -87,7 +89,7 @@ function skyMaterial() {
  * colorOf(aptNo) → CSS colour or null (neutral glass); dim(aptNo) → true when it does not match the filters.
  */
 export function createExterior(container, { bld, fac, title = '', onHover = () => {}, onPick = () => {}, onFloor = () => {}, onDoor = null, onWalk = null }) {
-  const tier = SETTINGS[tierFor(readPref())];
+  const tierName = tierFor(readPref()), tier = SETTINGS[tierName];
   const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -227,13 +229,17 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     if (!list.length) continue;
     const geo = mergeGeometries(list);
     for (const g of list) g.dispose();
-    if (kind === 'wall') worldUV(geo);
+    const uv = { wall: PHOTO_UV.wall, base: PHOTO_UV.base, band: PHOTO_UV.concrete, roof: PHOTO_UV.concrete, wood: PHOTO_UV.wood }[kind];
+    if (uv) worldUV(geo, ...uv);
     const mesh = new THREE.Mesh(geo, mats[kind]);
     mesh.castShadow = kind !== 'strip';
     mesh.receiveShadow = kind !== 'strip';
     building.add(mesh);
   }
   scene.add(building);
+  // Photo stone, concrete and timber from the bundled sets, once decoded (the procedural look until then).
+  applyPhotoFacade({ mats, site: site.mats, anisotropy: Math.min(tier.anisotropy * 2, renderer.capabilities.getMaxAnisotropy()), small: tierName === 'low' })
+    .then(ok => { if (ok) { shadows = true; dirty = true; } });
 
   // Sign with the residence name on the canopy front.
   const signTex = new THREE.CanvasTexture(document.createElement('canvas'));

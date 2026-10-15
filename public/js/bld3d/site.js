@@ -253,6 +253,7 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
     for (const g of list) g.dispose();
     if (kind === 'pave') planarUV(geo, 1.6);
     if (kind === 'road') planarUV(geo, 4);
+    if (kind === 'granite') planarUV(geo, 2.4);
     const mesh = new THREE.Mesh(geo, mats[kind]);
     mesh.receiveShadow = true;
     mesh.castShadow = kind === 'metal' || kind === 'wood' || kind === 'toy';
@@ -272,5 +273,5 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
     bounds: { x0: -SL + 1, x1: SL - 1, z0: -SW + 1, z1: walkZ1 - 0.3 },
     house: { x0: -hx, z0: -hz, x1: hx, z1: hz }
   };
-  return { group, setTime, obstacles, walk, trees: trees.length };
+  return { group, setTime, obstacles, walk, mats, trees: trees.length };
 }

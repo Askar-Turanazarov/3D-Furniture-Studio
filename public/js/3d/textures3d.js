@@ -252,10 +252,11 @@ async function customUrls() {
   } catch { return {}; }
 }
 
-async function loadSet(name, customUrl) {
+async function loadSet(name, customUrl, tick = () => {}) {
   const loader = new THREE.TextureLoader();
   const load = async (file, srgb, url = `/textures/${name}/${file}.jpg`) => {
     const t = await loader.loadAsync(url);
+    tick();
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
@@ -263,7 +264,11 @@ async function loadSet(name, customUrl) {
   };
   if (customUrl) {
     // The built-in normal/roughness maps do not match a foreign photo, so use the colour only.
-    try { return { map: await load('color', true, customUrl), custom: true }; } catch { /* fall back to built-in */ }
+    try {
+      const map = await load('color', true, customUrl);
+      tick(2);   // no normal / roughness maps for a custom photo
+      return { map, custom: true };
+    } catch { /* fall back to built-in */ }
   }
   try {
     const [map, normalMap, roughnessMap] = await Promise.all([
@@ -296,12 +301,21 @@ function greyscale(t) {
   return toTexture(c);
 }
 
-/** Switch texture quality. Resolves to false if photo textures are missing. */
-export async function setQuality(q) {
+export const PHOTO_MB = 13;   // the four base photo sets on disk, about
+
+// The base photo sets are loaded (Photo quality is then applied at once).
+export const photoReady = () => !!photo;
+
+/** Switch texture quality. Resolves to false if photo textures are missing. onProgress(done, total) — files loaded. */
+export async function setQuality(q, onProgress) {
   let ok = true;
   if (q === 'photo' && !photo) {
     const custom = await customUrls();
-    const sets = await Promise.all(PHOTO_SETS.map(n => loadSet(n, custom[n])));
+    const total = PHOTO_SETS.length * 3;
+    let done = 0;
+    onProgress?.(0, total);
+    const tick = (k = 1) => onProgress?.(done += k, total);
+    const sets = await Promise.all(PHOTO_SETS.map(n => loadSet(n, custom[n], tick)));
     photo = Object.fromEntries(PHOTO_SETS.map((n, i) => [n, sets[i]]));
     ok = sets.every(Boolean);
   } else if (q === 'photo') {
@@ -326,21 +340,46 @@ export function resetPhoto() {
 // Sets are loaded lazily in Photo quality; until a set arrives (or if it is missing) the procedural look is used.
 // When a set finishes loading, the listeners rebuild the scene.
 const lib = new Map();      // id → texture set | 'loading' | null (failed)
-let libIndex = null;        // Promise<[{ id, tile, ... }]>
-const libListeners = [];
+let libIndex = null;        // Promise<[{ id, tile, available, ... }]>
+const libListeners = [], missingListeners = [];
+let pending = 0;            // library sets being loaded
 
 export const onLibLoaded = fn => libListeners.push(fn);
+// A set the finish needs is not on disk (it has to be downloaded from ambientCG first): fn(entry).
+export const onLibMissing = fn => missingListeners.push(fn);
+export const libPending = () => pending;
 
+// The server says which sets are on disk; a static host has only library.json (bundled sets are there).
 export function libraryIndex() {
   if (!libIndex) {
-    libIndex = fetch('/textures/library.json').then(r => r.ok ? r.json() : []).catch(() => []);
+    libIndex = fetch('/api/textures/library').then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))
+      .catch(() => fetch('/textures/library.json').then(r => r.ok ? r.json() : [])
+        .then(l => l.map(e => ({ available: !!e.bundled, ...e }))))
+      .catch(() => []);
   }
   return libIndex;
+}
+
+// Download a library set through the server (the user asked for it), then load it into the scene.
+export async function fetchLibSet(id) {
+  const res = await fetch('/api/textures/fetch/' + encodeURIComponent(id), { method: 'POST' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'download_failed');
+  libIndex = null;
+  lib.delete(id);
+  mats = null;
+  furnCache.clear();
+  finishCache.clear();
+  libListeners.forEach(fn => fn(id));
 }
 
 async function loadLib(id) {
   const entry = (await libraryIndex()).find(e => e.id === id);
   if (!entry) return null;
+  if (!entry.available) {
+    missingListeners.forEach(fn => fn(entry));
+    return null;
+  }
   const loader = new THREE.TextureLoader(), rep = 1 / (entry.tile || 1);
   const load = async (file, srgb) => {
     // Bundled sets are in the repository, the others are downloaded on demand into lib/.
@@ -365,13 +404,15 @@ function libSet(id) {
   const v = lib.get(id);
   if (v === undefined) {
     lib.set(id, 'loading');
+    pending++;
     loadLib(id).then(set => {
+      pending--;
       lib.set(id, set);
-      if (!set) return;
+      if (!set) { libListeners.forEach(fn => fn(id, false)); return; }
       mats = null;
       furnCache.clear();
       finishCache.clear();
-      libListeners.forEach(fn => fn(id));
+      libListeners.forEach(fn => fn(id, true));
     });
     return null;
   }

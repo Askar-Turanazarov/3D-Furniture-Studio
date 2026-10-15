@@ -1,6 +1,6 @@
 // 3D view: renderer, camera, render loop. Scene units are metres (cm / 100).
 import * as THREE from 'three';
-import { t, onLangChange } from '../i18n.js';
+import { t, getLang, onLangChange } from '../i18n.js';
 import { state, onChange, emit, roomView } from '../state.js';
 import { buildRoom, disposeGroup, revealParts } from './room3d.js';
 import { liveRooms } from '../renderer.js';
@@ -14,7 +14,7 @@ import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import * as anim from './anim3d.js';
 import { initTouch } from './touch3d.js';
-import { setQuality, resetPhoto, onLibLoaded } from './textures3d.js';
+import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, PHOTO_MB } from './textures3d.js';
 import { styleOf } from '../style.js';
 import { toast } from '../ui.js';
 import { compose, savePicture, canShareFiles } from '../snapshot.js';
@@ -74,11 +74,15 @@ function init(el) {
   }));
   // 💡 / L: lamps on or off over the scene default.
   el.querySelector('#lampBtn').addEventListener('click', toggleLamps);
+  // N: day → sunset → night.
   window.addEventListener('keydown', e => {
-    if (e.code !== 'KeyL' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !el.offsetParent
+    if ((e.code !== 'KeyL' && e.code !== 'KeyN') || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !el.offsetParent
       || e.target.closest?.('input, textarea, select')) return;
-    toggleLamps();
+    if (e.code === 'KeyL') toggleLamps();
+    else nextScene();
   });
+  lightTitles();
+  onLangChange(lightTitles);
   // The finish level is the whole apartment's (it is handed over rough, white box or finished), not one room's.
   el.querySelectorAll('[data-finish]').forEach(b => b.addEventListener('click', () => {
     const finish = b.dataset.finish;
@@ -87,7 +91,24 @@ function init(el) {
     emit();
   }));
   // A photo-library set has arrived: rebuild the shell and furniture with it.
-  onLibLoaded(() => { forget(); if (running) rebuild(); });
+  onLibLoaded((id, ok) => {
+    if (ok) { forget(); if (running) rebuild(); }
+    if (!libPending() && note.mode === 'lib') hideNote();
+  });
+  onLibMissing(entry => {
+    if (note.dismissed.has(entry.id)) return;
+    note.missing.set(entry.id, entry);
+    showMissing();
+  });
+  el.querySelector('#tex3dBtns').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b?.dataset.act === 'download') downloadMissing();
+    else if (b?.dataset.act === 'later') {
+      for (const id of note.missing.keys()) note.dismissed.add(id);
+      note.missing.clear();
+      hideNote();
+    }
+  });
   el.querySelector('#ceilSel').addEventListener('change', e => {
     state.lighting = { ...lightingOf(state.lighting), ceiling: e.target.value };
     emit();
@@ -115,9 +136,81 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 
+// Texture notice in the HUD: photo sets loading (they apply by themselves), finish sets missing on disk.
+const note = { mode: null, timer: null, missing: new Map(), dismissed: new Set(), fetching: false };
+
+function showNote(text, mode, buttons = []) {
+  clearTimeout(note.timer);
+  note.mode = mode;
+  const box = container.querySelector('#tex3dNote');
+  box.querySelector('#tex3dText').textContent = text;
+  box.querySelector('#tex3dBtns').replaceChildren(...buttons.map(([act, key]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.act = act;
+    b.textContent = t(key);
+    return b;
+  }));
+  box.hidden = false;
+}
+
+function hideNote(after = 0) {
+  clearTimeout(note.timer);
+  const close = () => { note.mode = null; container.querySelector('#tex3dNote').hidden = true; };
+  if (after) note.timer = setTimeout(close, after);
+  else close();
+}
+
+const local = e => e.name?.[getLang()] || e.name?.ru || e.id;
+
+function showMissing() {
+  if (!note.missing.size || note.fetching || quality !== 'photo') return;
+  const list = [...note.missing.values()];
+  const mb = Math.round(list.reduce((s, e) => s + (e.mb || 5), 0));
+  showNote(t('tex3d.missing', { names: list.map(local).join(getLang() === 'en' ? '”, “' : '», «'), mb }), 'missing',
+    [['download', 'tex3d.download'], ['later', 'tex3d.later']]);
+}
+
+// The server takes one download at a time: the sets go one after another.
+async function downloadMissing() {
+  note.fetching = true;
+  let failed = false;
+  for (const e of [...note.missing.values()]) {
+    const started = Date.now();
+    const tick = () => showNote(t('tex3d.fetching', { name: local(e), s: Math.round((Date.now() - started) / 1000) }), 'fetch');
+    tick();
+    const timer = setInterval(tick, 500);
+    try {
+      await fetchLibSet(e.id);
+      note.missing.delete(e.id);
+    } catch {
+      failed = true;
+    } finally {
+      clearInterval(timer);
+    }
+  }
+  note.fetching = false;
+  if (failed) {
+    showNote(t('tex.fetchFail'), 'error');
+    hideNote(4000);
+  } else {
+    showNote(t('tex3d.libLoading'), 'lib');
+  }
+}
+
 // Simple (procedural) / Photo (CC0) textures; the whole scene is rebuilt with new materials.
+// The first switch to Photo loads ~13 MB: the HUD says so and counts the files.
 async function applyQuality(q) {
-  const ok = await setQuality(q);
+  const loading = q === 'photo' && !photoReady();
+  const btn = container.querySelector('[data-quality="photo"]');
+  if (loading) btn.classList.add('loading');
+  const ok = await setQuality(q, loading
+    ? (n, total) => showNote(t('tex3d.loading', { mb: PHOTO_MB, n, total }), 'photo') : null);
+  btn.classList.remove('loading');
+  if (loading) {
+    if (ok) { showNote(t('tex3d.applied'), 'done'); hideNote(2500); } else hideNote();
+  }
+  if (q !== 'photo' && note.mode !== 'photo') hideNote();
   quality = q;
   container.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === q));
   syncAo();
@@ -266,6 +359,19 @@ function fillCeilSel() {
   const sel = container.querySelector('#ceilSel');
   sel.replaceChildren(...CEILINGS.map(c => new Option(t('light.' + c), c)));
   syncLightHud();
+}
+
+const SCENES = ['day', 'evening', 'night'];
+
+function nextScene() {
+  const cur = lightingOf(state.lighting).scene;
+  state.lighting = { ...lightingOf(state.lighting), scene: SCENES[(SCENES.indexOf(cur) + 1) % SCENES.length], lampsOn: null };
+  emit();
+}
+
+// Button titles name their hotkeys.
+function lightTitles() {
+  container.querySelectorAll('[data-light]').forEach(b => { b.title = `${t('light.' + b.dataset.light)} (N)`; });
 }
 
 function toggleLamps() {

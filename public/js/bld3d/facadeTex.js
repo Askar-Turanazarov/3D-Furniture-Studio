@@ -105,7 +105,7 @@ function tinted(photo, tint, size = 1024) {
 }
 
 /** Sizes in metres of one texture repeat, for the world-space UVs of the meshes. */
-export const PHOTO_UV = { wall: [4.8, 2.4], base: [4.8, 2.4], concrete: [2.4, 1.2], wood: [1.4, 1.4], granite: [2.4, 2.4] };
+export const PHOTO_UV = { wall: [6, 3], base: [4.8, 2.4], concrete: [2.4, 1.2], wood: [1.4, 1.4], granite: [2.4, 2.4] };
 
 /** Library sets of the facade (public/textures/library.json): walls, ground floor, concrete, timber. */
 export const FACADE_SETS = { wall: 'travertine', base: 'marbleBlack', concrete: 'concreteFloor', wood: 'woodPanels' };
@@ -204,10 +204,12 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
     const px = small ? 128 : 256;     // pixels per metre of the slab textures
     const cut = (set, o) => panels(set.color, small ? null : set.normal, {
       ...o, px, base: null, scale: set.color.width / set.tile, rough: set.roughness });
-    // Travertine 120 × 60, 4 × 4 slabs per repeat (4.8 × 2.4 m); black stone 120 × 120, 4 × 2.
-    const wall = cut(sets.wall, { cols: 4, rows: 4, pw: 1.2, ph: 0.6, vary: 0.1, seam: 0.008, seamColor: '#8a7f70', seed: 11 });
+    // Travertine 150 × 75, 4 × 4 slabs per repeat (6 × 3 m), each slab a shade of its own so the stone reads
+    // from afar; black stone 120 × 120, 4 × 2.
+    const wall = cut(sets.wall, { cols: 4, rows: 4, pw: 1.5, ph: 0.75, vary: 0.16, seam: 0.01, seamColor: '#76695a', seed: 11 });
     const base = cut(sets.base, { cols: 4, rows: 2, pw: 1.2, ph: 1.2, vary: 0.1, seam: 0.006, seamColor: '#141517', seed: 5 });
     swap(mats.wall, wall, { roughness: 1, metalness: 0 });
+    mats.wall.color.set('#fdf5ec');       // warm, sunlit travertine rather than grey
     swap(mats.base, base, { roughness: 0.8, metalness: 0.05 });
     if (site.granite) swap(site.granite, base, { roughness: 0.85 });
     // Concrete and timber: the photo as it is, repeated to its real size over the world UVs.
@@ -225,8 +227,8 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
   }
 
   const px = small ? 110 : 210;     // pixels per metre of the panel textures
-  // Light warm porcelain 120 × 60, 4 × 4 panels per repeat (4.8 × 2.4 m).
-  const wall = panels(marble, marbleN, { px, cols: 4, rows: 4, pw: 1.2, ph: 0.6, base: [186, 170, 148], vary: 0.08,
+  // Light warm stone 150 × 75, 4 × 4 panels per repeat (6 × 3 m).
+  const wall = panels(marble, marbleN, { px, cols: 4, rows: 4, pw: 1.5, ph: 0.75, base: [192, 172, 146], vary: 0.14,
     mix: 0.9, seam: 0.008, seamColor: '#7a7064', seed: 11, scale: 430 });
   // Dark granite slabs 120 × 120 on the ground floor (between the shop windows), 4 × 2 per repeat.
   const base = panels(marble, marbleN, { px, cols: 4, rows: 2, pw: 1.2, ph: 1.2, base: [62, 64, 68], vary: 0.12,

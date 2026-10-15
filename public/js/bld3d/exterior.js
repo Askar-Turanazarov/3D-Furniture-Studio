@@ -14,6 +14,7 @@ import { createStreetWalk } from './streetWalk.js';
 import { applyPhotoFacade, PHOTO_UV } from './facadeTex.js';
 import { TWEEN_SEC, easeInOut } from '../lighting.js';
 import { createWindows } from './windows.js';
+import { shadeStrips } from '../3d/softShadows.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
@@ -21,8 +22,10 @@ const GLASS_D = 0.05;    // glass plane, m from the inner face (the reveal is T 
 const PARAPET = 1.1;
 
 export const TIMES = {
-  day: { top: '#3f78bd', mid: '#9cc0e6', bottom: '#e9eff3', sun: '#fff1db', sunI: 2.7, elev: 34, azim: -38,
-    hemi: 1.0, sky: '#d6e6ff', ground: '#9c927f', fog: '#dfe7ee', exposure: 0.92, lit: 0, lamp: 0 },
+  // Day: the sun 40° off the main (south) facade and 34° high, the sky light lower than before, so reveals,
+  // balconies and the cornice cast shadows that read.
+  day: { top: '#2f6cbc', mid: '#8fbbe8', bottom: '#e6eef4', sun: '#fff0d6', sunI: 3.1, elev: 34, azim: -40,
+    hemi: 0.72, sky: '#cfe2ff', ground: '#a8936f', fog: '#dbe5ee', exposure: 0.95, lit: 0, lamp: 0 },
   evening: { top: '#2a3c6e', mid: '#a98a8a', bottom: '#f0b98e', sun: '#ffbf85', sunI: 2.0, elev: 9, azim: -62,
     hemi: 0.55, sky: '#ffcfaa', ground: '#4f4339', fog: '#e7b38e', exposure: 1.05, lit: 0.3, lamp: 0.6 },
   night: { top: '#03060f', mid: '#0b1428', bottom: '#1a2744', sun: '#9fb4ff', sunI: 0.3, elev: 42, azim: 35,
@@ -43,7 +46,7 @@ const LAMPS_ON = 0.6;
 const BALCONY = new Set(['living', 'kitchenLiving']);   // rooms whose window gets a balcony     // the evening level: strips, letters and doors fully lit from here
 
 
-// Seamed porcelain tiles 120 × 60 cm, in world-space UVs (1 texture = 2.4 × 1.2 m).
+// Seamed stone slabs 150 × 75 cm, in world-space UVs (1 texture = 3 × 1.5 m).
 function tileTexture() {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 256;
@@ -64,7 +67,7 @@ function tileTexture() {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
-  t.repeat.set(2, 2);     // the wall UVs repeat every 4.8 × 2.4 m (the photo panels), this tile is 2.4 × 1.2
+  t.repeat.set(2, 2);     // the wall UVs repeat every 6 × 3 m (the photo panels), this tile is 3 × 1.5
   return t;
 }
 
@@ -176,6 +179,14 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     }
     parts[kind].push(g);
   };
+  // Soft shade strips (softShadows.js) in facade coordinates: a line q0–q1 [u, y, d], fading out along dq.
+  const wpt = (side, u, y, d) => side === 'south' ? [u - hx, y, hz + d] : side === 'north' ? [u - hx, y, -hz - d]
+    : side === 'west' ? [-hx - d, y, u - hz] : [hx + d, y, u - hz];
+  const shade = [];
+  const fshade = (side, q0, q1, dq, a) => {
+    const p0 = wpt(side, ...q0), e = wpt(side, q0[0] + dq[0], q0[1] + dq[1], q0[2] + dq[2]);
+    shade.push({ p0, p1: wpt(side, ...q1), n: [e[0] - p0[0], e[1] - p0[1], e[2] - p0[2]], a });
+  };
   const box = (kind, x, y, z, sx, sy, sz) => {
     const g = new THREE.BoxGeometry(sx, sy, sz);
     g.translate(x, y, z);
@@ -205,11 +216,17 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
         fbox('frame', side, u0, u0 + f, s, e, fd0, fd1);
         fbox('frame', side, u1 - f, u1, s, e, fd0, fd1);
         if (u1 - u0 > 1.3) fbox('frame', side, (u0 + u1) / 2 - f / 2, (u0 + u1) / 2 + f / 2, s, e, fd0, fd1);
+        // Shade in the reveal: darkest by the frame, fading out to the face of the wall; the head the darkest.
+        const r0 = fd1, rd = T - fd1, o = 0.002;
+        fshade(side, [u0 + o, s, r0], [u0 + o, e, r0], [0, 0, rd], 0.3);
+        fshade(side, [u1 - o, s, r0], [u1 - o, e, r0], [0, 0, rd], 0.3);
+        fshade(side, [u0, e - o, r0], [u1, e - o, r0], [0, 0, rd], 0.45);
         if (b.kind === 'window' && b.sill > 20) fbox('sill', side, u0 - 0.04, u1 + 0.04, s - 0.04, s, GLASS_D, T + 0.06);   // metal sill
         // Living rooms on the long facades: a balcony slab with a glass rail on steel posts and a handrail.
         if (b.kind === 'window' && n > 1 && ns && BALCONY.has(b.purpose)) {
           const a0 = u0 - 0.35, a1 = u1 + 0.35, fl = y0 + SLAB * M, d1 = T + 1.1;
           fbox('band', side, a0, a1, fl - 0.18, fl, T, d1);
+          fshade(side, [a0, fl - 0.18, T + 0.002], [a1, fl - 0.18, T + 0.002], [0, -0.3, 0], 0.28);   // under the slab
           fbox('rail', side, a0 + 0.04, a1 - 0.04, fl + 0.1, fl + 1.0, d1 - 0.07, d1 - 0.05);
           fbox('rail', side, a0, a0 + 0.02, fl + 0.1, fl + 1.0, T, d1 - 0.05);
           fbox('rail', side, a1 - 0.02, a1, fl + 0.1, fl + 1.0, T, d1 - 0.05);
@@ -249,6 +266,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     const c0 = ns ? -T - CORN : -CORN, c1 = ns ? L + T + CORN : W + CORN;
     fbox('band', side, c0, c1, top - 0.1, top + 0.22, T, T + CORN);
     fbox('band', side, c0 + 0.1, c1 - 0.1, top - 0.32, top - 0.1, T, T + CORN * 0.55);
+    fshade(side, [ns ? -T : 0, top - 0.32, T + 0.002], [ns ? L + T : W, top - 0.32, T + 0.002], [0, -0.7, 0], 0.32);
     fbox('wall', side, ns ? -T : 0, ns ? L + T : W, top + 0.22, top + PARAPET, 0, T);
     fbox('sill', side, ns ? -T : 0, ns ? L + T : W, top + PARAPET, top + PARAPET + 0.06, -0.03, T + 0.05);
   }
@@ -283,6 +301,8 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     mesh.receiveShadow = kind !== 'strip';
     building.add(mesh);
   }
+  const shadeMesh = shadeStrips(shade, 'facadeShade');
+  if (shadeMesh) building.add(shadeMesh);
   scene.add(building);
   // Photo stone, concrete and timber (the library facade sets when on disk, else the bundled sets), once decoded;
   // the procedural look until then. Called again after the facade sets are downloaded.
@@ -443,7 +463,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     sun.position.set(Math.sin(az) * Math.cos(el) * 120, Math.sin(el) * 120, Math.cos(az) * Math.cos(el) * 120);
     renderer.toneMappingExposure = p.exposure;
     lamp.intensity = p.lamp * 30;
-    windows.setTime({ day: p.hemi, lamp: 1.1 });
+    windows.setTime({ day: Math.min(1, p.hemi / 0.72), lamp: 1.1 });
     mats.strip.color.set('#d9d2c4').lerp(tmpC.set('#ffd9a0'), on);
     nameMat.color.set('#2c3036').lerp(tmpC.set('#ffe7c2'), on);     // dark letters by day, lit at dusk and night
     doorMat.color.set('#ffffff').lerp(tmpC.set('#fff1d6'), on);

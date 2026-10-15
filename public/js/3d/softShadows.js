@@ -49,6 +49,17 @@ function meshOf(pos, col, idx, name) {
   return m;
 }
 
+/**
+ * One mesh of shade strips: [{ p0, p1, n, a }] — a strip along p0–p1 (world points), darkness a there, fading to
+ * nothing at p + n. Used on the building facade (reveals, under the cornice and the balconies).
+ */
+export function shadeStrips(strips, name = 'shade') {
+  if (!strips.length) return null;
+  const pos = [], col = [], idx = [];
+  for (const { p0, p1, n, a } of strips) addStrip(pos, col, idx, p0, p1, n, a);
+  return meshOf(pos, col, idx, name);
+}
+
 /** Footprints of floor-standing items, in the frame of `group` (not yet placed in the scene): [{ x0, z0, x1, z1 }]. */
 export function footprints(group) {
   group.updateMatrixWorld(true);

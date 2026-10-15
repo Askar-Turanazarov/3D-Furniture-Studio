@@ -11,7 +11,7 @@ export function createStreetWalk({ camera, dom, walk, obstacles, onDoor, onStop 
   const keys = new Set();
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
   const pad = { f: 0 };
-  let active = false, entered = false, drag = null, saved = null;
+  let active = false, entered = false, drag = null, saved = null, looked = false;
 
   const blocked = (x, z) => {
     const b = walk.bounds;
@@ -25,6 +25,7 @@ export function createStreetWalk({ camera, dom, walk, obstacles, onDoor, onStop 
     euler.y -= dx * 0.0035;
     euler.x = Math.max(-1.2, Math.min(1.2, euler.x - dy * 0.0035));
     camera.quaternion.setFromEuler(euler);
+    looked = true;
   }
 
   const onKey = e => {
@@ -93,7 +94,8 @@ export function createStreetWalk({ camera, dom, walk, obstacles, onDoor, onStop 
     if (keys.has('KeyD') || keys.has('ArrowRight')) r += 1;
     if (keys.has('KeyA') || keys.has('ArrowLeft')) r -= 1;
     const len = Math.hypot(f, r);
-    if (len < 0.01) return false;
+    if (len < 0.01) { const m = looked; looked = false; return m; }
+    looked = false;
     const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN : WALK) * dt / Math.max(1, len);
     camera.getWorldDirection(fwd);
     fwd.y = 0;

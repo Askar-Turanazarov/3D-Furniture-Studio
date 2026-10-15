@@ -30,6 +30,7 @@ const GLASS = new THREE.Color('#41505f');       // neutral glass under the sky r
 const GLASS_DIM = new THREE.Color('#2b3036');
 const WARM = new THREE.Color('#ffcf8f');
 const SHOP_LIT = new THREE.Color('#fff0d4');
+const LOBBY_DAY = new THREE.Color('#d9c29a');
 const DARK_IN = new THREE.Color('#1b2129');
 
 // Seamed porcelain tiles 120 × 60 cm, in world-space UVs (1 texture = 2.4 × 1.2 m).
@@ -88,8 +89,15 @@ function skyMaterial() {
  * → { paint({ colorOf, dim, hover }), setFloor, setTime, setAuto, setTitle, pause, flyToFloor, requestRender }
  * colorOf(aptNo) → CSS colour or null (neutral glass); dim(aptNo) → true when it does not match the filters.
  */
-export function createExterior(container, { bld, fac, title = '', onHover = () => {}, onPick = () => {}, onFloor = () => {}, onDoor = null, onWalk = null }) {
+// "ПОДЪЕЗД 1" → ['ПОДЪЕЗД', '1'], "1-PODYEZD" → ['PODYEZD', '1'].
+function splitNo(text) {
+  const m = text.match(/\d+/);
+  return m ? [text.replace(m[0], '').replace(/^[\s-]+|[\s-]+$/g, ''), m[0]] : [text, ''];
+}
+
+export function createExterior(container, { bld, fac, title = '', entrance = 'ENTRANCE 1', onHover = () => {}, onPick = () => {}, onFloor = () => {}, onDoor = null, onWalk = null, onCue = null }) {
   const tierName = tierFor(readPref()), tier = SETTINGS[tierName];
+  let entranceText = entrance;
   const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -139,7 +147,8 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     frame: new THREE.MeshStandardMaterial({ color: '#2e3236', roughness: 0.45, metalness: 0.55 }),
     roof: new THREE.MeshStandardMaterial({ color: '#7d8287', roughness: 0.95 }),
     wood: new THREE.MeshStandardMaterial({ color: '#9a6a40', roughness: 0.6 }),
-    strip: new THREE.MeshBasicMaterial({ color: '#ffe2b0' })
+    strip: new THREE.MeshBasicMaterial({ color: '#ffe2b0' }),
+    steel: new THREE.MeshStandardMaterial({ color: '#c8ccd0', roughness: 0.3, metalness: 0.85 })
   };
   const parts = Object.fromEntries(Object.keys(mats).map(k => [k, []]));
   // A box on a facade: u (m along the side), y (m), d (m outward from the inner face of the outer wall).
@@ -217,11 +226,21 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   }
   const core = bld.core;
   if (core) box('fin', (core.x + core.w / 2) * M - hx, top + 1.7, (core.y + core.h / 2) * M - hz, core.w * M, 3.4, core.h * M * 0.7);
-  // Canopy over the entrance: timber slab on a dark edge with a light strip underneath.
+  // The entrance reads from afar: a timber portal round the doors under a deep canopy with a lit
+  // "ENTRANCE 1" fascia, wall lights on the portal, long door handles, a projecting blade sign.
   const ent = fac.entrance, eu = (ent.x0 + ent.x1) / 2 * M, cw = 6.4, cd = 2.6, cy = level - 0.15;
-  fbox('wood', ent.side, eu - cw / 2, eu + cw / 2, cy, cy + 0.16, T, T + cd);
+  const du0 = ent.x0 * M, du1 = ent.x1 * M, dTop = SLAB * M + ent.h * M;
+  fbox('wood', ent.side, du0 - 0.75, du0 - 0.08, 0, cy, T, T + 0.32);            // portal pillars
+  fbox('wood', ent.side, du1 + 0.08, du1 + 0.75, 0, cy, T, T + 0.32);
+  fbox('wood', ent.side, du0 - 0.08, du1 + 0.08, dTop + 0.05, cy, T, T + 0.32);   // lintel
+  fbox('wood', ent.side, eu - cw / 2, eu + cw / 2, cy, cy + 0.16, T, T + cd);       // canopy slab
   fbox('fin', ent.side, eu - cw / 2 - 0.04, eu + cw / 2 + 0.04, cy - 0.06, cy, T, T + cd + 0.04);
+  fbox('fin', ent.side, eu - cw / 2 - 0.04, eu + cw / 2 + 0.04, cy - 0.34, cy + 0.2, T + cd, T + cd + 0.07);   // fascia
   fbox('strip', ent.side, eu - cw / 2 + 0.3, eu + cw / 2 - 0.3, cy - 0.08, cy - 0.06, T + cd - 0.25, T + cd - 0.18);
+  // Door handles: two long bars by the meeting stiles.
+  for (const k of [-1, 1]) fbox('steel', ent.side, eu + k * 0.09 - 0.02, eu + k * 0.09 + 0.02, 0.85, 1.95, GLASS_D + 0.06, GLASS_D + 0.1);
+  // Wall lights on the pillars, at eye height.
+  for (const u of [du0 - 0.42, du1 + 0.42]) fbox('strip', ent.side, u - 0.09, u + 0.09, 2.0, 2.32, T + 0.32, T + 0.42);
   lamp.position.set(eu - hx, cy - 0.5, ent.side === 'south' ? hz + T + cd / 2 : -hz - T - cd / 2);
 
   const building = new THREE.Group();
@@ -241,24 +260,67 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   applyPhotoFacade({ mats, site: site.mats, anisotropy: Math.min(tier.anisotropy * 2, renderer.capabilities.getMaxAnisotropy()), small: tierName === 'low' })
     .then(ok => { if (ok) { shadows = true; dirty = true; } });
 
-  // Sign with the residence name on the canopy front.
-  const signTex = new THREE.CanvasTexture(document.createElement('canvas'));
-  signTex.colorSpace = THREE.SRGBColorSpace;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.36), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
-  sign.position.set(eu - hx, cy + 0.36, ent.side === 'south' ? hz + T + 0.02 : -hz - T - 0.02);
-  if (ent.side === 'north') sign.rotation.y = Math.PI;
-  scene.add(sign);
-  function setTitle(text) {
-    const c = signTex.image;
-    c.width = 1024; c.height = 80;
+  // Signs: "ENTRANCE 1" glowing on the canopy fascia, the same on a blade sign beside the doors (seen from
+  // along the facade), the residence name in big letters on the roof parapet over the entrance.
+  const front = (d, y, u) => ent.side === 'south' ? [u - hx, y, hz + d] : [u - hx, y, -hz - d];
+  const signPlane = (w, h, mat, d, y, u, rot = 0) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.set(...front(d, y, u));
+    m.rotation.y = (ent.side === 'north' ? Math.PI : 0) + rot;
+    scene.add(m);
+    return m;
+  };
+  const textMat = () => {
+    const t = new THREE.CanvasTexture(document.createElement('canvas'));
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.DoubleSide, toneMapped: false });
+  };
+  const doorMat = textMat(), bladeMat = textMat(), nameMat = textMat();
+  signPlane(3.6, 0.4, doorMat, T + cd + 0.075, cy - 0.07, eu);
+  const bladeU = du0 - 0.42;
+  const bladeBox = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.86, 0.66), mats.fin);
+  bladeBox.position.set(...front(T + 0.32 + 0.4, 1.9, bladeU));
+  scene.add(bladeBox);
+  for (const k of [-1, 1]) signPlane(0.6, 0.8, bladeMat, T + 0.32 + 0.4, 1.9, bladeU + k * 0.045, k * Math.PI / 2);
+  const nameW = Math.min(18, L * 0.6);
+  const nameU = Math.max(nameW / 2 + 1, Math.min(L - nameW / 2 - 1, eu));
+  signPlane(nameW, 0.95, nameMat, T + 0.02, top + PARAPET / 2 + 0.02, nameU);
+
+  function draw(mat, w, h, paint) {
+    const c = mat.map.image;
+    c.width = w; c.height = h;
     const g = c.getContext('2d');
-    g.clearRect(0, 0, 1024, 80);
-    g.fillStyle = '#f4efe6';
-    g.font = '600 48px system-ui, sans-serif';
+    g.clearRect(0, 0, w, h);
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(text, 512, 42, 1000);
-    signTex.needsUpdate = true;
+    paint(g);
+    mat.map.needsUpdate = true;
+  }
+  function setTitle(text, entrance = entranceText) {
+    entranceText = entrance;
+    draw(nameMat, 2048, 108, g => {
+      g.fillStyle = '#ffffff';
+      g.font = '700 84px system-ui, sans-serif';
+      g.fillText(text.toUpperCase(), 1024, 58, 2000);
+    });
+    draw(doorMat, 1024, 114, g => {
+      g.fillStyle = '#ffffff';
+      g.font = '700 78px system-ui, sans-serif';
+      g.fillText(entrance, 512, 60, 1000);
+    });
+    const [word, no] = splitNo(entrance);
+    draw(bladeMat, 384, 512, g => {
+      g.fillStyle = '#f6f1e7';
+      g.beginPath();
+      g.roundRect(8, 8, 368, 496, 36);
+      g.fill();
+      g.fillStyle = '#2e3236';
+      g.font = '800 270px system-ui, sans-serif';
+      g.fillText(no, 192, 220);
+      g.font = '700 50px system-ui, sans-serif';
+      g.fillText(word, 192, 430, 340);
+    });
     dirty = true;
   }
 
@@ -339,6 +401,8 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     renderer.toneMappingExposure = p.exposure;
     lamp.intensity = p.lamp * 30;
     mats.strip.color.set(p.lamp ? '#ffd9a0' : '#d9d2c4');
+    nameMat.color.set(p.lamp ? '#ffe7c2' : '#2c3036');     // dark letters by day, lit at dusk and night
+    doorMat.color.set(p.lamp ? '#fff1d6' : '#ffffff');
     site.setTime(p);
     envRT?.dispose();
     envRT = pmrem.fromScene(envScene, 0, 1, 1000);
@@ -371,7 +435,8 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
         lit.setMatrixAt(i, mtx[i]);
         glass.setMatrixAt(i, zero);
       } else {
-        if (b.kind !== 'window') tmpC.copy(DARK_IN).lerp(GLASS, 0.4);
+        if (b.kind === 'door') tmpC.copy(GLASS).lerp(LOBBY_DAY, 0.55);    // the warm lobby through the doors by day
+        else if (b.kind !== 'window') tmpC.copy(DARK_IN).lerp(GLASS, 0.4);
         else if (dim) tmpC.copy(GLASS_DIM);
         else if (css) tmpC.copy(GLASS).lerp(tintOf(css), 0.62);
         else tmpC.copy(GLASS);
@@ -453,11 +518,28 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   // ---------- walking on the site ----------
   const walker = createStreetWalk({ camera, dom: renderer.domElement, walk: site.walk, obstacles: site.obstacles,
     onDoor: () => onDoor?.(), onStop: () => endWalk(true) });
+  // Where the entrance is from the walker: distance (m) and the turn to it (rad, + to the right), sent when it
+  // changes noticeably.
+  const fwd = new THREE.Vector3();
+  let lastCue = '';
+  function cue() {
+    if (!onCue) return;
+    const d = site.walk.door, tx = (d.x0 + d.x1) / 2 - camera.position.x, tz = d.z - camera.position.z;
+    camera.getWorldDirection(fwd);
+    const angle = Math.atan2(fwd.x * tz - fwd.z * tx, fwd.x * tx + fwd.z * tz);
+    const dist = Math.hypot(tx, tz);
+    const key = Math.round(dist) + ':' + Math.round(angle / 0.2);
+    if (key === lastCue) return;
+    lastCue = key;
+    onCue({ dist, angle });
+  }
   function startWalk(at = 'street') {
     fly = null;
     controls.enabled = false;
     controls.autoRotate = false;
     walker.start(at);
+    lastCue = '';
+    cue();
     onHover(null);
     cv.style.cursor = 'crosshair';
     dirty = true;
@@ -466,6 +548,7 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   function endWalk(fromKey = false) {
     if (!walker.active && !fromKey) return;
     walker.stop();
+    onCue?.(null);
     controls.enabled = true;
     lastTouch = performance.now();
     cv.style.cursor = '';
@@ -492,7 +575,7 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     let dt = Math.min(clock.getDelta(), 0.1);
     if (paused || !visible || !onScreen) return;
     if (walker.active) {
-      if (walker.update(dt)) dirty = true;
+      if (walker.update(dt)) { dirty = true; cue(); }
       if (!dirty) return;
       dirty = false;
       if (shadows) { renderer.shadowMap.needsUpdate = true; shadows = false; }

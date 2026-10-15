@@ -342,6 +342,19 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 .view3d canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .fade3d { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 5; }
 .fade3d.on { opacity: 1; }
+.bld3d-cue {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 3; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border-radius: 999px;
+  background: rgba(20, 24, 40, .82); color: #fff; font-size: 14px; font-weight: 600; max-width: calc(100% - 24px); width: max-content;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+}
+.bld3d-cue[hidden] { display: none; }
+.bld3d-cue-arrow {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+  background: #f0b23b; color: #1c1f2b; font-size: 16px; transition: transform .2s;
+}
+.bld3d-cue.near { background: rgba(43, 138, 62, .9); }
+.bld3d-cue.near .bld3d-cue-arrow { background: #fff; }
 .bld3d-pad { position: absolute; right: 12px; bottom: 44px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
 .bld3d-pad[hidden] { display: none; }
 .bld3d-pad button { width: 56px; height: 56px; border-radius: 50%; border: 0; background: rgba(30, 34, 40, .7); color: #fff; font-size: 22px; touch-action: none; }

@@ -417,11 +417,24 @@ function sync3dHud() {
   $('bld3dHint').textContent = t(ext.isWalking() ? (touch ? 'bld3d.walkHintTouch' : 'bld3d.walkHint') : touch ? 'bld3d.hintTouch' : 'bld3d.hint');
 }
 
+// On the street walk: an arrow to the entrance doors with the distance, "step in" when at the doors.
+let cue3d = null;
+function showCue(c) {
+  cue3d = c;
+  const el = $('bld3dCue');
+  el.hidden = !c;
+  if (!c) return;
+  const near = c.dist < 3;
+  el.classList.toggle('near', near);
+  $('bld3dCueArrow').style.transform = `rotate(${near ? 0 : c.angle}rad)`;
+  $('bld3dCueText').textContent = near ? t('bld3d.atDoor') : `${t('bld3d.toEntrance')} · ${Math.round(c.dist)} ${t('bld.m')}`;
+}
+
 async function init3d() {
   try {
     const [{ createExterior }, { facadeOf }] = await Promise.all([import('./bld3d/exterior.js'), import('./facade.js')]);
     ext = createExterior($('bld3dView'), {
-      bld: b, fac: facadeOf(b), title: local(b.name),
+      bld: b, fac: facadeOf(b), title: local(b.name), entrance: t('bld3d.entranceSign'),
       onHover: (no, e) => {
         if (no !== hover3d) { hover3d = no; paint3d(); }
         showTip(no ? byNo(no) : null, e, $('bld3dView'), $('bld3dTip'));
@@ -429,7 +442,8 @@ async function init3d() {
       onPick: no => { const a = byNo(no); setFloor(a.floor); openCard(a); },
       onFloor: n => { if (n !== floorN) setFloor(n); },
       onDoor: enterLobby,
-      onWalk: () => sync3dHud()
+      onWalk: () => sync3dHud(),
+      onCue: showCue
     });
   } catch {
     $('bld3dCard').hidden = true;   // no WebGL: the floor grid and plan remain
@@ -527,7 +541,8 @@ function bind() {
   onLangChange(() => {
     document.title = `${local(b.name)} — ${t('bld.title')}`;
     $('bldName').textContent = local(b.name);
-    ext?.setTitle(local(b.name));
+    ext?.setTitle(local(b.name), t('bld3d.entranceSign'));
+    if (cue3d) showCue(cue3d);
     sync3dHud();
     renderAll();
     if ($('aptDlg').open) openCard(cardApt);

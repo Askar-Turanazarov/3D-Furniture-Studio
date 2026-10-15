@@ -119,6 +119,15 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
   const pathW = 3.2;
   box('pave', ex - pathW / 2, ex + pathW / 2, 0, 0.08, hz + ring, walkZ0);
   box('granite', ex - 3.2, ex + 3.2, 0, 0.16, hz, hz + 2.6);
+  box('metal', ex - 1.1, ex + 1.1, 0.16, 0.175, hz + 0.1, hz + 1.3);     // doormat
+  // Low lit bollards along the path lead the eye (and the walker) to the doors.
+  for (let z = hz + ring + 1.2; z < walkZ0 - 0.6; z += 3) {
+    for (const x of [ex - pathW / 2 - 0.25, ex + pathW / 2 + 0.25]) {
+      box('metal', x - 0.08, x + 0.08, 0, 0.62, z - 0.08, z + 0.08);
+      box('head', x - 0.085, x + 0.085, 0.62, 0.74, z - 0.085, z + 0.085);
+      obstacles.push({ x0: x - 0.08, z0: z - 0.08, x1: x + 0.08, z1: z + 0.08 });
+    }
+  }
   // Paths to the parking and the playground.
   box('pave', hx + ring, SL - 18, 0, 0.08, hz + 6, hz + 8.4);
   box('pave', -SL + 20, -hx - ring, 0, 0.08, hz + 6, hz + 8.4);

@@ -221,6 +221,11 @@ export function revealParts(wall, off, width, height, gap, L, W, style) {
 }
 
 export function disposeGroup(group) {
-  group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+  group.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    // Materials are shared (caches), except the ones a mesh owns (plates with their own canvas texture).
+    if (o.userData.ownMaterial) { o.material.map?.dispose(); o.material.dispose(); }
+    if (o.isLight) o.dispose();      // its shadow map
+  });
   group.removeFromParent();
 }

@@ -282,12 +282,39 @@ function forget() {
 
 const T = 10;   // outer wall thickness, cm
 
+// Walking, only what can be seen is drawn: the room the walker is in and the rooms behind open doors (two
+// doorways deep); the others keep their lights (no shader rebuilds) but not their walls and furniture.
+let portals = [];
+const PORTAL_DEPTH = 2;
+function cull() {
+  let seen = null;
+  if (controls.getMode() === 'walk' && rooms3d.size > 1) {
+    seen = new Set([state.activeRoomId]);
+    let edge = [state.activeRoomId];
+    for (let d = 0; d < PORTAL_DEPTH && edge.length; d++) {
+      const next = [];
+      for (const l of portals) {
+        const a = edge.includes(l.room) ? l.to : edge.includes(l.to) ? l.room : null;
+        if (a && !seen.has(a) && anim.doorAjar(l.room, l.door)) { seen.add(a); next.push(a); }
+      }
+      edge = next;
+    }
+  }
+  let changed = false;
+  for (const [id, e] of rooms3d) {
+    const v = !seen || seen.has(id);
+    for (const o of [e.shell?.group, e.furniture]) if (o && o.visible !== v) { o.visible = v; changed = true; }
+  }
+  if (changed) shadowsDirty = true;
+}
+
 // Rebuild only what changed: a room shell when its size, openings, structure, style or doorways change,
 // its furniture when its items or their errors change. The overview is re-aimed when the outline changes.
 function rebuild() {
   redrawShadows();
   const rooms = liveRooms();
   const links = doorLinks(rooms);
+  portals = links.filter(l => l.to !== 'outside');
   for (const [id, e] of rooms3d) {
     if (rooms.some(r => r.id === id)) continue;
     disposeGroup(e.group);
@@ -508,6 +535,7 @@ function loop() {
   if (!visible || !onScreen) { prevDrawn = false; return; }
   if (controls.update(dt)) shadowsDirty = true;
   if (anim.update(dt)) shadowsDirty = true;
+  cull();
   let tweened = false;
   for (const e of rooms3d.values()) if (e.lights && tweenLights(e.lights, dt)) tweened = true;
   if (tweened && mainLights) {

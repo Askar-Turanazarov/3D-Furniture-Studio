@@ -209,7 +209,9 @@ function plate(text, status, wide = false) {
   g.fillText(String(text), c.width / 2, 28);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.Mesh(new THREE.PlaneGeometry(wide ? 0.64 : 0.32, 0.16), new THREE.MeshBasicMaterial({ map: tex }));
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(wide ? 0.64 : 0.32, 0.16), new THREE.MeshBasicMaterial({ map: tex }));
+  mesh.userData.ownMaterial = true;
+  return mesh;
 }
 
 // The floor around the detailed part: other apartments (or the commercial units) as merged shells (floor, walls

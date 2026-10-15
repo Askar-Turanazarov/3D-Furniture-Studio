@@ -85,6 +85,13 @@ export function doorOpen(roomId, doorId) {
   return (open.get(key)?.cur || 0) > 0.8;
 }
 
+// Light passes: the door is open at least a crack, or has no leaf.
+export function doorAjar(roomId, doorId) {
+  const key = doorKey(roomId, doorId);
+  if (!movers.some(m => m.key === key)) return true;
+  return (open.get(key)?.cur || 0) > 0.02;
+}
+
 // The walker pushes a closed door: it opens (unless something is in the way).
 export function openDoor(roomId, doorId) {
   const key = doorKey(roomId, doorId), s = open.get(key) || { cur: 0, target: 0 };

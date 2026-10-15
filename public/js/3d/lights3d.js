@@ -21,6 +21,13 @@ export function setupEnvironment(renderer, scene) {
   RectAreaLightUniformsLib.init();
 }
 
+// Shadow quality of the device tier (perf.js): sun map size; lamps cast shadows only when `lamps`.
+const shadowCfg = { sun: 2048, lamps: true };
+export function setShadowQuality({ shadowMap, lampShadows }) {
+  shadowCfg.sun = shadowMap;
+  shadowCfg.lamps = lampShadows;
+}
+
 function shadowed(light, size, far) {
   light.castShadow = true;
   light.shadow.mapSize.set(size, size);
@@ -57,7 +64,7 @@ function chandelier(g, L, W, H, main) {
   }
   const lamp = ceilLight(new THREE.PointLight('#ffe2b8', 0, 0, 2), 14);
   lamp.position.set(cx, y - 0.05, cz);
-  g.add(main ? shadowed(lamp, 1024, Math.max(L, W, H) * 2) : lamp);
+  g.add(main && shadowCfg.lamps ? shadowed(lamp, 1024, Math.max(L, W, H) * 2) : lamp);
 }
 
 // Recessed spots: 2×2 … 3×3 grid of spot lights; only the first casts a shadow (performance).
@@ -76,7 +83,7 @@ function spots(g, L, W, H, main) {
       const s = ceilLight(new THREE.SpotLight('#ffe7c4', 0, 0, 1.0, 0.7, 2), 9);
       s.position.set(x, H - 0.02, z);
       s.target.position.set(x, 0, z);
-      if (first) shadowed(s, 1024, H * 2);
+      if (first && shadowCfg.lamps) shadowed(s, 1024, H * 2);
       first = false;
       g.add(s, s.target);
     }
@@ -122,7 +129,7 @@ export function buildLights({ L, W, H }, win, lighting, prev = null, main = true
   // Sun from outside through the first window (north by default); it sinks and turns warm towards the evening.
   const sun = new THREE.DirectionalLight('#ffffff', 0);
   sun.castShadow = main;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(shadowCfg.sun, shadowCfg.sun);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
   const ext = Math.max(L, W) * 1.2;

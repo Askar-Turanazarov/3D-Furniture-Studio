@@ -23,6 +23,21 @@ function canvas(fill) {
   return [c, g];
 }
 
+// Anisotropic filtering of the device tier (perf.js), set before the first texture is made.
+let aniso = 8;
+export const setAnisotropy = n => { aniso = n; };
+
+// Photos are decoded off the main thread (createImageBitmap) where the browser can; plain <img> otherwise.
+const bitmaps = typeof createImageBitmap === 'function'
+  ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none' }) : null;
+async function loadTexture(url) {
+  if (!bitmaps) return new THREE.TextureLoader().loadAsync(url);
+  const t = new THREE.Texture(await bitmaps.loadAsync(url));
+  t.flipY = false;   // already flipped while decoding
+  t.needsUpdate = true;
+  return t;
+}
+
 // Deterministic random so textures look the same on every rebuild.
 function rng(seed) {
   return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -32,7 +47,7 @@ function toTexture(c, srgb = true) {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-  t.anisotropy = 8;
+  t.anisotropy = aniso;
   return t;
 }
 
@@ -253,13 +268,12 @@ async function customUrls() {
 }
 
 async function loadSet(name, customUrl, tick = () => {}) {
-  const loader = new THREE.TextureLoader();
   const load = async (file, srgb, url = `/textures/${name}/${file}.jpg`) => {
-    const t = await loader.loadAsync(url);
+    const t = await loadTexture(url);
     tick();
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-    t.anisotropy = 8;
+    t.anisotropy = aniso;
     return t;
   };
   if (customUrl) {
@@ -380,13 +394,13 @@ async function loadLib(id) {
     missingListeners.forEach(fn => fn(entry));
     return null;
   }
-  const loader = new THREE.TextureLoader(), rep = 1 / (entry.tile || 1);
+  const rep = 1 / (entry.tile || 1);
   const load = async (file, srgb) => {
     // Bundled sets are in the repository, the others are downloaded on demand into lib/.
-    const t = await loader.loadAsync(`/textures/${entry.bundled ? 'sets' : 'lib'}/${id}/${file}.jpg`);
+    const t = await loadTexture(`/textures/${entry.bundled ? 'sets' : 'lib'}/${id}/${file}.jpg`);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-    t.anisotropy = 8;
+    t.anisotropy = aniso;
     // Non-square images (e.g. 1024×512) keep their aspect: one copy is tile × tile·h/w metres.
     const { width: w = 1, height: h = 1 } = t.image || {};
     t.repeat.set(rep, rep * w / h);

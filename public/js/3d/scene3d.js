@@ -7,14 +7,15 @@ import { liveRooms } from '../renderer.js';
 import { doorLinks, adjacent, wallLine, posOf, roomRect, twinIds } from '../apartment.js';
 import { switchRoom } from '../projects.js';
 import { buildObstacles } from './obstacles3d.js';
-import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights } from './lights3d.js';
+import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights, setShadowQuality } from './lights3d.js';
 import { lampsOn } from '../lighting.js';
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import * as anim from './anim3d.js';
 import { initTouch } from './touch3d.js';
-import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, PHOTO_MB } from './textures3d.js';
+import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, PHOTO_MB, setAnisotropy } from './textures3d.js';
+import { SETTINGS, PREFS, readPref, savePref, tierFor, governor } from './perf.js';
 import { styleOf } from '../style.js';
 import { toast } from '../ui.js';
 import { compose, savePicture, canShareFiles } from '../snapshot.js';
@@ -30,21 +31,34 @@ let context = null;        // static surroundings (the floor around an embedded 
 // Ambient occlusion (GTAO) in Photo mode: composer is loaded on first use, switched off when FPS drops.
 let quality = 'simple', aoWanted = false, composer = null, aoPass = null;
 let fpsTime = 0, fpsFrames = 0;
+// Drawing on demand: a frame is drawn only when something changed (camera, doors, light tweens, the scene).
+let dirty = true, shadowsDirty = true, visible = true, onScreen = true;
+const lastView = new THREE.Matrix4(), lastProj = new THREE.Matrix4();
+// Device tier (perf.js): pixel ratio, shadows, AO, anisotropy; in Auto the governor lowers it when frames are slow.
+let tier = 'mid', gov = null, prevDrawn = false;
+
+export function requestRender() { dirty = true; }
+const redrawShadows = () => { dirty = shadowsDirty = true; };
 
 function init(el) {
   container = el;
+  const pref = readPref();
+  tier = tierFor(pref);
+  setAnisotropy(SETTINGS[tier].anisotropy);
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: SETTINGS[tier].antialias });
   } catch {
     el.querySelector('#hint3d').textContent = t('v3d.noWebgl');
     return false;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  applyTier(tier, false);
+  gov = pref === 'auto' ? governor(tier, stepTier) : null;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;   // redrawn only when lights, doors or the scene change
   el.prepend(renderer.domElement);
 
   scene = new THREE.Scene();
@@ -118,6 +132,20 @@ function init(el) {
   anim.initAnim(camera, renderer.domElement, el, id => { if (id !== state.activeRoomId) switchRoom(id); });
   onLangChange(anim.onLang);
 
+  fillPerfSel();
+  onLangChange(fillPerfSel);
+  el.querySelector('#perfSel').addEventListener('change', e => {
+    const pref = e.target.value;
+    savePref(pref);
+    const next = tierFor(pref);
+    gov = pref === 'auto' ? governor(next, stepTier) : null;
+    applyTier(next);
+  });
+  // Pointer and keys can change highlights and hints: draw the next frame.
+  for (const ev of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup']) el.addEventListener(ev, requestRender, { passive: true });
+  // Nothing is drawn while the tab is hidden or the view is scrolled away.
+  document.addEventListener('visibilitychange', () => { visible = !document.hidden; dirty = true; });
+  new IntersectionObserver(([en]) => { onScreen = en.isIntersecting; dirty = true; }).observe(el);
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });
   onLangChange(() => { if (running) controls.updateHint(); });
@@ -134,6 +162,33 @@ function resize() {
   }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  dirty = true;
+}
+
+// Pixel ratio, shadow maps and AO of a tier; `rebuildLights` rebuilds the lights with the new shadow sizes.
+function applyTier(name, rebuildLights = true) {
+  tier = name;
+  const s = SETTINGS[name];
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, s.pixelRatio));
+  setShadowQuality(s);
+  if (!rebuildLights) return;
+  if (!s.ao && aoWanted) setAo(false);
+  syncAo();
+  resize();
+  for (const e of rooms3d.values()) e.lkey = '';
+  if (running) rebuild();
+}
+
+function stepTier(name, dir) {
+  applyTier(name);
+  if (dir < 0) toast(t('perf.down'));
+}
+
+function fillPerfSel() {
+  const sel = container.querySelector('#perfSel');
+  sel.innerHTML = '';
+  for (const p of PREFS) sel.append(new Option(t('perf.' + p), p));
+  sel.value = readPref();
 }
 
 // Texture notice in the HUD: photo sets loading (they apply by themselves), finish sets missing on disk.
@@ -230,6 +285,7 @@ const T = 10;   // outer wall thickness, cm
 // Rebuild only what changed: a room shell when its size, openings, structure, style or doorways change,
 // its furniture when its items or their errors change. The overview is re-aimed when the outline changes.
 function rebuild() {
+  redrawShadows();
   const rooms = liveRooms();
   const links = doorLinks(rooms);
   for (const [id, e] of rooms3d) {
@@ -386,13 +442,13 @@ function syncLightHud() {
   container.querySelector('#ceilSel').value = l.ceiling;
 }
 
-const aoActive = () => aoWanted && quality === 'photo' && composer;
+const aoActive = () => aoWanted && quality === 'photo' && SETTINGS[tier].ao && composer;
 
 function syncAo() {
   const btn = container.querySelector('#aoBtn');
-  btn.hidden = quality !== 'photo';
+  btn.hidden = quality !== 'photo' || !SETTINGS[tier].ao;
   btn.classList.toggle('active', aoWanted);
-  if (aoWanted && quality === 'photo' && !composer) loadComposer();
+  if (aoWanted && quality === 'photo' && SETTINGS[tier].ao && !composer) loadComposer();
 }
 
 async function loadComposer() {
@@ -409,6 +465,7 @@ async function loadComposer() {
     composer.addPass(aoPass);
     composer.addPass(new OutputPass());
     resize();
+    redrawShadows();
   } catch {
     aoWanted = false;
     syncAo();
@@ -420,6 +477,7 @@ function setAo(on) {
   fpsTime = fpsFrames = 0;
   try { localStorage.setItem('fsp3d.ao', on ? '1' : '0'); } catch { /* ignore */ }
   syncAo();
+  dirty = true;
 }
 
 function draw() {
@@ -441,20 +499,36 @@ function watchFps(dt) {
   }
 }
 
+// The loop keeps ticking (walking and orbit damping need it) but draws only when something changed;
+// a still scene costs no GPU time. Hidden tab or view off screen: nothing at all.
 function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.25);
-  controls.update(dt);
-  anim.update(dt);
+  if (!visible || !onScreen) { prevDrawn = false; return; }
+  if (controls.update(dt)) shadowsDirty = true;
+  if (anim.update(dt)) shadowsDirty = true;
   let tweened = false;
   for (const e of rooms3d.values()) if (e.lights && tweenLights(e.lights, dt)) tweened = true;
   if (tweened && mainLights) {
     scene.environmentIntensity = mainLights.userData.cur.env;
     for (const e of rooms3d.values()) if (e.furniture) applyFixtures(e.furniture, mainLights.userData.cur.fix);
+    shadowsDirty = true;
   }
+  camera.updateMatrixWorld();
+  const moved = !lastView.equals(camera.matrixWorld) || !lastProj.equals(camera.projectionMatrix);
+  if (!(dirty || moved || shadowsDirty)) { prevDrawn = false; return; }
+  lastView.copy(camera.matrixWorld);
+  lastProj.copy(camera.projectionMatrix);
+  if (shadowsDirty) renderer.shadowMap.needsUpdate = true;
+  dirty = shadowsDirty = false;
   draw();
-  watchFps(dt);
+  // Frame rate counts only frames drawn one after another (idle time is not slowness).
+  if (prevDrawn) {
+    watchFps(dt);
+    gov?.frame(dt);
+  }
+  prevDrawn = true;
 }
 
 export function show(el) {
@@ -462,6 +536,7 @@ export function show(el) {
   running = true;
   resize();
   rebuild();
+  redrawShadows();
   controls.updateHint();
   clock.start();
   loop();
@@ -477,6 +552,7 @@ export function snapshotCanvas() {
   const pr = renderer.getPixelRatio();
   renderer.setPixelRatio(2);
   resize();
+  renderer.shadowMap.needsUpdate = true;
   draw();
   const c = document.createElement('canvas');
   c.width = renderer.domElement.width;
@@ -484,6 +560,7 @@ export function snapshotCanvas() {
   c.getContext('2d').drawImage(renderer.domElement, 0, 0);
   renderer.setPixelRatio(pr);
   resize();
+  renderer.shadowMap.needsUpdate = true;
   draw();
   return c;
 }
@@ -493,6 +570,7 @@ export function setContext(group) {
   if (context) disposeGroup(context);
   context = group;
   if (group) scene.add(group);
+  redrawShadows();
 }
 
 export const getScene = () => scene;

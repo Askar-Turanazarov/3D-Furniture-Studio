@@ -243,8 +243,11 @@ export function look(dx, dy) {
 }
 
 // Dollhouse cutaway: hide the walls of every room that face the camera, and the ceilings from above.
+// Returns true when something was shown or hidden (the shadows have to be redrawn).
 function cutaway() {
-  if (!apt) return;
+  if (!apt) return false;
+  let changed = false;
+  const vis = (o, v) => { if (o.visible !== v) { o.visible = v; changed = true; } };
   const showAll = mode !== 'orbit';
   for (const r of apt.rooms) {
     if (!r.shell) continue;
@@ -254,21 +257,24 @@ function cutaway() {
         : side === 'west' ? tmp.set(0, 0, W / 2) : tmp.set(L, 0, W / 2);
       c.x += r.x; c.z += r.z;
       const outside = camera.position.clone().sub(c).dot(NORMALS[side]) > 0;
-      group.visible = showAll || !outside;
+      vis(group, showAll || !outside);
     }
-    r.shell.ceiling.visible = showAll || camera.position.y < H;
+    vis(r.shell.ceiling, showAll || camera.position.y < H);
     if (r.shell.skies === undefined) {
       r.shell.skies = [];
       r.shell.group.traverse(o => { if (o.userData.sky) r.shell.skies.push(o); });
     }
-    for (const sky of r.shell.skies) sky.visible = showAll;
+    for (const sky of r.shell.skies) vis(sky, showAll);
   }
+  return changed;
 }
 
+// One frame of movement; true when walls or ceilings were shown or hidden.
 export function update(dt) {
   if (mode === 'orbit') orbit.update(); else walk(dt);
-  cutaway();
+  const changed = cutaway();
   if (mode === 'walk' && performance.now() - distAt > 100) { distAt = performance.now(); showDistance(); }
+  return changed;
 }
 
 // Straight distance along the floor from the person's feet (camera projected down) in the looking direction

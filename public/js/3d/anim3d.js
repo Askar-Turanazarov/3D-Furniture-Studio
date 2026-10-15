@@ -194,6 +194,7 @@ export function update(dt) {
     }
   }
   if (changed) updateAllBtn();
+  return changed;
 }
 
 // Furniture and structure of every room (boxes in metres, world space).

@@ -39,6 +39,14 @@ test('texture maps: names with a path (traversal) are ignored', () => {
   assert.throws(() => mapsFromZip(zip(['dir\\X_Color.jpg', 'X_NormalGL.jpg', 'X_Roughness.jpg'])), /missing color/);
 });
 
+test('texture maps: a set with its own list (leaves: colour and opacity)', () => {
+  const zip = (names) => writeZip(names.map(name => ({ name, data: Buffer.from(name) })));
+  const m = mapsFromZip(zip(['L_Color.jpg', 'L_Opacity.jpg']), ['color', 'opacity']);
+  assert.deepEqual(Object.keys(m), ['color', 'opacity']);
+  assert.equal(m.opacity.toString(), 'L_Opacity.jpg');
+  assert.throws(() => mapsFromZip(zip(['L_Color.jpg'])), /missing normal/);
+});
+
 test('download whitelist: only on-demand sets of the library', async () => {
   assert.equal((await downloadable('blocksGrey'))?.source.ambientcg, 'Bricks034');
   for (const id of ['brick', '../server', 'nope', '', 'constructor', '__proto__']) assert.equal(await downloadable(id), null, id);

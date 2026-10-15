@@ -80,5 +80,15 @@
   { "id": "fabricBlue", "kind": "furniture", "tile": 0.5, "source": { "ambientcg": "Fabric023" }, "bundled": false, "mb": 7.6,
     "name": { "ru": "Синяя ткань", "uz": "Ko‘k mato", "en": "Blue fabric" } },
   { "id": "woodEspresso", "kind": "furniture", "tile": 1, "source": { "ambientcg": "Wood051" }, "bundled": false, "mb": 5,
-    "name": { "ru": "Дерево эспрессо", "uz": "Espresso yog‘och", "en": "Espresso wood" } }
+    "name": { "ru": "Дерево эспрессо", "uz": "Espresso yog‘och", "en": "Espresso wood" } },
+  { "id": "lawnGrass", "kind": "site", "tile": 2.5, "source": { "ambientcg": "Grass001" }, "bundled": false, "mb": 10.7,
+    "name": { "ru": "Газон", "uz": "Maysazor", "en": "Lawn" } },
+  { "id": "asphaltRoad", "kind": "site", "tile": 2, "source": { "ambientcg": "Asphalt032" }, "bundled": false, "mb": 8.2,
+    "name": { "ru": "Асфальт", "uz": "Asfalt", "en": "Asphalt" } },
+  { "id": "paversWave", "kind": "site", "tile": 1.2, "source": { "ambientcg": "PavingStones099" }, "bundled": false, "mb": 7.2,
+    "name": { "ru": "Тротуарная плитка", "uz": "Trotuar plitkasi", "en": "Paving stones" } },
+  { "id": "leaves", "kind": "site", "tile": 1, "maps": ["color", "opacity"], "source": { "ambientcg": "LeafSet009" }, "bundled": false, "mb": 5,
+    "name": { "ru": "Листья", "uz": "Barglar", "en": "Leaves" } },
+  { "id": "bark", "kind": "site", "tile": 1, "source": { "ambientcg": "Bark001" }, "bundled": false, "mb": 5.7,
+    "name": { "ru": "Кора дерева", "uz": "Daraxt po‘stlog‘i", "en": "Tree bark" } }
 ]

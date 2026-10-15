@@ -110,6 +110,10 @@ export const PHOTO_UV = { wall: [6, 3], base: [4.8, 2.4], concrete: [2.4, 1.2], 
 /** Library sets of the facade (public/textures/library.json): walls, ground floor, concrete, timber. */
 export const FACADE_SETS = { wall: 'travertine', base: 'marbleBlack', concrete: 'concreteFloor', wood: 'woodPanels' };
 
+/** Library sets of the site (site.js, trees.js): lawn, asphalt, paving, leaves, bark — fetched with the facade. */
+export const SITE_SETS = { lawn: 'lawnGrass', road: 'asphaltRoad', pave: 'paversWave', leaves: 'leaves', bark: 'bark' };
+const ALL_SETS = [...Object.values(FACADE_SETS), ...Object.values(SITE_SETS)];
+
 // Which library sets are on disk. A static host has only library.json: there nothing can be downloaded.
 async function library() {
   try {
@@ -124,12 +128,12 @@ async function library() {
 }
 
 /**
- * The facade sets not on disk yet: { missing: [entry], mb, canFetch }. canFetch: the server can download them
+ * The facade and site sets not on disk yet: { missing: [entry], mb, canFetch }. canFetch: the server can download them
  * (the button is shown only then).
  */
 export async function facadeStatus() {
   const { list, server } = await library();
-  const missing = Object.values(FACADE_SETS).map(id => list.find(e => e.id === id)).filter(e => e && !e.available);
+  const missing = ALL_SETS.map(id => list.find(e => e.id === id)).filter(e => e && !e.available);
   return { missing, mb: Math.round(missing.reduce((s, e) => s + (e.mb || 5), 0)), canFetch: server };
 }
 

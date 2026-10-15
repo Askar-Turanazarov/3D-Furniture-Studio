@@ -12,7 +12,8 @@ test('library entries are complete and unique', () => {
     assert.match(e.id, /^[a-zA-Z0-9]+$/, e.id);
     assert.ok(!ids.has(e.id), 'duplicate ' + e.id);
     ids.add(e.id);
-    assert.ok(['floor', 'wall', 'rough', 'furniture'].includes(e.kind), e.id);
+    assert.ok(['floor', 'wall', 'rough', 'furniture', 'site'].includes(e.kind), e.id);
+    if (e.maps) assert.ok(e.maps.includes('color') && e.maps.every(k => ['color', 'normal', 'roughness', 'opacity'].includes(k)), e.id + ' maps');
     assert.ok(e.tile > 0, e.id);
     for (const l of ['ru', 'uz', 'en']) assert.ok(e.name[l], `${e.id} name.${l}`);
     assert.ok(e.source?.ambientcg, e.id);

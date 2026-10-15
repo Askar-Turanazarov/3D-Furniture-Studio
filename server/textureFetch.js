@@ -1,5 +1,6 @@
 // Texture library sets on demand: download the ambientCG 1K-JPG zip of a whitelisted set (library.json,
-// bundled: false) and unpack color / normal (OpenGL) / roughness into public/textures/lib/<id>/.
+// bundled: false) and unpack its maps — color / normal (OpenGL) / roughness, or the set's own list (`maps`, e.g.
+// leaves: color / opacity) — into public/textures/lib/<id>/.
 const fs = require('fs/promises');
 const path = require('path');
 const { listZip, readEntry } = require('./zip');
@@ -8,7 +9,9 @@ const ROOT = path.join(__dirname, '..', 'public', 'textures');
 const LIB_DIR = path.join(ROOT, 'lib');
 const MAX_ZIP = 40 * 1024 * 1024;
 const TIMEOUT = 90 * 1000;
-const MAPS = { color: /_Color\.jpg$/i, normal: /_NormalGL\.jpg$/i, roughness: /_Roughness\.jpg$/i };
+const MAPS = { color: /_Color\.jpg$/i, normal: /_NormalGL\.jpg$/i, roughness: /_Roughness\.jpg$/i, opacity: /_Opacity\.jpg$/i };
+const DEFAULT_MAPS = ['color', 'normal', 'roughness'];
+const mapsOf = e => (Array.isArray(e.maps) ? e.maps.filter(k => MAPS[k]) : DEFAULT_MAPS);
 
 async function readLibrary() {
   return JSON.parse(await fs.readFile(path.join(ROOT, 'library.json'), 'utf8'));
@@ -23,21 +26,22 @@ async function downloadable(id) {
 
 const exists = p => fs.access(p).then(() => true, () => false);
 
-// Library entries with `available`: the three maps are on disk (bundled or downloaded).
+// Library entries with `available`: all maps of the set are on disk (bundled or downloaded).
 async function libraryStatus() {
   const lib = await readLibrary();
   return Promise.all(lib.map(async e => {
     const dir = path.join(ROOT, e.bundled ? 'sets' : 'lib', e.id);
-    const ok = await Promise.all(Object.keys(MAPS).map(f => exists(path.join(dir, f + '.jpg'))));
+    const ok = await Promise.all(mapsOf(e).map(f => exists(path.join(dir, f + '.jpg'))));
     return { ...e, available: ok.every(Boolean) };
   }));
 }
 
-// The three maps from a zip buffer → { color, normal, roughness } buffers.
-function mapsFromZip(buf) {
+// The maps from a zip buffer → { color, normal, roughness } buffers (or the keys asked for).
+function mapsFromZip(buf, keys = DEFAULT_MAPS) {
   const entries = listZip(buf);
   const out = {};
-  for (const [key, re] of Object.entries(MAPS)) {
+  for (const key of keys) {
+    const re = MAPS[key];
     const e = entries.find(x => re.test(x.name) && !x.name.includes('/') && !x.name.includes('\\'));
     if (!e) throw new Error('missing ' + key);
     out[key] = readEntry(buf, e, 16 * 1024 * 1024);
@@ -77,7 +81,7 @@ async function fetchSet(id, { log = () => {} } = {}) {
     const asset = e.source.ambientcg;
     log(`${id}: downloading ${asset}_1K-JPG.zip`);
     const buf = await download(`https://ambientcg.com/get?file=${asset}_1K-JPG.zip`);
-    const maps = mapsFromZip(buf);
+    const maps = mapsFromZip(buf, mapsOf(e));
     const dir = path.join(LIB_DIR, id);
     await fs.mkdir(dir, { recursive: true });
     for (const [k, data] of Object.entries(maps)) await fs.writeFile(path.join(dir, k + '.jpg'), data);

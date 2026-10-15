@@ -2,8 +2,8 @@
 // Usage: npm run textures [-- --kind floor|wall|rough|furniture] [-- --id oakPlanks] [-- --facade]
 const { fetchSet, libraryStatus } = require('../server/textureFetch');
 
-// The building facade sets (FACADE_SETS in public/js/bld3d/facadeTex.js).
-const FACADE = ['travertine', 'marbleBlack', 'concreteFloor', 'woodPanels'];
+// The building facade and site sets (FACADE_SETS and SITE_SETS in public/js/bld3d/facadeTex.js).
+const FACADE = ['travertine', 'marbleBlack', 'concreteFloor', 'woodPanels', 'lawnGrass', 'asphaltRoad', 'paversWave', 'leaves', 'bark'];
 
 function arg(name) {
   const i = process.argv.indexOf('--' + name);

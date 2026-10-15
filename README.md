@@ -44,10 +44,12 @@ A web app for custom furniture: the client plans a whole apartment (or picks one
 - **Apartment templates:** 📁 Projects → *Apartment from a template* — *khrushchevka* (series 1-447, 1-464, II-29), *improved layout* (1-528, II-49, II-57, 121) and *new build* (studio, euro one-bedroom, 2–4 rooms), empty or furnished (`apartments.json`, `GET /api/apartments`).
 - **Kits:** 🎲 *Furnish* places a ready-made kit by the room purpose (bedroom, kids, living, kitchen, study, hall, bathroom…) — for one room or the whole apartment, a new variant every time; what did not fit is listed.
 - **Finish levels:** rough (concrete, screed), pre-finish (white box) and finished (as chosen) — for the whole apartment, switched in the 3D HUD.
-- **Light:** ☀ day / 🌇 sunset / 🌙 night with a smooth transition, 💡 (key `L`) — lamps on / off; the walker's room gets the sun and shadows.
+- **Light:** ☀ day / 🌇 sunset / 🌙 night with a smooth transition (key `N` cycles them), 💡 (key `L`) — lamps on / off; the walker's room gets the sun and shadows.
+- **Photo textures notice:** when *Photo* is chosen, a note in the 3D view shows the loading progress (≈ 12 MB, n / total) and then "applied"; if the chosen finish needs a library set that is not on disk yet, the note offers **Download** / **Not now** — nothing is downloaded without the click.
+- **Smooth on any device:** the 3D views draw only when something changes (0 frames when still), pause in a hidden tab, off screen or under a dialog; the quality tier (low / mid / high: pixel ratio, shadow maps, AO, antialiasing, anisotropy) is picked from the CPU cores, memory and GPU name and stepped down when the frame rate drops (*3D quality*: Auto / High / Economy); textures are decoded off the main thread; walking, only the room you are in and the rooms behind open doors are drawn.
 - **Texture library:** 41 CC0 sets (floor, wall, rough, furniture) from ambientCG, listed in `public/textures/library.json`; a set is downloaded on demand when first chosen, or all at once with `npm run textures` (`-- --kind floor`, `-- --id oakPlanks`).
 - **3D apartment:** every room in one scene, one door per partition, walking from room to room (doors open by themselves, the doorway is checked for clearance).
-- **New-building showcase** `/building.html` (🏢 in the header): a 12-storey demo building (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Facade with floors coloured by status (free / booked / sold), filters (rooms, area, price, free only), the floor plan with a tooltip, the apartment card (plan with furniture, rooms, area, price per m²). From the card: **🚶 Walk through in 3D** — the floor in 3D with the shared HUD (overview / walk, day / sunset / night, 💡, finish levels, fullscreen): the chosen apartment in full detail, the other apartments, the corridor and the core as a light shell; the walk starts at the entrance door; nothing is saved. **📐 Open in the planner** copies the apartment into a new project; **✉ Leave a request** sends an order with the apartment; the manager sets the apartment status in the order card (`PATCH /api/buildings/:id/apartments/:no`, admin token; statuses are kept in `data/`).
+- **New-building showcase** `/building.html` (🏢 in the header): a 12-storey demo building (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). The main view is the **3D building** made from the real apartment plans (`facade.js` → `bld3d/exterior.js`): porcelain facade, frames, fins, a glazed ground floor with a canopy over the entrance, day / evening / night, a slow orbit; hover a window — the apartment tooltip, click — its card, double click — fly to the floor; windows tinted by status or rooms, filters dim the rest. Around it the **site** (`bld3d/site.js`): lawn, paths, street, parking with cars, playground, benches, lamps lit at night, ~40 trees. Also: filters (rooms, area, price, free only), a compact floor scheme, the floor plan with a tooltip, the apartment card (plan with furniture, rooms, area, price per m²). **🚶 Walk from the street** — first person on the site (the house, trees, benches and cars stop you) up to the entrance doors → the **lobby** (concierge, mailboxes, locked shops "for rent") → the **lift** (`E` at its doors — a panel with floors 1–12) or the **stairs** (± 1 floor) → the floor **corridor** with numbered doors: free and booked apartments can be entered (the apartment is swapped behind a short fade), sold ones stay locked; out through the lobby doors — back on the porch. From the card: **🚶 Walk through in 3D** — the same floor, starting at the apartment's entrance door (`/?embed=floor&b=…&apt=…`; a floor or the lobby: `/?embed=building&b=…&floor=N`); nothing is saved. **📐 Open in the planner** copies the apartment into a new project; **✉ Leave a request** sends an order with the apartment; the manager sets the apartment status in the order card (`PATCH /api/buildings/:id/apartments/:no`, admin token; statuses are kept in `data/`).
 - **Languages:** EN / UZ / RU. Projects are kept in `localStorage`.
 
 ### Tech stack
@@ -85,6 +87,9 @@ Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/
 | Mobile | Move / look | joystick / swipe |
 | Apartment | Layout (move rooms) | ✥, `Esc` — exit |
 | 3D | Lamps on / off | `L` or 💡 |
+| 3D | Day → sunset → night | `N` |
+| Floor in 3D | Neighbour's door / lift / stairs | `E` at the door (sold — locked); lift panel: floor buttons, `Esc` — close |
+| Showcase 3D | Walk from the street | 🚶 button, `W A S D` / arrows, mouse (click to capture), touch: drag + ▲ ▼; `Esc` — back to the orbit |
 | 3D | Day / sunset / night, finish level | HUD buttons ☀ 🌇 🌙, Rough / Pre-finish / Finished |
 
 ### Project structure
@@ -104,8 +109,9 @@ public/css/          styles
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (undo), align, ruler, projects (rooms, tabs), projectsDialog, obstacles, catalog, zones, passages, templates,
                      snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin,
-                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d
-public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
+                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d, facade
+public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d, perf
+public/js/bld3d/     showcase 3D: exterior (building), site (grounds), streetWalk (first person outside)
 public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos, lib/ — downloaded library sets (not in git)
 test/                unit tests (node:test): npm test
 ```
@@ -160,10 +166,12 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
 - **Kvartira shablonlari:** 📁 Loyihalar → *Shablondan kvartira* — *xrushchyovka* (1-447, 1-464, II-29 seriyalari), *yaxshilangan planirovka* (1-528, II-49, II-57, 121) va *yangi bino* (studiya, yevro-2, 2–4 xonali), bo‘sh yoki mebel bilan (`apartments.json`, `GET /api/apartments`).
 - **To‘plamlar:** 🎲 *Jihozlash* xona vazifasiga ko‘ra tayyor to‘plamni joylaydi (yotoqxona, bolalar xonasi, zal, oshxona, kabinet, dahliz, hammom…) — bitta xona yoki butun kvartira, har safar yangi variant; sig‘maganlari ro‘yxatda ko‘rsatiladi.
 - **Pardoz darajalari:** qora (beton, styajka), oldindan pardoz (white box) va toza (tanlanganidek) — butun kvartira uchun, 3D HUD’da almashtiriladi.
-- **Yorug‘lik:** ☀ kun / 🌇 shom / 🌙 tun silliq o‘tish bilan, 💡 (`L` tugmasi) — chiroqlarni yoqish / o‘chirish; yuruvchi turgan xonaga quyosh va soyalar beriladi.
+- **Yorug‘lik:** ☀ kun / 🌇 shom / 🌙 tun silliq o‘tish bilan (`N` tugmasi navbat bilan almashtiradi), 💡 (`L` tugmasi) — chiroqlarni yoqish / o‘chirish; yuruvchi turgan xonaga quyosh va soyalar beriladi.
+- **Foto-teksturalar haqida xabar:** *Foto* tanlanganda 3D ko‘rinishda yuklanish jarayoni (≈ 12 MB, n / jami), so‘ng «qo‘llandi» ko‘rsatiladi; tanlangan pardoz uchun diskda yo‘q kutubxona to‘plami kerak bo‘lsa — **Yuklab olish** / **Hozir emas** tugmalari; bosilmasa hech narsa yuklanmaydi.
+- **Har qanday qurilmada silliq:** 3D faqat nimadir o‘zgarganda chiziladi (tinch holatda 0 kadr), yashirin vkladka, ekrandan tashqarida yoki dialog ostida to‘xtaydi; sifat darajasi (past / o‘rta / yuqori: piksel zichligi, soya xaritalari, AO, silliqlash, anizotropiya) protsessor yadrolari, xotira va GPU nomi bo‘yicha tanlanadi va kadrlar tushsa pasaytiriladi (*3D sifati*: Avto / Yuqori / Tejamkor); teksturalar asosiy oqimdan tashqarida ochiladi; sayrda faqat turgan xona va ochiq eshiklar ortidagi xonalar chiziladi.
 - **Teksturalar kutubxonasi:** ambientCG’dan 41 ta CC0 to‘plam (pol, devor, qora pardoz, mebel), ro‘yxati `public/textures/library.json`da; to‘plam birinchi tanlanganda yuklanadi yoki hammasi birdan `npm run textures` bilan (`-- --kind floor`, `-- --id oakPlanks`).
 - **3D kvartira:** barcha xonalar bitta sahnada, har bir to‘siqda bitta eshik, xonadan xonaga yurish (eshiklar o‘zi ochiladi, eshik o‘tish joyi tekshiriladi).
-- **Yangi bino vitrinasi** `/building.html` (sarlavhadagi 🏢): 12 qavatli demo bino (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Holat bo‘yicha bo‘yalgan qavatli fasad (bo‘sh / band / sotilgan), filtrlar (xonalar, maydon, narx, faqat bo‘shlari), izohli qavat rejasi, kvartira kartochkasi (mebelli reja, xonalar, maydon, 1 m² narxi). Kartochkadan: **🚶 3D’da aylanib chiqish** — umumiy HUD bilan qavat 3D’da (ko‘rib chiqish / sayr, kun / shom / tun, 💡, pardoz darajalari, to‘liq ekran): tanlangan kvartira to‘liq detallarda, boshqa kvartiralar, yo‘lak va lift bloki yengil qobiq sifatida; sayr kirish eshigidan boshlanadi; hech narsa saqlanmaydi. **📐 Rejalashtiruvchida ochish** kvartirani yangi loyihaga nusxalaydi; **✉ Ariza qoldirish** kvartira bilan buyurtma yuboradi; menejer buyurtma kartochkasida kvartira holatini o‘zgartiradi (`PATCH /api/buildings/:id/apartments/:no`, admin token; holatlar `data/`da saqlanadi).
+- **Yangi bino vitrinasi** `/building.html` (sarlavhadagi 🏢): 12 qavatli demo bino (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Holat bo‘yicha bo‘yalgan qavatli fasad (bo‘sh / band / sotilgan), filtrlar (xonalar, maydon, narx, faqat bo‘shlari), izohli qavat rejasi, kvartira kartochkasi (mebelli reja, xonalar, maydon, 1 m² narxi). Asosiy ko‘rinish — haqiqiy kvartira rejalaridan qurilgan **3D bino** (`facade.js` → `bld3d/exterior.js`): keramogranit fasad, romlar, lamellar, kirish ustida soyabonli oynali birinchi qavat, kun / kechqurun / tun, sekin aylanish; derazaga olib borish — kvartira izohi, bosish — kartochka, ikki marta bosish — qavatga uchish; derazalar holat yoki xonalar bo‘yicha bo‘yaladi, filtrlar qolganini xiralashtiradi. Atrofida **hovli** (`bld3d/site.js`): maysazor, yo‘laklar, ko‘cha, mashinali avtoturargoh, bolalar maydonchasi, skameykalar, tunda yonadigan chiroqlar, ~40 daraxt. **🚶 Ko‘chadan sayr** — hovlida birinchi shaxs (bino, daraxtlar, skameykalar, mashinalar to‘sadi) podyezd eshigigacha → **lobbi** (konsyerj, pochta qutilari, yopiq «ijara» do‘konlari) → **lift** (eshigida `E` — 1–12 qavat tugmalari) yoki **zinapoya** (± 1 qavat) → raqamli eshiklari bor qavat **yo‘lagi**: bo‘sh va band qilingan kvartiralarga kirish mumkin (qisqa qorong‘ilashuv bilan almashtiriladi), sotilganlari yopiq; lobbi eshigidan chiqish — yana ayvonda. Kartochkadan: **🚶 3D’da aylanib chiqish** — o‘sha qavat, kvartiraning kirish eshigidan (`/?embed=floor&b=…&apt=…`; qavat yoki lobbi: `/?embed=building&b=…&floor=N`); hech narsa saqlanmaydi. **📐 Rejalashtiruvchida ochish** kvartirani yangi loyihaga nusxalaydi; **✉ Ariza qoldirish** kvartira bilan buyurtma yuboradi; menejer buyurtma kartochkasida kvartira holatini o‘zgartiradi (`PATCH /api/buildings/:id/apartments/:no`, admin token; holatlar `data/`da saqlanadi).
 - **Tillar:** EN / UZ / RU. Loyihalar `localStorage`da saqlanadi.
 
 ### Texnologiyalar
@@ -201,6 +209,9 @@ http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localho
 | Mobil | Yurish / qarash | joystik / ekranni surish |
 | Kvartira | Planirovka (xonalarni surish) | ✥, `Esc` — chiqish |
 | 3D | Chiroqlarni yoqish / o‘chirish | `L` yoki 💡 |
+| 3D | Kun → shom → tun | `N` |
+| Qavat 3D’da | Qo‘shni eshigi / lift / zinapoya | eshik oldida `E` (sotilgan — yopiq); lift paneli: qavat tugmalari, `Esc` — yopish |
+| Vitrina 3D | Ko‘chadan sayr | 🚶 tugmasi, `W A S D` / strelkalar, sichqoncha (bosish — ushlash), sensor: surish + ▲ ▼; `Esc` — aylanishga qaytish |
 | 3D | Kun / shom / tun, pardoz darajasi | HUD tugmalari ☀ 🌇 🌙, Qora / Oldindan / Toza |
 
 ### Loyiha tuzilmasi
@@ -221,8 +232,9 @@ public/css/          uslublar
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (bekor qilish), align, ruler, projects (xonalar, yorliqlar), projectsDialog, obstacles, catalog, zones, passages, templates,
                      snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin,
-                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d
-public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
+                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d, facade
+public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d, perf
+public/js/bld3d/     showcase 3D: exterior (building), site (grounds), streetWalk (first person outside)
 public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar, lib/ — yuklab olingan kutubxona to‘plamlari (git’da emas)
 test/                unit testlar (node:test): npm test
 ```
@@ -277,10 +289,12 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
 - **Шаблоны квартир:** 📁 Проекты → *Квартира из шаблона* — *хрущёвка* (серии 1-447, 1-464, II-29), *улучшенная планировка* (1-528, II-49, II-57, 121) и *новостройка* (студия, евро-2, 2–4 комнаты), пустые или с мебелью (`apartments.json`, `GET /api/apartments`).
 - **Наборы:** 🎲 *Обставить* расставляет готовый набор по назначению комнаты (спальня, детская, зал, кухня, кабинет, прихожая, ванная…) — для одной комнаты или всей квартиры, каждый раз новый вариант; что не поместилось, перечисляется.
 - **Уровни отделки:** черновая (бетон, стяжка), предчистовая (white box) и чистовая (как выбрано) — для всей квартиры, переключаются в HUD 3D.
-- **Свет:** ☀ день / 🌇 закат / 🌙 ночь с плавным переходом, 💡 (клавиша `L`) — включить / выключить лампы; комната, где стоит гуляющий, получает солнце и тени.
+- **Свет:** ☀ день / 🌇 закат / 🌙 ночь с плавным переходом (клавиша `N` — по кругу), 💡 (клавиша `L`) — включить / выключить лампы; комната, где стоит гуляющий, получает солнце и тени.
+- **Уведомление о фото-текстурах:** при выборе *Фото* в 3D видна плашка с прогрессом загрузки (≈ 12 МБ, n / всего), затем «применены»; если выбранной отделке нужен набор библиотеки, которого ещё нет на диске, — кнопки **Скачать** / **Не сейчас**; без нажатия ничего не скачивается.
+- **Плавно на любом устройстве:** 3D рисуется только когда что-то меняется (в покое 0 кадров), останавливается во скрытой вкладке, вне экрана и под диалогом; уровень качества (экономный / средний / высокий: плотность пикселей, карты теней, AO, сглаживание, анизотропия) выбирается по ядрам процессора, памяти и имени видеокарты и снижается при падении FPS (*Качество 3D*: Авто / Высокое / Экономное); текстуры декодируются вне главного потока; в прогулке рисуются только комната, где вы стоите, и комнаты за открытыми дверями.
 - **Библиотека текстур:** 41 набор CC0 (пол, стены, черновая, мебель) с ambientCG, список в `public/textures/library.json`; набор скачивается при первом выборе или все сразу командой `npm run textures` (`-- --kind floor`, `-- --id oakPlanks`).
 - **3D-квартира:** все комнаты в одной сцене, одна дверь на перегородку, прогулка из комнаты в комнату (двери открываются сами, проём проверяется на ширину прохода).
-- **Витрина новостройки** `/building.html` (🏢 в шапке): демо-дом на 12 этажей (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Фасад с этажами в цветах статуса (свободна / бронь / продана), фильтры (комнаты, площадь, цена, только свободные), план этажа с подсказкой, карточка квартиры (план с мебелью, комнаты, площадь, цена за м²). Из карточки: **🚶 Пройтись в 3D** — этаж в 3D с общим HUD (обзор / прогулка, день / закат / ночь, 💡, уровни отделки, весь экран): выбранная квартира в полной детализации, остальные квартиры, коридор и ядро — лёгкой оболочкой; прогулка начинается у входной двери; ничего не сохраняется. **📐 Открыть в планировщике** копирует квартиру в новый проект; **✉ Оставить заявку** отправляет заявку с квартирой; менеджер меняет статус квартиры в карточке заявки (`PATCH /api/buildings/:id/apartments/:no`, токен администратора; статусы хранятся в `data/`).
+- **Витрина новостройки** `/building.html` (🏢 в шапке): демо-дом на 12 этажей (`buildings/novostroyka-12.json`, `node scripts/gen-building.mjs`). Фасад с этажами в цветах статуса (свободна / бронь / продана), фильтры (комнаты, площадь, цена, только свободные), план этажа с подсказкой, карточка квартиры (план с мебелью, комнаты, площадь, цена за м²). Главный экран — **3D-дом** по реальным планировкам квартир (`facade.js` → `bld3d/exterior.js`): керамогранитный фасад, рамы, ламели, витражный первый этаж с козырьком над входом, день / вечер / ночь, медленный облёт; наведение на окно — подсказка квартиры, клик — карточка, двойной клик — подлёт к этажу; окна окрашены по статусу или комнатам, фильтры гасят остальные. Вокруг — **участок** (`bld3d/site.js`): газон, дорожки, улица, парковка с машинами, детская площадка, скамейки, фонари (светят ночью), ~40 деревьев. **🚶 Прогулка от улицы** — от первого лица по участку (дом, деревья, скамейки, машины не пускают) до дверей подъезда → **лобби** (консьерж, почтовые ящики, закрытые помещения «Аренда») → **лифт** (`E` у дверей — панель этажей 1–12) или **лестница** (± 1 этаж) → **коридор** этажа с номерами на дверях: в свободные и забронированные квартиры можно зайти (квартира меняется за короткое затемнение), проданные заперты; выход через двери лобби — снова на крыльце. Из карточки: **🚶 Пройтись в 3D** — тот же этаж, старт у входной двери квартиры (`/?embed=floor&b=…&apt=…`; этаж или лобби: `/?embed=building&b=…&floor=N`); ничего не сохраняется. **📐 Открыть в планировщике** копирует квартиру в новый проект; **✉ Оставить заявку** отправляет заявку с квартирой; менеджер меняет статус квартиры в карточке заявки (`PATCH /api/buildings/:id/apartments/:no`, токен администратора; статусы хранятся в `data/`).
 - **Языки:** EN / UZ / RU. Проекты хранятся в `localStorage`.
 
 ### Стек
@@ -318,6 +332,9 @@ npm start
 | Мобильные | Ходьба / взгляд | джойстик / свайп |
 | Квартира | Планировка (двигать комнаты) | ✥, `Esc` — выход |
 | 3D | Включить / выключить лампы | `L` или 💡 |
+| 3D | День → закат → ночь | `N` |
+| Этаж в 3D | Дверь соседа / лифт / лестница | `E` у двери (продана — заперта); панель лифта: кнопки этажей, `Esc` — закрыть |
+| Витрина 3D | Прогулка от улицы | кнопка 🚶, `W A S D` / стрелки, мышь (клик — захват), тач: свайп + ▲ ▼; `Esc` — назад к облёту |
 | 3D | День / закат / ночь, уровень отделки | кнопки HUD ☀ 🌇 🌙, Черновая / Предчистовая / Чистовая |
 
 ### Структура проекта
@@ -338,8 +355,9 @@ public/css/          стили
 public/js/           2D: state, geometry, openings, validate, renderer, interaction, autoplace, ui, i18n, storage, order,
                      history (отмена), align, ruler, projects (комнаты, вкладки), projectsDialog, obstacles, catalog, zones, passages, templates,
                      snapshot, materials, matPanel, style, stylePanel, config, pricing, pricePanel, nicheTool, compare, drawing, admin,
-                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d
-public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d
+                     apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d, facade
+public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d, perf
+public/js/bld3d/     showcase 3D: exterior (building), site (grounds), streetWalk (first person outside)
 public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото, lib/ — скачанные наборы библиотеки (не в git)
 test/                модульные тесты (node:test): npm test
 ```

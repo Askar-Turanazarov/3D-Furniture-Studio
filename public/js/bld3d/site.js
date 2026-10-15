@@ -54,6 +54,29 @@ const asphalt = rnd => canvasTexture(256, 256, (g, w, h) => {
   }
 });
 
+// A big lawn must not show its tiles: the texture is mixed with itself at a second scale and offset, and large
+// soft patches (≈ 50 m) shift its tone — drier, greener — so no grid is seen from afar. Shader only, no new files.
+function breakTiling(mat) {
+  mat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+float lawnHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float lawnNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(lawnHash(i), lawnHash(i + vec2(1, 0)), f.x), mix(lawnHash(i + vec2(0, 1)), lawnHash(i + vec2(1, 1)), f.x), f.y);
+}`)
+      .replace('#include <map_fragment>', `#ifdef USE_MAP
+  vec4 lawnA = texture2D(map, vMapUv);
+  vec4 lawnB = texture2D(map, vMapUv * 0.37 + vec2(0.31, 0.73));
+  vec4 sampledDiffuseColor = mix(lawnA, lawnB, smoothstep(0.3, 0.7, lawnNoise(vMapUv * 0.13 + 7.0)));
+  float lawnN = lawnNoise(vMapUv * 0.045) * 0.65 + lawnNoise(vMapUv * 0.17 + 3.0) * 0.35;
+  sampledDiffuseColor.rgb *= mix(vec3(1.06, 1.0, 0.78), vec3(0.86, 1.02, 0.9), lawnN);
+  diffuseColor *= sampledDiffuseColor;
+#endif`);
+  };
+  mat.customProgramCacheKey = () => 'lawn';
+}
+
 // Planar UVs (x, z) in metres / tile for flat boxes.
 // World UVs by face direction: tops from above, the sides of steps and curbs from the side (not stretched).
 function planarUV(geo, tile) {
@@ -101,6 +124,8 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
   // Lawn under everything (a big plane, fog hides its edge).
   const lawn = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshStandardMaterial({ map: grass(rnd), roughness: 1 }));
   lawn.material.map.repeat.set(200, 200);
+  breakTiling(lawn.material);
+  mats.lawn = lawn.material;      // for the photo (facadeTex.js)
   lawn.rotation.x = -Math.PI / 2;
   lawn.receiveShadow = true;
   group.add(lawn);

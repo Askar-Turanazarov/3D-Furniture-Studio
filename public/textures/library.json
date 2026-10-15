@@ -85,7 +85,7 @@
     "name": { "ru": "Газон", "uz": "Maysazor", "en": "Lawn" } },
   { "id": "asphaltRoad", "kind": "site", "tile": 2, "source": { "ambientcg": "Asphalt032" }, "bundled": false, "mb": 8.2,
     "name": { "ru": "Асфальт", "uz": "Asfalt", "en": "Asphalt" } },
-  { "id": "paversWave", "kind": "site", "tile": 1.2, "source": { "ambientcg": "PavingStones099" }, "bundled": false, "mb": 7.2,
+  { "id": "paversWave", "kind": "site", "tile": 1.6, "source": { "ambientcg": "PavingStones099" }, "bundled": false, "mb": 7.2,
     "name": { "ru": "Тротуарная плитка", "uz": "Trotuar plitkasi", "en": "Paving stones" } },
   { "id": "leaves", "kind": "site", "tile": 1, "maps": ["color", "opacity"], "source": { "ambientcg": "LeafSet009" }, "bundled": false, "mb": 5,
     "name": { "ru": "Листья", "uz": "Barglar", "en": "Leaves" } },

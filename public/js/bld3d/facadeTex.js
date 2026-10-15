@@ -114,6 +114,8 @@ export const FACADE_SETS = { wall: 'travertine', base: 'marbleBlack', concrete: 
 export const SITE_SETS = { lawn: 'lawnGrass', road: 'asphaltRoad', pave: 'paversWave', leaves: 'leaves', bark: 'bark' };
 const ALL_SETS = [...Object.values(FACADE_SETS), ...Object.values(SITE_SETS)];
 
+const plain = set => ({ map: set.color, normalMap: set.normal, roughnessMap: set.roughness });
+
 // Which library sets are on disk. A static host has only library.json: there nothing can be downloaded.
 async function library() {
   try {
@@ -191,6 +193,8 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
       return false;
     }
   }
+  const siteSets = Object.fromEntries(await Promise.all(Object.entries(SITE_SETS).filter(([k]) => k !== 'leaves')
+    .map(async ([k, id]) => [k, await libSet(list.find(e => e.id === id))])));
   const opt = { anisotropy };
   const swap = (m, maps, extra = {}, repeat = null) => {
     for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.dispose();
@@ -202,6 +206,24 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
     m.color.set('#ffffff');
     Object.assign(m, extra);
     m.needsUpdate = true;
+  };
+  // The ground: lawn, asphalt and paving photos at their real size (UVs: the lawn plane 800 m, paving 1.6 m and
+  // asphalt 4 m per unit, see site.js).
+  const ground = () => {
+    const g = siteSets;
+    const rep = (set, unit) => [unit / set.tile, unit / set.tile];
+    if (g.lawn && site.lawn) {
+      swap(site.lawn, plain(g.lawn), { roughness: 1 }, rep(g.lawn, 800));
+      site.lawn.color.setRGB(1.45, 1.42, 1.1);   // the photo is a dark, shaded turf: lift it to a sunlit lawn
+    }
+    if (g.road && site.road) {
+      swap(site.road, plain(g.road), { roughness: 1 }, rep(g.road, 4));
+      site.road.color.set('#626468');      // the photo is a light, worn asphalt: fresh asphalt is darker
+    }
+    if (g.pave && site.pave) {
+      swap(site.pave, plain(g.pave), { roughness: 1 }, rep(g.pave, 1.6));
+      site.pave.color.set('#f4eee4');      // warm grey concrete pavers
+    }
   };
 
   if (fromLib) {
@@ -217,7 +239,6 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
     swap(mats.base, base, { roughness: 0.8, metalness: 0.05 });
     if (site.granite) swap(site.granite, base, { roughness: 0.85 });
     // Concrete and timber: the photo as it is, repeated to its real size over the world UVs.
-    const plain = set => ({ map: set.color, normalMap: set.normal, roughnessMap: set.roughness });
     const size = (uv, tile) => [uv[0] / tile, uv[1] / tile];
     const conc = plain(sets.concrete), cRep = size(PHOTO_UV.concrete, sets.concrete.tile);
     for (const m of [mats.band, site.curb].filter(Boolean)) swap(m, conc, { roughness: 1 }, cRep);
@@ -227,6 +248,7 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
     }
     const woodRep = size(PHOTO_UV.wood, sets.wood.tile);
     for (const m of [mats.wood, site.wood].filter(Boolean)) swap(m, plain(sets.wood), { roughness: 1 }, woodRep);
+    ground();
     return 'library';
   }
 
@@ -247,5 +269,6 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
   const woodMaps = { map: tinted(wood, '#e2b98f', small ? 512 : 1024) };
   for (const m of [mats.wood, site.wood].filter(Boolean)) swap(m, woodMaps, { roughness: 0.55 });
   if (site.granite) swap(site.granite, base, { roughness: 0.45 });
+  ground();
   return 'bundled';
 }

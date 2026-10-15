@@ -53,13 +53,18 @@ test('ceiling fixtures light the floor evenly, not a flood', () => {
   }
 });
 
-test('spots are real spots: narrow cones over the housings, nothing past the wall', () => {
+test('spots are real downlights: housings near the walls, a soft spill, nothing past the wall', () => {
   const s = fixtureSpec('spots', 5.5, 4.3, 2.95);
   assert.equal(s.lights.length, 9);
   assert.deepEqual(s.lights.map(l => [l.x, l.z]), s.discs.map(d => [d.x, d.z]));
-  for (const l of s.lights) assert.ok(l.angle <= 0.6 && l.penumbra <= 0.6 && l.distance > 0);
-  // 1 m behind the wall (the next room) a spot gives almost nothing.
-  assert.ok(floorLux(s, -1, 4.3 / 2) < 0.1 * FLOOR_LUX);
+  for (const l of s.lights) assert.ok(l.angle <= 0.95 && l.penumbra < 1 && l.distance > 0 && l.clip);
+  // The outer housings sit ≈ 0.6 m off the walls: the cone reaches a wall ≈ 0.5 m under the ceiling.
+  const nearest = Math.min(...s.lights.map(l => l.x));
+  assert.ok(nearest > 0.4 && nearest <= 0.6, nearest);
+  assert.ok(nearest / Math.tan(s.lights[0].angle) < 0.6);
+  // 1 m behind the wall (the next room) a spot gives nothing: the 3D clips it to its room.
+  assert.equal(floorLux(s, -1, 4.3 / 2), 0);
+  assert.equal(floorLux(fixtureSpec('spots', 4, 3, 2.7, { merged: true }), 4.5, 1.5), 0);
 });
 
 test('merged spots keep the light output of the grid', () => {

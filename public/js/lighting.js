@@ -51,7 +51,11 @@ export const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
 // Floor illuminance under a fixture with the lamps on (the scale of the 3D lights: candela / m²). The old lights
 // gave 5–11 here and washed the room out; ≈ 1.6 keeps the walls in their colour at the ACES exposure of the scene.
 export const FLOOR_LUX = 1.6;
-const SPOT = { angle: 0.55, penumbra: 0.55 };         // ≈ 31° half-angle (a 60° downlight): pools, not a flood
+// A recessed downlight: a bright core straight down and a wide soft spill, so on a wall ~0.6 m away the scallop
+// starts ≈ 0.5 m under the ceiling, as in a real room. The light stays in its room (the 3D clips it, see clip).
+const SPOT = { angle: 0.9, penumbra: 0.75 };
+const SPOT_WALL = 0.6;          // housings this far from the walls (less in a small room)
+const CLIP = 0.09;              // the room rectangle of a spot reaches this far into the walls (half a partition)
 const PANEL_MAX = { w: 1.2, d: 0.6 };
 
 /**
@@ -69,16 +73,19 @@ export function fixtureSpec(ceiling, L, W, H, { merged = false } = {}) {
   }
   if (c === 'spots') {
     const nx = L > 4.2 ? 3 : 2, nz = W > 3.6 ? 3 : 2, y = H - 0.02, h = y;
+    // Evenly from SPOT_WALL off one wall to SPOT_WALL off the other.
+    const at = (len, n) => { const m = Math.min(SPOT_WALL, len / 4); return Array.from({ length: n }, (_, i) => m + (len - 2 * m) * i / (n - 1)); };
     const discs = [];
-    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) discs.push({ x: L * (i + 0.5) / nx, z: W * (j + 0.5) / nz });
-    const one = FLOOR_LUX * h * h * 0.85;                // the pools overlap a little: a touch less each
-    const distance = h / Math.cos(SPOT.angle) * 1.6;    // fades out below the floor; the narrow cone stays in the room
+    for (const x of at(L, nx)) for (const z of at(W, nz)) discs.push({ x, z });
+    const one = FLOOR_LUX * h * h * 0.55;                // the wide spills overlap: less each
+    const distance = h / Math.cos(SPOT.angle) * 1.3;    // fades out past the far floor corner
+    const clip = { x0: -CLIP, z0: -CLIP, x1: L + CLIP, z1: W + CLIP };
     if (merged) {
       // Same light output: n · I · 2π(1 − cos a) = I₁ · 2π(1 − cos A).
       const A = 1.1, power = discs.length * one * (1 - Math.cos(SPOT.angle)) / (1 - Math.cos(A));
-      return { lights: [{ type: 'spot', x: L / 2, y, z: W / 2, power, angle: A, penumbra: 1, distance: h / Math.cos(A) * 1.1 }], discs };
+      return { lights: [{ type: 'spot', x: L / 2, y, z: W / 2, power, angle: A, penumbra: 1, distance: h / Math.cos(A) * 1.1, clip }], discs };
     }
-    return { lights: discs.map(d => ({ type: 'spot', x: d.x, y, z: d.z, power: one, ...SPOT, distance })), discs };
+    return { lights: discs.map(d => ({ type: 'spot', x: d.x, y, z: d.z, power: one, ...SPOT, distance, clip })), discs };
   }
   if (c === 'panel') {
     const w = Math.min(PANEL_MAX.w, L * 0.4), d = Math.min(PANEL_MAX.d, W * 0.3), y = H - 0.025, h = y;
@@ -88,12 +95,13 @@ export function fixtureSpec(ceiling, L, W, H, { merged = false } = {}) {
   return { lights: [], discs: [] };
 }
 
-/** Floor illuminance at (x, z) from a fixture spec (inverse square, cosine, spot cone, distance cut-off). */
+/** Floor illuminance at (x, z) from a fixture spec (inverse square, cosine, spot cone, distance cut-off, room clip). */
 export function floorLux(spec, x, z) {
   let e = 0;
   for (const l of spec.lights) {
     const dx = x - l.x, dz = z - l.z, h = l.y, d2 = dx * dx + dz * dz + h * h, d = Math.sqrt(d2), cos = h / d;
     let k = 1;
+    if (l.clip && (x < l.clip.x0 || x > l.clip.x1 || z < l.clip.z0 || z > l.clip.z1)) continue;
     if (l.type === 'spot') {
       const a = Math.acos(cos), inner = l.angle * (1 - l.penumbra);
       k = a >= l.angle ? 0 : a <= inner ? 1 : (l.angle - a) / (l.angle - inner);

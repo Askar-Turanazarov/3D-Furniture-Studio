@@ -18,6 +18,7 @@ import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoRea
 import { SETTINGS, PREFS, readPref, savePref, tierFor, governor } from './perf.js';
 import { styleOf } from '../style.js';
 import { footprints, contactShadows, cornerShade } from './softShadows.js';
+import { updateSpotClip } from './spotClip.js';
 import { toast } from '../ui.js';
 import { compose, savePicture, canShareFiles } from '../snapshot.js';
 
@@ -493,6 +494,7 @@ function setSoft(on) {
 let drawFailed = false;
 function draw() {
   try {
+    updateSpotClip(scene);
     renderer.render(scene, camera);
   } catch (err) {
     if (drawFailed) return;

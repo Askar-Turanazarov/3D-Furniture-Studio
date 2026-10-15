@@ -5,6 +5,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { getMats } from './textures3d.js';
 import { lightingOf, targetsFor, easeInOut, TWEEN_SEC, fixtureSpec } from '../lighting.js';
+import { patchSpotClip } from './spotClip.js';
+
+patchSpotClip();   // spots light only their own room (before any shader is compiled)
 
 export { SCENES, CEILINGS, DEFAULT_LIGHTING, lightingOf } from '../lighting.js';
 
@@ -56,6 +59,7 @@ function addSpec(g, spec, main) {
     else if (l.type === 'spot') {
       light = new THREE.SpotLight('#ffe7c4', 0, l.distance, l.angle, l.penumbra, 2);
       light.target.position.set(l.x, 0, l.z);
+      light.userData.clip = l.clip;
       g.add(light.target);
     } else {
       light = new THREE.RectAreaLight('#fff1dc', 0, l.w, l.d);

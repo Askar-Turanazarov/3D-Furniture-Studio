@@ -20,9 +20,10 @@ const ROOM_COUNTS = [...new Set(Object.values(TYPES).map(x => x.rooms))].sort();
 
 let b = null, floorN = 2, colorBy = 'status', hover = null, cardApt = null, view = null;
 let ext = null, hover3d = null;   // the 3D facade and the apartment under the mouse there
-let tint3d = true;                // windows coloured by status / rooms, or plain glass
+let tint3d = false;               // windows framed in the colour of status / rooms, or plain glass (remembered)
 const filter = { rooms: new Set(), areaMin: null, areaMax: null, priceMax: null, free: false };
 try { colorBy = localStorage.getItem('fsp3d.bldColor') === 'rooms' ? 'rooms' : 'status'; } catch { /* ignore */ }
+try { tint3d = localStorage.getItem('fsp3d.bldTint') === '1'; } catch { /* ignore */ }
 
 const num = (v, d = 1) => new Intl.NumberFormat(LOCALE[getLang()] || 'en-GB', { maximumFractionDigits: d }).format(v);
 const sum = v => `${String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ${t('unit.sum')}`;
@@ -505,7 +506,11 @@ async function init3d() {
     btn.addEventListener('pointerdown', set(Number(btn.dataset.f)));
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, set(0));
   }
-  $('bld3dTint').addEventListener('click', () => { tint3d = !tint3d; paint3d(); sync3dHud(); });
+  $('bld3dTint').addEventListener('click', () => {
+    tint3d = !tint3d;
+    try { localStorage.setItem('fsp3d.bldTint', tint3d ? '1' : '0'); } catch { /* ignore */ }
+    paint3d(); sync3dHud();
+  });
   $('bld3dPhoto').addEventListener('click', loadPhotoFacade);
   syncPhotoBtn();
   // The facade stands still while a dialog covers it (the floor 3D has its own scene).

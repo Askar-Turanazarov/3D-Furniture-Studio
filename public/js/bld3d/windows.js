@@ -114,9 +114,15 @@ void main() {
   float F = 0.12 + 0.88 * pow(1.0 - cosT, 4.0);
   vec3 refl = skyCol(reflect(vd, vN));
   vec3 col3 = mix(room * vec3(0.86, 0.92, 0.95), refl, F * (1.0 - 0.5 * lit));
-  col3 = mix(col3, vTint.rgb * (0.35 + 0.65 * max(uDay, lit)), vTint.a);
+  // Highlight: a light tone of the apartment's colour over the glass and a thin frame in it, not a fill.
+  // Hovered: a bright frame round every window of the apartment; not matching the filters: darker glass.
+  float border = min(min(vUv.x, vUv.y), min(vSize.x - vUv.x, vSize.y - vUv.y));
+  vec3 tc = vTint.rgb * (0.55 + 0.45 * max(uDay, 0.6));
+  col3 = mix(col3, tc, vTint.a);                                      // tone ≤ 25 %
+  col3 = mix(col3, tc, step(0.0001, vTint.a) * (1.0 - smoothstep(0.05, 0.07, border)));
   col3 *= mix(1.0, 0.45, vState.x);
-  col3 = mix(col3, vec3(1.0), vState.y * 0.3);
+  col3 = mix(col3, col3 * 1.15 + 0.05, vState.y);
+  col3 = mix(col3, vec3(1.0, 0.97, 0.88), vState.y * (1.0 - smoothstep(0.08, 0.1, border)));
   gl_FragColor = vec4(col3, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

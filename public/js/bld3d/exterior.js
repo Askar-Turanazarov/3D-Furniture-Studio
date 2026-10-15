@@ -458,7 +458,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
         matrix: mtx[i], seed: chance[i], sill: flat ? b.sill * M : 0, kind: KIND[b.kind] ?? 0,
         // Flats: on or off; shops and the lobby are lit by day too, brighter in the evening.
         lit: flat ? (on ? 1 : 0) : 0.35 + 0.65 * Math.min(1, p.lamp / LAMPS_ON),
-        tint: css ? tintOf(css) : null, tintK: 0.35, dim, hover: hov
+        tint: css ? tintOf(css) : null, tintK: 0.18, dim, hover: hov
       });
     });
     windows.commit();

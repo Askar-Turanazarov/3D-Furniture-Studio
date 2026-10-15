@@ -1,6 +1,9 @@
 // Pre-download the on-demand texture sets of public/textures/library.json (ambientCG, CC0) into public/textures/lib/.
-// Usage: npm run textures [-- --kind floor|wall|rough|furniture] [-- --id oakPlanks]
+// Usage: npm run textures [-- --kind floor|wall|rough|furniture] [-- --id oakPlanks] [-- --facade]
 const { fetchSet, libraryStatus } = require('../server/textureFetch');
+
+// The building facade sets (FACADE_SETS in public/js/bld3d/facadeTex.js).
+const FACADE = ['travertine', 'marbleBlack', 'concreteFloor', 'woodPanels'];
 
 function arg(name) {
   const i = process.argv.indexOf('--' + name);
@@ -8,9 +11,9 @@ function arg(name) {
 }
 
 (async () => {
-  const kind = arg('kind'), id = arg('id');
+  const kind = arg('kind'), id = arg('id'), facade = process.argv.includes('--facade');
   const todo = (await libraryStatus())
-    .filter(e => !e.bundled && !e.available && (!kind || e.kind === kind) && (!id || e.id === id));
+    .filter(e => !e.bundled && !e.available && (!kind || e.kind === kind) && (!id || e.id === id) && (!facade || FACADE.includes(e.id)));
   if (!todo.length) return console.log('Nothing to download: all sets are on disk.');
   const mb = todo.reduce((s, e) => s + (e.mb || 5), 0);
   console.log(`${todo.length} set(s), about ${Math.round(mb)} MB of zips from ambientcg.com`);

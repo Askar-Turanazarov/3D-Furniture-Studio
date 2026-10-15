@@ -60,7 +60,7 @@ Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules
 npm install
 npm start
 ```
-Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand).
+Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand). Building facade photos (travertine, black stone, concrete, timber, ≈ 21 MB): the **📷 Photo facade** button on the 3D facade downloads them to the server once — after that every visitor gets them; or in advance with `npm run textures -- --facade`. Without them the facade is composed from the bundled sets.
 
 **Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
 1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
@@ -182,7 +182,7 @@ Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modu
 npm install
 npm start
 ```
-http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi).
+http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi). Bino fasadi fotolari (travertin, qora tosh, beton, yog‘och, ≈ 21 MB): 3D-fasaddagi **📷 Foto-fasad** tugmasi ularni serverga bir marta yuklaydi — keyin barcha tashrif buyuruvchilarda bo‘ladi; yoki oldindan `npm run textures -- --facade`. Ularsiz fasad ilova bilan keladigan to‘plamlardan yig‘iladi.
 
 **ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
 1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
@@ -305,7 +305,7 @@ Node.js + Express (статика + небольшой JSON API), чистый H
 npm install
 npm start
 ```
-Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию).
+Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию). Фото фасада новостройки (травертин, чёрный камень, бетон, дерево, ≈ 21 МБ): кнопка **📷 Фото-фасад** на 3D-фасаде один раз скачивает их на сервер — дальше они сразу у всех посетителей; или заранее `npm run textures -- --facade`. Без них фасад собирается из наборов, идущих с приложением.
 
 **Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
 1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.

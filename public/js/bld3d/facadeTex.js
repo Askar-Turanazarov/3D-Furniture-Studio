@@ -1,8 +1,10 @@
-// Photo materials of the building outside, composed from the CC0 sets that ship with the app
-// (public/textures/sets, ambientCG): porcelain panels 120 × 60 cm cut from the marble photo with seams,
-// dark granite on the ground floor and the porch, concrete for the bands, the roof, the curbs and the paving,
-// timber for the canopy and the benches. Nothing is downloaded. The images are decoded off the main thread
-// (createImageBitmap); until they arrive the procedural materials stay.
+// Photo materials of the building outside. Best: the facade sets of the texture library (ambientCG, CC0,
+// FACADE_SETS) — travertine slabs 120 × 60 cm with seams, black stone 120 × 120 on the ground floor and the
+// porch, concrete for the bands, the roof and the curbs, timber for the portal, the canopy and the benches, each
+// with its normal and roughness maps. The server downloads them only when someone presses the button
+// (fetchFacadeSets) or runs `npm run textures -- --facade`; until then the look is composed from the sets that
+// ship with the app (public/textures/sets). The images are decoded off the main thread (createImageBitmap);
+// until they arrive the procedural materials stay.
 import * as THREE from 'three';
 
 const SETS = '/textures/sets/';
@@ -22,6 +24,7 @@ function texture(c, { color = true, anisotropy = 4 } = {}) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   if (color) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = anisotropy;
+  if (typeof ImageBitmap !== 'undefined' && c instanceof ImageBitmap) t.flipY = false;   // bitmaps cannot be flipped
   return t;
 }
 
@@ -29,10 +32,10 @@ function texture(c, { color = true, anisotropy = 4 } = {}) {
  * Stone panels: each one a different crop of the photo over a base colour, with seams. The texture covers
  * cols × rows panels of pw × ph metres at `px` pixels per metre; a matching normal map is cut the same way.
  */
-function panels(photo, normal, { px, cols, rows, pw, ph, base, vary, mix, seam, seamColor, seed, scale }) {
+function panels(photo, normal, { px, cols, rows, pw, ph, base, vary, mix, seam, seamColor, seed, scale, rough = null }) {
   const W = Math.round(cols * pw * px), H = Math.round(rows * ph * px);
-  const col = canvas(W, H), nor = normal && canvas(W, H);
-  const g = col.getContext('2d'), gn = nor?.getContext('2d');
+  const col = canvas(W, H), nor = normal && canvas(W, H), rou = rough && canvas(W, H);
+  const g = col.getContext('2d'), gn = nor?.getContext('2d'), gr = rou?.getContext('2d');
   let s = seed;
   const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   const cw = pw * px, ch = ph * px;
@@ -43,16 +46,24 @@ function panels(photo, normal, { px, cols, rows, pw, ph, base, vary, mix, seam, 
       const dx = x * cw, dy = y * ch;
       const sx = rnd() * (photo.width - sw), sy = rnd() * (photo.height - sh);
       const k = 1 + (rnd() - 0.5) * vary;
-      const [r, gg, b] = base.map(v => Math.max(0, Math.min(255, Math.round(v * k))));
       g.globalCompositeOperation = 'source-over';
       g.globalAlpha = 1;
-      g.fillStyle = `rgb(${r},${gg},${b})`;
-      g.fillRect(dx, dy, cw, ch);
-      // The photo's veins and grain over the base colour.
-      g.globalCompositeOperation = 'overlay';
-      g.globalAlpha = mix;
-      g.drawImage(photo, sx, sy, sw, sh, dx, dy, cw, ch);
+      if (base) {
+        const [r, gg, b] = base.map(v => Math.max(0, Math.min(255, Math.round(v * k))));
+        g.fillStyle = `rgb(${r},${gg},${b})`;
+        g.fillRect(dx, dy, cw, ch);
+        // The photo's veins and grain over the base colour.
+        g.globalCompositeOperation = 'overlay';
+        g.globalAlpha = mix;
+        g.drawImage(photo, sx, sy, sw, sh, dx, dy, cw, ch);
+      } else {
+        // A real stone photo: each slab its own crop, a touch lighter or darker than the next.
+        g.drawImage(photo, sx, sy, sw, sh, dx, dy, cw, ch);
+        g.fillStyle = k > 1 ? `rgba(255,255,255,${(k - 1).toFixed(3)})` : `rgba(0,0,0,${(1 - k).toFixed(3)})`;
+        g.fillRect(dx, dy, cw, ch);
+      }
       if (gn) gn.drawImage(normal, sx, sy, sw, sh, dx, dy, cw, ch);
+      if (gr) gr.drawImage(rough, sx, sy, sw, sh, dx, dy, cw, ch);
     }
   }
   g.globalCompositeOperation = 'source-over';
@@ -72,7 +83,12 @@ function panels(photo, normal, { px, cols, rows, pw, ph, base, vary, mix, seam, 
       gn.fillStyle = 'rgb(128,70,230)'; gn.fillRect(0, y * ch + sp / 2, W, sp / 2 + 1);
     }
   }
-  return { map: col, normalMap: nor };
+  if (gr) {   // the joints are matt
+    gr.fillStyle = '#e6e6e6';
+    for (let x = 0; x < cols; x++) gr.fillRect(x * cw, 0, sp, H);
+    for (let y = 0; y < rows; y++) gr.fillRect(0, y * ch, W, sp);
+  }
+  return { map: col, normalMap: nor, roughnessMap: rou };
 }
 
 // A photo with its colour pulled towards `tint` (multiply) — concrete, wood.
@@ -91,40 +107,130 @@ function tinted(photo, tint, size = 1024) {
 /** Sizes in metres of one texture repeat, for the world-space UVs of the meshes. */
 export const PHOTO_UV = { wall: [4.8, 2.4], base: [4.8, 2.4], concrete: [2.4, 1.2], wood: [1.4, 1.4], granite: [2.4, 2.4] };
 
+/** Library sets of the facade (public/textures/library.json): walls, ground floor, concrete, timber. */
+export const FACADE_SETS = { wall: 'travertine', base: 'marbleBlack', concrete: 'concreteFloor', wood: 'woodPanels' };
+
+// Which library sets are on disk. A static host has only library.json: there nothing can be downloaded.
+async function library() {
+  try {
+    const r = await fetch('/api/textures/library');
+    if (r.ok) return { list: await r.json(), server: true };
+  } catch { /* static host */ }
+  try {
+    const r = await fetch('/textures/library.json');
+    if (r.ok) return { list: (await r.json()).map(e => ({ ...e, available: !!e.bundled })), server: false };
+  } catch { /* no library */ }
+  return { list: [], server: false };
+}
+
+/**
+ * The facade sets not on disk yet: { missing: [entry], mb, canFetch }. canFetch: the server can download them
+ * (the button is shown only then).
+ */
+export async function facadeStatus() {
+  const { list, server } = await library();
+  const missing = Object.values(FACADE_SETS).map(id => list.find(e => e.id === id)).filter(e => e && !e.available);
+  return { missing, mb: Math.round(missing.reduce((s, e) => s + (e.mb || 5), 0)), canFetch: server };
+}
+
+/** Download the missing facade sets one by one (the user pressed the button); onStep(done, total). */
+export async function fetchFacadeSets(onStep = () => {}) {
+  const { missing } = await facadeStatus();
+  let done = 0;
+  onStep(done, missing.length);
+  for (const e of missing) {
+    // The server downloads one set at a time ('busy'): wait for the other download (another visitor) and retry.
+    for (let tries = 0; ; tries++) {
+      const res = await fetch('/api/textures/fetch/' + encodeURIComponent(e.id), { method: 'POST' });
+      if (res.ok) break;
+      const body = await res.json().catch(() => ({}));
+      if (res.status !== 429 || tries > 60) throw new Error(body.error || 'download_failed');
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    onStep(++done, missing.length);
+  }
+  return missing.length;
+}
+
+// The three maps of a library set on disk, or null.
+async function libSet(entry) {
+  if (!entry?.available) return null;
+  const dir = `/textures/${entry.bundled ? 'sets' : 'lib'}/${entry.id}/`;
+  try {
+    const [color, normal, roughness] = await Promise.all(['color', 'normal', 'roughness'].map(f => bitmap(dir + f + '.jpg')));
+    return { color, normal, roughness, tile: entry.tile || 1 };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Load the photos and put them on the materials. mats: { wall, base, band, roof, wood } of the building,
  * site: { granite, curb, wood } of the site. small: the weak tier (lower resolution, no normal maps).
- * Resolves true when applied, false when the photos could not be read (the procedural look stays).
+ * Resolves 'library' when the facade sets were used, 'bundled' for the composed look, false when the photos
+ * could not be read (the procedural look stays).
  */
 export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small = false }) {
+  const { list } = await library();
+  const sets = Object.fromEntries(await Promise.all(Object.entries(FACADE_SETS)
+    .map(async ([k, id]) => [k, await libSet(list.find(e => e.id === id))])));
+  const fromLib = Object.values(sets).every(Boolean);
   let marble, marbleN, concrete, concreteN, wood;
-  try {
-    [marble, marbleN, concrete, concreteN, wood] = await Promise.all([
-      bitmap(SETS + 'marble/color.jpg'), small ? null : bitmap(SETS + 'marble/normal.jpg'),
-      bitmap(SETS + 'concrete/color.jpg'), small ? null : bitmap(SETS + 'concrete/normal.jpg'),
-      bitmap('/textures/wood/color.jpg')
-    ]);
-  } catch {
-    return false;
+  if (!fromLib) {
+    try {
+      [marble, marbleN, concrete, concreteN, wood] = await Promise.all([
+        bitmap(SETS + 'marble/color.jpg'), small ? null : bitmap(SETS + 'marble/normal.jpg'),
+        bitmap(SETS + 'concrete/color.jpg'), small ? null : bitmap(SETS + 'concrete/normal.jpg'),
+        bitmap('/textures/wood/color.jpg')
+      ]);
+    } catch {
+      return false;
+    }
   }
-  const px = small ? 110 : 210;     // pixels per metre of the panel textures
   const opt = { anisotropy };
+  const swap = (m, maps, extra = {}, repeat = null) => {
+    for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.dispose();
+    m.map = texture(maps.map, opt);
+    m.normalMap = maps.normalMap && !small ? texture(maps.normalMap, { color: false, anisotropy }) : null;
+    m.roughnessMap = maps.roughnessMap ? texture(maps.roughnessMap, { color: false, anisotropy }) : null;
+    if (repeat) for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.repeat.set(...repeat);
+    if (m.normalMap) m.normalScale.set(0.6, 0.6);
+    m.color.set('#ffffff');
+    Object.assign(m, extra);
+    m.needsUpdate = true;
+  };
+
+  if (fromLib) {
+    const px = small ? 128 : 256;     // pixels per metre of the slab textures
+    const cut = (set, o) => panels(set.color, small ? null : set.normal, {
+      ...o, px, base: null, scale: set.color.width / set.tile, rough: set.roughness });
+    // Travertine 120 × 60, 4 × 4 slabs per repeat (4.8 × 2.4 m); black stone 120 × 120, 4 × 2.
+    const wall = cut(sets.wall, { cols: 4, rows: 4, pw: 1.2, ph: 0.6, vary: 0.1, seam: 0.008, seamColor: '#8a7f70', seed: 11 });
+    const base = cut(sets.base, { cols: 4, rows: 2, pw: 1.2, ph: 1.2, vary: 0.1, seam: 0.006, seamColor: '#141517', seed: 5 });
+    swap(mats.wall, wall, { roughness: 1, metalness: 0 });
+    swap(mats.base, base, { roughness: 0.8, metalness: 0.05 });
+    if (site.granite) swap(site.granite, base, { roughness: 0.85 });
+    // Concrete and timber: the photo as it is, repeated to its real size over the world UVs.
+    const plain = set => ({ map: set.color, normalMap: set.normal, roughnessMap: set.roughness });
+    const size = (uv, tile) => [uv[0] / tile, uv[1] / tile];
+    const conc = plain(sets.concrete), cRep = size(PHOTO_UV.concrete, sets.concrete.tile);
+    for (const m of [mats.band, site.curb].filter(Boolean)) swap(m, conc, { roughness: 1 }, cRep);
+    if (mats.roof) {
+      swap(mats.roof, conc, { roughness: 1 }, cRep);
+      mats.roof.color.set('#b9b3aa');
+    }
+    const woodRep = size(PHOTO_UV.wood, sets.wood.tile);
+    for (const m of [mats.wood, site.wood].filter(Boolean)) swap(m, plain(sets.wood), { roughness: 1 }, woodRep);
+    return 'library';
+  }
+
+  const px = small ? 110 : 210;     // pixels per metre of the panel textures
   // Light warm porcelain 120 × 60, 4 × 4 panels per repeat (4.8 × 2.4 m).
   const wall = panels(marble, marbleN, { px, cols: 4, rows: 4, pw: 1.2, ph: 0.6, base: [186, 170, 148], vary: 0.08,
     mix: 0.9, seam: 0.008, seamColor: '#7a7064', seed: 11, scale: 430 });
   // Dark granite slabs 120 × 120 on the ground floor (between the shop windows), 4 × 2 per repeat.
   const base = panels(marble, marbleN, { px, cols: 4, rows: 2, pw: 1.2, ph: 1.2, base: [62, 64, 68], vary: 0.12,
     mix: 0.55, seam: 0.006, seamColor: '#1d1f22', seed: 5, scale: 640 });
-  const swap = (m, maps, extra = {}) => {
-    m.map?.dispose();
-    m.normalMap?.dispose();
-    m.map = texture(maps.map, opt);
-    m.normalMap = maps.normalMap ? texture(maps.normalMap, { color: false, anisotropy }) : null;
-    if (m.normalMap) m.normalScale.set(0.6, 0.6);
-    m.color.set('#ffffff');
-    Object.assign(m, extra);
-    m.needsUpdate = true;
-  };
   swap(mats.wall, wall, { roughness: 0.62, metalness: 0 });
   swap(mats.base, base, { roughness: 0.38, metalness: 0.05 });
   const concN = concreteN && tinted(concreteN, null, 1024);
@@ -135,5 +241,5 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
   const woodMaps = { map: tinted(wood, '#e2b98f', small ? 512 : 1024) };
   for (const m of [mats.wood, site.wood].filter(Boolean)) swap(m, woodMaps, { roughness: 0.55 });
   if (site.granite) swap(site.granite, base, { roughness: 0.45 });
-  return true;
+  return 'bundled';
 }

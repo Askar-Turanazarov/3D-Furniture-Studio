@@ -430,6 +430,46 @@ function showCue(c) {
   $('bld3dCueText').textContent = near ? t('bld3d.atDoor') : `${t('bld3d.toEntrance')} · ${Math.round(c.dist)} ${t('bld.m')}`;
 }
 
+// Photo facade: the library sets (ambientCG, CC0) are downloaded on the server when someone presses the button;
+// after that every visitor of this server gets them at once and the button is gone.
+let photoStep = null, photoTotal = 0;   // { done, total } while downloading; sets missing
+async function syncPhotoBtn() {
+  const btn = $('bld3dPhoto');
+  if (photoStep) {
+    btn.disabled = true;
+    $('bld3dPhotoText').textContent = t('bld3d.photoLoading', photoStep);
+    return;
+  }
+  const { facadeStatus } = await import('./bld3d/facadeTex.js');
+  const st = await facadeStatus();
+  photoTotal = st.missing.length;
+  btn.hidden = !st.missing.length || !st.canFetch;
+  btn.disabled = false;
+  $('bld3dPhotoText').textContent = t('bld3d.photo', { mb: st.mb });
+  btn.title = t('bld3d.photoTitle', { mb: st.mb });
+}
+
+let photoRun = null;    // the download in progress: further presses do nothing
+function loadPhotoFacade() {
+  if (photoRun) return photoRun;
+  photoStep = { done: 0, total: photoTotal };
+  syncPhotoBtn();
+  photoRun = (async () => {
+    const { fetchFacadeSets } = await import('./bld3d/facadeTex.js');
+    try {
+      await fetchFacadeSets((done, total) => { photoStep = { done, total }; syncPhotoBtn(); });
+      photoStep = null;
+      await ext.refreshPhoto();
+      toast(t('bld3d.photoDone'));
+    } catch {
+      photoStep = null;
+      toast(t('bld3d.photoFail'), true);
+    }
+    syncPhotoBtn();
+  })().finally(() => { photoRun = null; });
+  return photoRun;
+}
+
 async function init3d() {
   try {
     const [{ createExterior }, { facadeOf }] = await Promise.all([import('./bld3d/exterior.js'), import('./facade.js')]);
@@ -466,6 +506,8 @@ async function init3d() {
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, set(0));
   }
   $('bld3dTint').addEventListener('click', () => { tint3d = !tint3d; paint3d(); sync3dHud(); });
+  $('bld3dPhoto').addEventListener('click', loadPhotoFacade);
+  syncPhotoBtn();
   // The facade stands still while a dialog covers it (the floor 3D has its own scene).
   const pause = () => ext.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
   for (const id of ['aptDlg', 'floor3dDlg', 'reqDlg']) new MutationObserver(pause).observe($(id), { attributes: true, attributeFilter: ['open'] });
@@ -544,6 +586,7 @@ function bind() {
     ext?.setTitle(local(b.name), t('bld3d.entranceSign'));
     if (cue3d) showCue(cue3d);
     sync3dHud();
+    if (ext) syncPhotoBtn();
     renderAll();
     if ($('aptDlg').open) openCard(cardApt);
     if ($('reqDlg').open) $('reqTitle').textContent = t('bld.reqTitle', { no: cardApt.no });

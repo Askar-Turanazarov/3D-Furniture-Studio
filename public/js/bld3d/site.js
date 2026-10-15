@@ -55,9 +55,14 @@ const asphalt = rnd => canvasTexture(256, 256, (g, w, h) => {
 });
 
 // Planar UVs (x, z) in metres / tile for flat boxes.
+// World UVs by face direction: tops from above, the sides of steps and curbs from the side (not stretched).
 function planarUV(geo, tile) {
-  const p = geo.attributes.position, uv = geo.attributes.uv;
-  for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / tile, p.getZ(i) / tile);
+  const p = geo.attributes.position, n = geo.attributes.normal, uv = geo.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    const nx = Math.abs(n.getX(i)), ny = Math.abs(n.getY(i));
+    if (ny > 0.5) uv.setXY(i, p.getX(i) / tile, p.getZ(i) / tile);
+    else uv.setXY(i, (nx > 0.5 ? p.getZ(i) : p.getX(i)) / tile, p.getY(i) / tile);
+  }
   return geo;
 }
 

@@ -86,7 +86,7 @@ function skyMaterial() {
 
 /**
  * createExterior(container, { bld, fac, title, onHover(aptNo|null, event), onPick(aptNo), onFloor(n) })
- * → { paint({ colorOf, dim, hover }), setFloor, setTime, setAuto, setTitle, pause, flyToFloor, requestRender }
+ * → { paint({ colorOf, dim, hover }), setFloor, setTime, setAuto, setTitle, pause, flyToFloor, requestRender, refreshPhoto }
  * colorOf(aptNo) → CSS colour or null (neutral glass); dim(aptNo) → true when it does not match the filters.
  */
 // "ПОДЪЕЗД 1" → ['ПОДЪЕЗД', '1'], "1-PODYEZD" → ['PODYEZD', '1'].
@@ -256,9 +256,12 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     building.add(mesh);
   }
   scene.add(building);
-  // Photo stone, concrete and timber from the bundled sets, once decoded (the procedural look until then).
-  applyPhotoFacade({ mats, site: site.mats, anisotropy: Math.min(tier.anisotropy * 2, renderer.capabilities.getMaxAnisotropy()), small: tierName === 'low' })
-    .then(ok => { if (ok) { shadows = true; dirty = true; } });
+  // Photo stone, concrete and timber (the library facade sets when on disk, else the bundled sets), once decoded;
+  // the procedural look until then. Called again after the facade sets are downloaded.
+  const refreshPhoto = () => applyPhotoFacade({ mats, site: site.mats, small: tierName === 'low',
+    anisotropy: Math.min(tier.anisotropy * 2, renderer.capabilities.getMaxAnisotropy()) })
+    .then(ok => { if (ok) { shadows = true; dirty = true; } return ok; });
+  refreshPhoto();
 
   // Signs: "ENTRANCE 1" glowing on the canopy fascia, the same on a blade sign beside the doors (seen from
   // along the facade), the residence name in big letters on the roof parapet over the entrance.
@@ -619,6 +622,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     getAuto: () => auto,
     pause(on) { paused = on; dirty = true; clock.getDelta(); },
     requestRender() { dirty = true; },
+    refreshPhoto,
     renderer, scene, camera, site
   };
 }

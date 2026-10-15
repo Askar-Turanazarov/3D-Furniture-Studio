@@ -7,7 +7,7 @@ import { liveRooms } from '../renderer.js';
 import { doorLinks, adjacent, wallLine, posOf, roomRect, twinIds } from '../apartment.js';
 import { switchRoom } from '../projects.js';
 import { buildObstacles } from './obstacles3d.js';
-import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights, setShadowQuality } from './lights3d.js';
+import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights, setShadowQuality, lampCount } from './lights3d.js';
 import { lampsOn } from '../lighting.js';
 import { buildItem } from './models3d.js';
 import { validateAll } from '../validate.js';
@@ -389,18 +389,23 @@ function rebuild() {
   syncRoomHud(rooms);
 }
 
-// Lights: the active room (where the walker is) gets sky light, sun and shadows, the others only their fixture.
-// Rebuilt only for a new shell, fixture type or main room; scene and lamp changes are tweened.
+// Lights: every room gets its full fixture; the active room (where the walker is) also sky light, sun and
+// full-size shadows. When the rooms together need more lamps than the device tier allows (SETTINGS.maxLamps),
+// the spots of the other rooms become one down-light each. Rebuilt only for a new shell, fixture type or main
+// room; scene and lamp changes are tweened.
 function buildAllLights() {
   const ceiling = lightingOf(state.lighting).ceiling;
   const prev = mainLights?.userData.cur;
+  let total = 0;
+  for (const e of rooms3d.values()) total += lampCount(ceiling, e.shell.size);
+  const merged = total > SETTINGS[tier].maxLamps;
   for (const [id, e] of rooms3d) {
     const main = id === state.activeRoomId || rooms3d.size === 1;
-    const lk = [ceiling, main, e.key].join('|');
+    const lk = [ceiling, main, merged && !main, tier, e.key].join('|');
     if (lk !== e.lkey) {
       e.lkey = lk;
       if (e.lights) disposeGroup(e.lights);
-      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main);
+      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main, merged && !main);
       e.group.add(e.lights);
     } else {
       setLightTargets(e.lights, state.lighting);

@@ -443,9 +443,10 @@ function surface(name) {
 }
 
 // Photo maps are already coloured: tint them only lightly with the item colour (custom ones barely).
-function tint(color, isPhoto, isCustom = false) {
+// white: how far the colour moves to white (a plain plaster photo takes the paint colour almost as it is).
+function tint(color, isPhoto, isCustom = false, white = 0.45) {
   if (!isPhoto) return new THREE.Color(color);
-  return new THREE.Color(color).lerp(new THREE.Color('#ffffff'), isCustom ? 0.8 : 0.45);
+  return new THREE.Color(color).lerp(new THREE.Color('#ffffff'), isCustom ? 0.8 : white);
 }
 
 const maps = ({ map, normalMap, roughnessMap }) => {
@@ -502,7 +503,7 @@ export function finishMats(style) {
   const own = S.wall === 'blocks' || S.wall === 'putty' || S.wall === 'concrete';
   const wallMat = color => new THREE.MeshStandardMaterial({
     ...maps(ws.tex),
-    color: own ? (ws.tex.photo ? '#ffffff' : ws.color) : tint(color, ws.tex.photo, ws.tex.custom),
+    color: own ? (ws.tex.photo ? '#ffffff' : ws.color) : tint(color, ws.tex.photo, ws.tex.custom, S.wall === 'paint' ? 0.12 : 0.45),
     roughness: S.wall === 'panels' ? 0.6 : S.wall === 'tileBath' ? 0.3 : 0.95
   });
   const s = style || {};

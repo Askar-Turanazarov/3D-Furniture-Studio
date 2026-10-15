@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lightingOf, lampsOn, targetsFor, easeInOut, SCENES } from '../public/js/lighting.js';
+import { lightingOf, lampsOn, targetsFor, easeInOut, SCENES, fixtureSpec, floorLux, FLOOR_LUX } from '../public/js/lighting.js';
 import { normalizeDoc, exportProject, importProject, makeProject, makeRoom } from '../public/js/storage.js';
 
 test('lightingOf validates and keeps the lamp switch', () => {
@@ -40,4 +40,43 @@ test('lamp switch survives save and import', () => {
   assert.deepEqual(lightingOf(d.lighting), { scene: 'night', ceiling: 'panel', lampsOn: false });
   const p = importProject(exportProject(makeProject('P', [makeRoom('R', {})], { lighting: d.lighting })));
   assert.equal(lightingOf(p.lighting).lampsOn, false);
+});
+
+test('ceiling fixtures light the floor evenly, not a flood', () => {
+  for (const [L, W, H] of [[3.3, 3.1, 2.7], [5.5, 4.3, 2.95], [4, 3, 2.5]]) {
+    for (const c of ['chandelier', 'spots', 'panel']) {
+      const s = fixtureSpec(c, L, W, H);
+      const centre = floorLux(s, L / 2, W / 2);
+      assert.ok(centre > (c === 'spots' ? 0.45 : 0.8) * FLOOR_LUX && centre < 2 * FLOOR_LUX, `${c} ${L}×${W}: ${centre.toFixed(2)} at the centre`);
+      assert.ok(floorLux(s, 0.3, 0.3) > 0.15, `${c} ${L}×${W}: the corner is not black`);
+    }
+  }
+});
+
+test('spots are real spots: narrow cones over the housings, nothing past the wall', () => {
+  const s = fixtureSpec('spots', 5.5, 4.3, 2.95);
+  assert.equal(s.lights.length, 9);
+  assert.deepEqual(s.lights.map(l => [l.x, l.z]), s.discs.map(d => [d.x, d.z]));
+  for (const l of s.lights) assert.ok(l.angle <= 0.6 && l.penumbra <= 0.6 && l.distance > 0);
+  // 1 m behind the wall (the next room) a spot gives almost nothing.
+  assert.ok(floorLux(s, -1, 4.3 / 2) < 0.1 * FLOOR_LUX);
+});
+
+test('merged spots keep the light output of the grid', () => {
+  const grid = fixtureSpec('spots', 4, 3, 2.7), one = fixtureSpec('spots', 4, 3, 2.7, { merged: true });
+  assert.equal(one.lights.length, 1);
+  assert.equal(one.discs.length, grid.discs.length);
+  const c = floorLux(one, 2, 1.5);
+  assert.ok(c > 0.6 * FLOOR_LUX && c < 2 * FLOOR_LUX, c.toFixed(2));
+});
+
+test('no fixture, no lights', () => {
+  assert.deepEqual(fixtureSpec('none', 4, 3, 2.7), { lights: [], discs: [] });
+});
+
+test('lamps on: their bounce lifts the night, not the day', () => {
+  const night = targetsFor({ scene: 'night', lampsOn: true }), evening = targetsFor({ scene: 'evening' });
+  assert.ok(night.bounce > evening.bounce && evening.bounce > 0);
+  assert.equal(targetsFor({ scene: 'day', lampsOn: true }).bounce, 0);
+  assert.equal(targetsFor({ scene: 'night', lampsOn: false }).bounce, 0);
 });

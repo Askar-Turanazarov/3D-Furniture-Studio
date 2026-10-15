@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { footprints, contactShadows, cornerShade } from '../public/js/3d/softShadows.js';
+import { footprints, contactShadows, cornerShade, shadeStrips } from '../public/js/3d/softShadows.js';
 
 const boxAt = (x, y, z) => {
   const m = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 0.5));
@@ -29,4 +29,14 @@ test('corner shade: no floor strip across a doorway, no corner strip where an op
   assert.equal(quads(door), quads(plain) + 1, 'the north floor strip is split in two');
   const window0 = cornerShade(4, 3, 2.7, [{ wall: 'west', offset: 0, width: 120, kind: 'window', sill: 90, height: 140 }]);
   assert.equal(quads(window0), quads(plain) - 1, 'the west strip of the north-west corner is left out');
+});
+
+test('shade strips: one quad per strip, dark on the line, clear at the far edge', () => {
+  assert.equal(shadeStrips([]), null);
+  const m = shadeStrips([{ p0: [0, 0, 0], p1: [1, 0, 0], n: [0, -0.5, 0], a: 0.3 }, { p0: [0, 1, 0], p1: [0, 2, 0], n: [0, 0, 0.2], a: 0.4 }]);
+  assert.equal(m.geometry.attributes.position.count, 8);
+  assert.equal(m.geometry.index.count, 12);
+  const c = m.geometry.attributes.color;
+  assert.deepEqual([c.getW(0), c.getW(1), c.getW(2), c.getW(3)].map(v => Math.round(v * 10) / 10), [0.3, 0.3, 0, 0]);
+  assert.ok(Math.abs(m.geometry.attributes.position.getY(2) + 0.5) < 1e-6);
 });

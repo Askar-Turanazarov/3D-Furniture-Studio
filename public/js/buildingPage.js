@@ -458,6 +458,12 @@ function bind() {
   $('floor3dClose').addEventListener('click', () => $('floor3dDlg').close());
   // The WebGL scene goes away with the dialog.
   $('floor3dDlg').addEventListener('close', () => { $('floor3dFrame').src = 'about:blank'; });
+  // The walker went into another apartment of the floor: the dialog title follows.
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || e.source !== $('floor3dFrame').contentWindow || e.data?.type !== 'fsp3d:apartment') return;
+    const a = byNo(e.data.no);
+    if (a) $('floor3dTitle').textContent = `${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`;
+  });
   $('aptRequest').addEventListener('click', () => openRequest(cardApt));
   $('reqCancel').addEventListener('click', () => $('reqDlg').close());
   $('reqForm').addEventListener('submit', sendRequest);

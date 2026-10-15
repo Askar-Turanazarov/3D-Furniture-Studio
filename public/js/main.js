@@ -195,6 +195,7 @@ async function startEmbed() {
     const ctx = await floor.openFloor(params);
     await setView('3d');
     view3d.setContext(floor.floorContext(ctx));
+    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await import('./3d/anim3d.js')).setDoorHook });
     (await import('./3d/controls3d.js')).setMode('walk');
   } catch {
     toast(t('bld.loadFail'), true);

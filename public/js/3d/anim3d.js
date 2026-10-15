@@ -12,7 +12,7 @@ const SPEED = 1 / 0.6;     // a full opening takes 0.6 s
 const REACH = 2.5;         // m: how far E / the crosshair reaches when walking
 const TOL = 0.003;         // m: touching is not a hit
 
-let camera, hud, allBtn, onFloor = null;
+let camera, hud, allBtn, onFloor = null, doorHook = null;
 let rooms = [];            // { id, doc, furniture, shell } of every room in the scene
 const open = new Map();    // key → { cur, target } (0..1), survives rebuilds of the scene
 let movers = [];           // { key, obj, type, axis, max, part, room, itemId, bounds, probe: Vector3[] }
@@ -121,6 +121,9 @@ function setValue(m, v) {
   m.obj.updateMatrixWorld(true);
 }
 
+// fn(roomId, doorId) → true when the door is handled elsewhere (locked, leads to another apartment).
+export const setDoorHook = fn => { doorHook = fn; };
+
 // ---- toggling ----
 function pick(ndc, far) {
   ray.setFromCamera(ndc, camera);
@@ -141,6 +144,7 @@ function pick(ndc, far) {
     const furn = o.parent;
     const own = o.userData.door ? movers.filter(m => m.obj === o)
       : movers.filter(m => m.itemId === o.userData.itemId && rooms.find(r => r.id === m.room)?.furniture === furn);
+    if (own.length && o.userData.door && doorHook?.(own[0].room, o.userData.door.id)) return;
     if (own.length) toggle(own);
     return;       // only the nearest thing counts
   }

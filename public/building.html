@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Новостройка</title>
   <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body class="bld-page">
   <header class="topbar">
@@ -40,6 +48,22 @@
       </section>
     </aside>
 
+    <div class="bld-right">
+    <section class="card bld-3d" id="bld3dCard">
+      <div class="bld3d-view" id="bld3dView">
+        <div class="bld3d-hud">
+          <div class="seg" role="group" id="bld3dTime">
+            <button type="button" data-time="day">☀</button>
+            <button type="button" data-time="evening">🌇</button>
+            <button type="button" data-time="night">🌙</button>
+          </div>
+          <button type="button" class="hud-btn active" id="bld3dOrbit" data-i18n-title="bld3d.orbitTitle">⟳ <span data-i18n="bld3d.orbit">Облёт</span></button>
+          <button type="button" class="hud-btn active" id="bld3dTint" data-i18n-title="bld3d.tintTitle">🎨 <span data-i18n="bld3d.tint">Подсветка</span></button>
+        </div>
+        <div class="bld-tip" id="bld3dTip" hidden></div>
+        <p class="bld3d-hint" id="bld3dHint"></p>
+      </div>
+    </section>
     <section class="card bld-main">
       <div class="bld-head">
         <button type="button" class="btn icon" id="floorDown" aria-label="Floor down">▼</button>
@@ -59,6 +83,7 @@
       <div class="bld-legend" id="bldLegend"></div>
       <p class="hint" data-i18n="bld.hint">Наведите на квартиру — подсказка, клик — карточка</p>
     </section>
+    </div>
   </main>
 
   <dialog id="aptDlg" class="wide bld-dlg">

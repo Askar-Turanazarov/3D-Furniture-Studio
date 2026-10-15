@@ -1,6 +1,7 @@
 // New-building showcase (/building.html?b=<id>): floors with free/booked/sold counts, filters, a floor plan coloured
 // by status or rooms with a tooltip, the apartment card (plan with sizes, rooms, price), "Open in the planner"
 // (a copy in this browser's projects) and a request for the apartment (POST /api/order with apartmentRef).
+// The main view is the building in 3D (bld3d/exterior.js); the floor grid stays as a scheme and without WebGL.
 import { t, getLang, initLangSwitcher, onLangChange } from './i18n.js';
 import { roomRect, roomArea } from './apartment.js';
 import { rectOf } from './geometry.js';
@@ -18,6 +19,8 @@ const LOCALE = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-GB' };
 const ROOM_COUNTS = [...new Set(Object.values(TYPES).map(x => x.rooms))].sort();
 
 let b = null, floorN = 2, colorBy = 'status', hover = null, cardApt = null, view = null;
+let ext = null, hover3d = null;   // the 3D facade and the apartment under the mouse there
+let tint3d = true;                // windows coloured by status / rooms, or plain glass
 const filter = { rooms: new Set(), areaMin: null, areaMax: null, priceMax: null, free: false };
 try { colorBy = localStorage.getItem('fsp3d.bldColor') === 'rooms' ? 'rooms' : 'status'; } catch { /* ignore */ }
 
@@ -26,6 +29,7 @@ const sum = v => `${String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
 const local = o => o?.[getLang()] || o?.ru || '';
 const typeName = a => t('bld.type.' + a.type);
 const allApts = () => b.floorsData.flatMap(f => f.apartments);
+const byNo = no => allApts().find(a => a.no === no);
 const floorOf = n => b.floorsData.find(f => f.n === n);
 const matches = a => (!filter.rooms.size || filter.rooms.has(a.rooms))
   && (filter.areaMin == null || a.area >= filter.areaMin) && (filter.areaMax == null || a.area <= filter.areaMax)
@@ -234,8 +238,7 @@ function aptAt(e) {
   return floorOf(floorN).apartments.find(a => { const q = unitBox(a); return x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h; }) || null;
 }
 
-function showTip(a, e) {
-  const tip = $('bldTip');
+function showTip(a, e, wrapEl = $('planWrap'), tip = $('bldTip')) {
   if (!a) { tip.hidden = true; return; }
   tip.replaceChildren(
     el('b', { textContent: `№${a.no} · ${typeName(a)}` }),
@@ -243,7 +246,7 @@ function showTip(a, e) {
     el('span', { textContent: sum(a.price) }),
     el('span', { className: 'bld-st st-' + a.status, textContent: t('bld.st.' + a.status) }));
   tip.hidden = false;
-  const wrap = $('planWrap').getBoundingClientRect();
+  const wrap = wrapEl.getBoundingClientRect();
   const x = e.clientX - wrap.left + 14, y = e.clientY - wrap.top + 14;
   tip.style.left = Math.min(x, wrap.width - tip.offsetWidth - 4) + 'px';
   tip.style.top = Math.min(y, wrap.height - tip.offsetHeight - 4) + 'px';
@@ -357,6 +360,7 @@ function renderAll() {
   renderFacade();
   legend();
   drawFloor();
+  paint3d();
   document.querySelectorAll('#colorBy [data-by]').forEach(x => x.classList.toggle('active', x.dataset.by === colorBy));
 }
 
@@ -366,6 +370,54 @@ function setFloor(n) {
   $('bldTip').hidden = true;
   renderFacade();
   drawFloor();
+  ext?.setFloor(floorN);
+}
+
+// ---------- 3D facade ----------
+function paint3d() {
+  ext?.paint({ colorOf: no => (tint3d ? fillOf(byNo(no)) : null), dim: no => !matches(byNo(no)), hover: hover3d });
+}
+
+function sync3dHud() {
+  if (!ext) return;
+  document.querySelectorAll('#bld3dTime [data-time]').forEach(x => {
+    x.classList.toggle('active', x.dataset.time === ext.getTime());
+    x.title = t('bld3d.' + x.dataset.time);
+  });
+  $('bld3dOrbit').classList.toggle('active', ext.getAuto());
+  $('bld3dTint').classList.toggle('active', tint3d);
+  $('bld3dHint').textContent = t(matchMedia('(pointer: coarse)').matches ? 'bld3d.hintTouch' : 'bld3d.hint');
+}
+
+async function init3d() {
+  try {
+    const [{ createExterior }, { facadeOf }] = await Promise.all([import('./bld3d/exterior.js'), import('./facade.js')]);
+    ext = createExterior($('bld3dView'), {
+      bld: b, fac: facadeOf(b), title: local(b.name),
+      onHover: (no, e) => {
+        if (no !== hover3d) { hover3d = no; paint3d(); }
+        showTip(no ? byNo(no) : null, e, $('bld3dView'), $('bld3dTip'));
+      },
+      onPick: no => { const a = byNo(no); setFloor(a.floor); openCard(a); },
+      onFloor: n => { if (n !== floorN) setFloor(n); }
+    });
+  } catch {
+    $('bld3dCard').hidden = true;   // no WebGL: the floor grid and plan remain
+    return;
+  }
+  $('bld3dTime').addEventListener('click', e => {
+    const x = e.target.closest('[data-time]');
+    if (x) { ext.setTime(x.dataset.time); sync3dHud(); }
+  });
+  $('bld3dOrbit').addEventListener('click', () => { ext.setAuto(!ext.getAuto()); sync3dHud(); });
+  $('bld3dTint').addEventListener('click', () => { tint3d = !tint3d; paint3d(); sync3dHud(); });
+  // The facade stands still while a dialog covers it (the floor 3D has its own scene).
+  const pause = () => ext.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
+  for (const id of ['aptDlg', 'floor3dDlg', 'reqDlg']) new MutationObserver(pause).observe($(id), { attributes: true, attributeFilter: ['open'] });
+  pause();
+  ext.setFloor(floorN);
+  paint3d();
+  sync3dHud();
 }
 
 function bind() {
@@ -413,6 +465,8 @@ function bind() {
   onLangChange(() => {
     document.title = `${local(b.name)} — ${t('bld.title')}`;
     $('bldName').textContent = local(b.name);
+    ext?.setTitle(local(b.name));
+    sync3dHud();
     renderAll();
     if ($('aptDlg').open) openCard(cardApt);
     if ($('reqDlg').open) $('reqTitle').textContent = t('bld.reqTitle', { no: cardApt.no });
@@ -435,6 +489,7 @@ async function start() {
   floorN = n >= 1 && n <= b.floors ? n : 2;
   bind();
   renderAll();
+  init3d();
 }
 
 start();

@@ -74,3 +74,8 @@ export function surfacesOf(style) {
     floorSet: tex.floor || FLOOR_SET[s.floor], wallSet: tex.wall || WALL_SET[s.wall.material],
     ceiling: 'white', plinth: true, doorLeaves: true };
 }
+
+/** The wall painted in the accent colour, or null: rough and pre-finish walls have no accent. */
+export function accentWallOf(style) {
+  return surfacesOf(style).accent ? styleOf(style).accentWall : null;
+}

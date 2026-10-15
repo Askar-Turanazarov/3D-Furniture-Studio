@@ -2,7 +2,7 @@
 // Interior: x ∈ [0, L], z ∈ [0, W], y ∈ [0, H] in metres.
 import * as THREE from 'three';
 import { getMats, finishMats } from './textures3d.js';
-import { styleOf } from '../style.js';
+import { styleOf, accentWallOf } from '../style.js';
 
 const T = 0.1;          // wall thickness, m
 const PLINTH_H = 0.08;  // plinth height, m
@@ -63,7 +63,8 @@ function localOpening(o, L, W) {
  */
 export function buildRoom(room, openings = [], style, { holes: extraHoles = [], thick = {} } = {}) {
   const M = getMats(), st = styleOf(style), F = finishMats(st);
-  const wallOf = name => st.accentWall === name ? F.accent : F.wall;
+  const accent = accentWallOf(st);
+  const wallOf = name => accent === name && F.accent ? F.accent : F.wall;
   const L = room.L / 100, W = room.W / 100, H = room.H / 100;
   const p = Math.max(room.plinth, 1) / 100;
   const group = new THREE.Group();

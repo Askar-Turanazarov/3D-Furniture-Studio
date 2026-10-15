@@ -145,7 +145,7 @@ function init(el) {
   for (const ev of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup']) el.addEventListener(ev, requestRender, { passive: true });
   // Nothing is drawn while the tab is hidden or the view is scrolled away.
   document.addEventListener('visibilitychange', () => { visible = !document.hidden; dirty = true; });
-  new IntersectionObserver(([en]) => { onScreen = en.isIntersecting; dirty = true; }).observe(el);
+  new IntersectionObserver(list => { onScreen = list[list.length - 1].isIntersecting; dirty = true; }).observe(el);
   new ResizeObserver(resize).observe(el);
   onChange(() => { if (running) rebuild(); });
   onLangChange(() => { if (running) controls.updateHint(); });
@@ -511,9 +511,18 @@ function setAo(on) {
   dirty = true;
 }
 
+// A failed frame must not freeze the view silently: the error is logged and shown once, the loop goes on.
+let drawFailed = false;
 function draw() {
-  if (aoActive()) composer.render();
-  else renderer.render(scene, camera);
+  try {
+    if (aoActive()) composer.render();
+    else renderer.render(scene, camera);
+  } catch (err) {
+    if (drawFailed) return;
+    drawFailed = true;
+    console.error('3D render failed', err);
+    toast(t('v3d.drawFail'), true);
+  }
 }
 
 // Average FPS over 2 s; AO is turned off when it is below 24.
@@ -565,11 +574,13 @@ function loop() {
 
 export function show(el) {
   if (!renderer && !init(el)) return;
+  const was = running;
   running = true;
   resize();
   rebuild();
   redrawShadows();
   controls.updateHint();
+  if (was) return;   // one loop only
   clock.start();
   loop();
 }

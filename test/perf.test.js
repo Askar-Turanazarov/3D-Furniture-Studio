@@ -28,7 +28,6 @@ test('every tier has its settings, better tiers are not worse', () => {
   for (const n of TIERS) assert.ok(SETTINGS[n].pixelRatio >= 1);
   assert.ok(SETTINGS.low.pixelRatio <= SETTINGS.mid.pixelRatio && SETTINGS.mid.pixelRatio <= SETTINGS.high.pixelRatio);
   assert.ok(SETTINGS.low.shadowMap <= SETTINGS.high.shadowMap);
-  assert.equal(SETTINGS.low.ao, false);
   assert.equal(SETTINGS.low.lampShadows, false);
 });
 

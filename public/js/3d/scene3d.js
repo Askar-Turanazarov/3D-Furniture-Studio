@@ -17,6 +17,7 @@ import { initTouch } from './touch3d.js';
 import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, PHOTO_MB, setAnisotropy } from './textures3d.js';
 import { SETTINGS, PREFS, readPref, savePref, tierFor, governor } from './perf.js';
 import { styleOf } from '../style.js';
+import { footprints, contactShadows, cornerShade } from './softShadows.js';
 import { toast } from '../ui.js';
 import { compose, savePicture, canShareFiles } from '../snapshot.js';
 
@@ -28,13 +29,12 @@ let outline = '';
 let mainLights = null;     // lights of the active room (the walker's): sky, sun, shadows
 let foundTimer = null;
 let context = null;        // static surroundings (the floor around an embedded apartment)
-// Ambient occlusion (GTAO) in Photo mode: composer is loaded on first use, switched off when FPS drops.
-let quality = 'simple', aoWanted = false, composer = null, aoPass = null;
-let fpsTime = 0, fpsFrames = 0;
+// Soft shadows under furniture and in the corners, on unless the viewer turned them off.
+let quality = 'simple', softOn = true;
 // Drawing on demand: a frame is drawn only when something changed (camera, doors, light tweens, the scene).
 let dirty = true, shadowsDirty = true, visible = true, onScreen = true;
 const lastView = new THREE.Matrix4(), lastProj = new THREE.Matrix4();
-// Device tier (perf.js): pixel ratio, shadows, AO, anisotropy; in Auto the governor lowers it when frames are slow.
+// Device tier (perf.js): pixel ratio, shadows, anisotropy; in Auto the governor lowers it when frames are slow.
 let tier = 'mid', gov = null, prevDrawn = false;
 
 export function requestRender() { dirty = true; }
@@ -71,8 +71,9 @@ function init(el) {
   el.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => applyQuality(b.dataset.quality)));
   let saved = 'simple';
   try { saved = localStorage.getItem('fsp3d.quality') || 'simple'; } catch { /* ignore */ }
-  try { aoWanted = localStorage.getItem('fsp3d.ao') === '1'; } catch { /* ignore */ }
-  el.querySelector('#aoBtn').addEventListener('click', () => setAo(!aoWanted));
+  try { softOn = localStorage.getItem('fsp3d.ao') !== '0'; } catch { /* ignore */ }
+  el.querySelector('#aoBtn').addEventListener('click', () => setSoft(!softOn));
+  syncSoft();
   if (saved !== 'simple') applyQuality(saved);
   // The texture panel changed the photo set: reload it and switch to Photo.
   document.addEventListener('fsp3d:textures', () => { resetPhoto(); applyQuality('photo'); });
@@ -156,26 +157,18 @@ function resize() {
   const w = container.clientWidth, h = container.clientHeight;
   if (!w || !h) return;
   renderer.setSize(w, h, false);
-  if (composer) {
-    // The AO buffers match the canvas pixel for pixel (whole numbers); w × 1.5 gave fractional sizes and the AO
-    // was sampled off the edges.
-    composer.setPixelRatio(1);
-    composer.setSize(renderer.domElement.width, renderer.domElement.height);
-  }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   dirty = true;
 }
 
-// Pixel ratio, shadow maps and AO of a tier; `rebuildLights` rebuilds the lights with the new shadow sizes.
+// Pixel ratio and shadow maps of a tier; `rebuildLights` rebuilds the lights with the new shadow sizes.
 function applyTier(name, rebuildLights = true) {
   tier = name;
   const s = SETTINGS[name];
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, s.pixelRatio));
   setShadowQuality(s);
   if (!rebuildLights) return;
-  if (!s.ao && aoWanted) setAo(false);
-  syncAo();
   resize();
   for (const e of rooms3d.values()) e.lkey = '';
   if (running) rebuild();
@@ -270,7 +263,6 @@ async function applyQuality(q) {
   if (q !== 'photo' && note.mode !== 'photo') hideNote();
   quality = q;
   container.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === q));
-  syncAo();
   try { localStorage.setItem('fsp3d.quality', q); } catch { /* ignore */ }
   if (!ok) toast(t('v3d.photoFail'), true);
   forget();
@@ -363,6 +355,9 @@ function rebuild() {
       e.shell = buildRoom(r.room, openings, r.style, { holes, thick });
       e.shell.group.add(buildObstacles(r.obstacles));
       for (const d of own) e.shell.group.add(revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style));
+      const shade = cornerShade(r.room.L / 100, r.room.W / 100, r.room.H / 100, [...openings, ...holes]);
+      shade.visible = softOn;
+      e.shell.group.add(shade);
       e.group.add(e.shell.group);
       changed = true;
     }
@@ -433,6 +428,11 @@ function buildFurniture(e, r) {
   e.furniture = new THREE.Group();
   e.furniture.name = 'furniture';
   for (const it of r.items) e.furniture.add(buildItem(it, status(it), state.materials, r.style, state.catalog));
+  const contact = contactShadows(footprints(e.furniture));
+  if (contact) {
+    contact.visible = softOn;
+    e.furniture.add(contact);
+  }
   e.group.add(e.furniture);
   return true;
 }
@@ -476,43 +476,16 @@ function syncLightHud() {
   container.querySelector('#ceilSel').value = l.ceiling;
 }
 
-const aoActive = () => aoWanted && quality === 'photo' && SETTINGS[tier].ao && composer;
-
-function syncAo() {
-  const btn = container.querySelector('#aoBtn');
-  btn.hidden = quality !== 'photo' || !SETTINGS[tier].ao;
-  btn.classList.toggle('active', aoWanted);
-  if (aoWanted && quality === 'photo' && SETTINGS[tier].ao && !composer) loadComposer();
+// Soft shadows: contact patches under furniture and corner shade (softShadows.js), in every mode and tier.
+function syncSoft() {
+  container.querySelector('#aoBtn').classList.toggle('active', softOn);
 }
 
-async function loadComposer() {
-  try {
-    const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { OutputPass }] = await Promise.all([
-      import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
-      import('three/addons/postprocessing/GTAOPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
-    if (composer) return;
-    const w = container.clientWidth || 1, h = container.clientHeight || 1;
-    // Same antialiasing as the plain render (MSAA): without it every edge was jagged while AO was on.
-    const aa = renderer.getContext().getContextAttributes()?.antialias;
-    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: aa ? 4 : 0 }));
-    composer.addPass(new RenderPass(scene, camera));
-    aoPass = new GTAOPass(scene, camera, w, h);
-    aoPass.updateGtaoMaterial({ radius: 0.35, distanceFallOff: 1, thickness: 1, scale: 1 });
-    composer.addPass(aoPass);
-    composer.addPass(new OutputPass());
-    resize();
-    redrawShadows();
-  } catch {
-    aoWanted = false;
-    syncAo();
-  }
-}
-
-function setAo(on) {
-  aoWanted = on;
-  fpsTime = fpsFrames = 0;
+function setSoft(on) {
+  softOn = on;
   try { localStorage.setItem('fsp3d.ao', on ? '1' : '0'); } catch { /* ignore */ }
-  syncAo();
+  for (const e of rooms3d.values()) e.group.traverse(o => { if (o.userData.softShadow) o.visible = on; });
+  syncSoft();
   dirty = true;
 }
 
@@ -520,27 +493,12 @@ function setAo(on) {
 let drawFailed = false;
 function draw() {
   try {
-    if (aoActive()) composer.render();
-    else renderer.render(scene, camera);
+    renderer.render(scene, camera);
   } catch (err) {
     if (drawFailed) return;
     drawFailed = true;
     console.error('3D render failed', err);
     toast(t('v3d.drawFail'), true);
-  }
-}
-
-// Average FPS over 2 s; AO is turned off when it is below 24.
-function watchFps(dt) {
-  if (!aoActive()) return;
-  fpsTime += dt;
-  fpsFrames++;
-  if (fpsTime < 2) return;
-  const fps = fpsFrames / fpsTime;
-  fpsTime = fpsFrames = 0;
-  if (fps < 24) {
-    setAo(false);
-    toast(t('v3d.aoSlow'));
   }
 }
 
@@ -570,10 +528,7 @@ function loop() {
   dirty = shadowsDirty = false;
   draw();
   // Frame rate counts only frames drawn one after another (idle time is not slowness).
-  if (prevDrawn) {
-    watchFps(dt);
-    gov?.frame(dt);
-  }
+  if (prevDrawn) gov?.frame(dt);
   prevDrawn = true;
 }
 

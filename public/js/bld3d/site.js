@@ -1,9 +1,11 @@
 // The site around the building: lawn, paving round the house and to the street, sidewalk, road with markings,
 // parking with cars, trees, benches, lamps (lit at night), a small playground and the entrance porch.
-// Everything is procedural: merged geometry per material, trees and cars as InstancedMesh.
+// Merged geometry per material, trees (trees.js; low quality — simple crowns) and cars as InstancedMesh; the
+// lawn, paving, asphalt, leaves and bark get photo sets when they are on disk (facadeTex.js).
 // Units: metres, building centred on the origin, south (+z) towards the street. `site` sizes are in cm.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createTrees } from './trees.js';
 
 export const SITE_DEFAULTS = { L: 9000, W: 7600, road: 'south', parking: 'east', trees: 40 };
 
@@ -90,10 +92,10 @@ function planarUV(geo, tile) {
 }
 
 /**
- * createSite({ fac, site, seed, wallT, lampLights }) → { group, setTime(p), obstacles, walk }
+ * createSite({ fac, site, seed, wallT, lampLights, simpleTrees }) → { group, setTime(p), obstacles, walk, mats, setTreePhoto }
  * obstacles: footprints (x0, z0, x1, z1 in metres) of trees, benches, lamps and cars, for walking later.
  */
-export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights = true }) {
+export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights = true, simpleTrees = false }) {
   const s = { ...SITE_DEFAULTS, ...site };
   const rnd = rng(seed * 7919 + 17);
   const M = 0.01, hx = fac.L * M / 2 + wallT, hz = fac.W * M / 2 + wallT;   // outer faces of the building
@@ -260,31 +262,39 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
     if (!free(x, z, 1.6 * k) || trees.some(q => Math.hypot(q.x - x, q.z - z) < 4.5)) continue;
     trees.push({ x, z, k });
   }
-  const trunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 1, 6);
-  trunkGeo.translate(0, 0.5, 0);
-  const crownGeo = new THREE.IcosahedronGeometry(1, 1);
-  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshStandardMaterial({ color: '#5b4636', roughness: 0.9 }), trees.length);
-  const crownMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, flatShading: true });
-  const crowns = new THREE.InstancedMesh(crownGeo, crownMat, trees.length * 2);
-  const q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
-  const greens = ['#5f8a44', '#6e9a4c', '#4f7a3e', '#7ea455', '#5b7f3a'];
-  trees.forEach((t, i) => {
-    const h = 2.6 * t.k;
-    m.compose(v.set(t.x, 0, t.z), q.identity(), sc.set(t.k, h, t.k));
-    trunks.setMatrixAt(i, m);
-    const col = c.set(greens[Math.floor(rnd() * greens.length)]);
-    for (let j = 0; j < 2; j++) {
-      const r = (j ? 1.25 : 1.7) * t.k;
-      e.set(rnd() * 3, rnd() * 3, rnd() * 3);
-      m.compose(v.set(t.x + (j ? 0.5 : 0) * t.k, h + (j ? 1.7 : 0.9) * t.k, t.z + (j ? -0.3 : 0) * t.k), q.setFromEuler(e), sc.set(r, r * 0.9, r));
-      crowns.setMatrixAt(i * 2 + j, m);
-      crowns.setColorAt(i * 2 + j, col.clone().offsetHSL(0, 0, j ? 0.05 : 0));
-    }
-    obstacles.push({ x0: t.x - 0.3, z0: t.z - 0.3, x1: t.x + 0.3, z1: t.z + 0.3 });
-  });
-  trunks.castShadow = crowns.castShadow = true;
-  crowns.receiveShadow = true;
-  group.add(trunks, crowns);
+  for (const t of trees) obstacles.push({ x0: t.x - 0.3, z0: t.z - 0.3, x1: t.x + 0.3, z1: t.z + 0.3 });
+  let setTreePhoto = () => {};
+  if (!simpleTrees) {
+    const t3 = createTrees(trees, { seed });
+    group.add(t3.group);
+    setTreePhoto = t3.setPhoto;
+  } else {
+    // Low quality: a trunk and two faceted crowns per tree.
+    const trunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 1, 6);
+    trunkGeo.translate(0, 0.5, 0);
+    const crownGeo = new THREE.IcosahedronGeometry(1, 1);
+    const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshStandardMaterial({ color: '#5b4636', roughness: 0.9 }), trees.length);
+    const crownMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, flatShading: true });
+    const crowns = new THREE.InstancedMesh(crownGeo, crownMat, trees.length * 2);
+    const q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    const greens = ['#5f8a44', '#6e9a4c', '#4f7a3e', '#7ea455', '#5b7f3a'];
+    trees.forEach((t, i) => {
+      const h = 2.6 * t.k;
+      m.compose(v.set(t.x, 0, t.z), q.identity(), sc.set(t.k, h, t.k));
+      trunks.setMatrixAt(i, m);
+      const col = c.set(greens[Math.floor(rnd() * greens.length)]);
+      for (let j = 0; j < 2; j++) {
+        const r = (j ? 1.25 : 1.7) * t.k;
+        e.set(rnd() * 3, rnd() * 3, rnd() * 3);
+        m.compose(v.set(t.x + (j ? 0.5 : 0) * t.k, h + (j ? 1.7 : 0.9) * t.k, t.z + (j ? -0.3 : 0) * t.k), q.setFromEuler(e), sc.set(r, r * 0.9, r));
+        crowns.setMatrixAt(i * 2 + j, m);
+        crowns.setColorAt(i * 2 + j, col.clone().offsetHSL(0, 0, j ? 0.05 : 0));
+      }
+    });
+    trunks.castShadow = crowns.castShadow = true;
+    crowns.receiveShadow = true;
+    group.add(trunks, crowns);
+  }
 
   for (const [kind, list] of Object.entries(parts)) {
     if (!list.length) continue;
@@ -312,5 +322,5 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
     bounds: { x0: -SL + 1, x1: SL - 1, z0: -SW + 1, z1: walkZ1 - 0.3 },
     house: { x0: -hx, z0: -hz, x1: hx, z1: hz }
   };
-  return { group, setTime, obstacles, walk, mats, trees: trees.length };
+  return { group, setTime, obstacles, walk, mats, trees: trees.length, setTreePhoto };
 }

@@ -147,7 +147,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
   scene.add(lamp);
 
   // ---------- site: lawn, paving, street, parking, trees, lamps ----------
-  const site = createSite({ fac, site: bld.site, seed: bld.seed || 12, wallT: T, lampLights: tier.lampShadows });
+  const site = createSite({ fac, site: bld.site, seed: bld.seed || 12, wallT: T, lampLights: tier.lampShadows, simpleTrees: tierName === 'low' });
   scene.add(site.group);
 
   // ---------- building ----------
@@ -306,7 +306,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
   scene.add(building);
   // Photo stone, concrete and timber (the library facade sets when on disk, else the bundled sets), once decoded;
   // the procedural look until then. Called again after the facade sets are downloaded.
-  const refreshPhoto = () => applyPhotoFacade({ mats, site: site.mats, small: tierName === 'low',
+  const refreshPhoto = () => applyPhotoFacade({ mats, site: site.mats, trees: site.setTreePhoto, small: tierName === 'low',
     anisotropy: Math.min(tier.anisotropy * 2, renderer.capabilities.getMaxAnisotropy()) })
     .then(ok => { if (ok) { shadows = true; dirty = true; } return ok; });
   refreshPhoto();

@@ -176,7 +176,7 @@ async function libSet(entry) {
  * Resolves 'library' when the facade sets were used, 'bundled' for the composed look, false when the photos
  * could not be read (the procedural look stays).
  */
-export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small = false }) {
+export async function applyPhotoFacade({ mats, site = {}, trees = null, anisotropy = 4, small = false }) {
   const { list } = await library();
   const sets = Object.fromEntries(await Promise.all(Object.entries(FACADE_SETS)
     .map(async ([k, id]) => [k, await libSet(list.find(e => e.id === id))])));
@@ -193,6 +193,9 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
       return false;
     }
   }
+  const leafEntry = list.find(e => e.id === SITE_SETS.leaves);
+  const leaves = leafEntry?.available ? await Promise.all(['color', 'opacity'].map(f => bitmap(`/textures/lib/${leafEntry.id}/${f}.jpg`)))
+    .then(([color, opacity]) => ({ color, opacity }), () => null) : null;
   const siteSets = Object.fromEntries(await Promise.all(Object.entries(SITE_SETS).filter(([k]) => k !== 'leaves')
     .map(async ([k, id]) => [k, await libSet(list.find(e => e.id === id))])));
   const opt = { anisotropy };
@@ -220,6 +223,7 @@ export async function applyPhotoFacade({ mats, site = {}, anisotropy = 4, small 
       swap(site.road, plain(g.road), { roughness: 1 }, rep(g.road, 4));
       site.road.color.set('#626468');      // the photo is a light, worn asphalt: fresh asphalt is darker
     }
+    if (trees && (leaves || g.bark)) trees({ leaves, bark: g.bark }, { anisotropy, small });
     if (g.pave && site.pave) {
       swap(site.pave, plain(g.pave), { roughness: 1 }, rep(g.pave, 1.6));
       site.pave.color.set('#f4eee4');      // warm grey concrete pavers

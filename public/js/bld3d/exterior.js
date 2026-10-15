@@ -1,5 +1,6 @@
-// The building outside in 3D (showcase main view): light porcelain facade with anthracite frames, graphite fins
-// between apartments, a glazed ground floor with a canopy over the entrance, roof parapet and lift room.
+// The building outside in 3D (showcase main view): light stone facade with light frames in deep reveals, metal
+// sills, balconies with glass rails at the living rooms, stone pilasters between apartments, a cornice and parapet,
+// a dark stone ground floor with shop canopies and a canopy over the entrance, the lift room on the roof.
 // Walls, bands and frames are merged into one mesh per material; the glass is one InstancedMesh with a room
 // behind every window (windows.js), lit at night, tinted per apartment. Drawn only when something changes.
 // Scene units: metres; the building stands centred on the origin, south (the entrance) towards +z.
@@ -16,7 +17,7 @@ import { createWindows } from './windows.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
-const GLASS_D = 0.12;    // glass plane, m from the inner face (the reveal is T − GLASS_D deep)
+const GLASS_D = 0.05;    // glass plane, m from the inner face (the reveal is T − GLASS_D = 25 cm deep)
 const PARAPET = 1.1;
 
 export const TIMES = {
@@ -38,7 +39,8 @@ export function mixTimes(a, b, k) {
   for (const c of COLS) o[c] = new THREE.Color(a[c]).lerp(new THREE.Color(b[c]), k);
   return o;
 }
-const LAMPS_ON = 0.6;     // the evening level: strips, letters and doors fully lit from here
+const LAMPS_ON = 0.6;
+const BALCONY = new Set(['living', 'kitchenLiving']);   // rooms whose window gets a balcony     // the evening level: strips, letters and doors fully lit from here
 
 
 // Seamed porcelain tiles 120 × 60 cm, in world-space UVs (1 texture = 2.4 × 1.2 m).
@@ -148,11 +150,12 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
   // ---------- building ----------
   const mats = {
     wall: new THREE.MeshStandardMaterial({ color: '#efe6da', map: tileTexture(), roughness: 0.82 }),
-    panel: new THREE.MeshStandardMaterial({ color: '#4a4f55', roughness: 0.6, metalness: 0.2 }),
     base: new THREE.MeshStandardMaterial({ color: '#2a2e33', roughness: 0.55, metalness: 0.35 }),
     band: new THREE.MeshStandardMaterial({ color: '#d6cdbf', roughness: 0.7 }),
     fin: new THREE.MeshStandardMaterial({ color: '#3b4046', roughness: 0.5, metalness: 0.3 }),
-    frame: new THREE.MeshStandardMaterial({ color: '#2e3236', roughness: 0.45, metalness: 0.55 }),
+    frame: new THREE.MeshStandardMaterial({ color: '#eceeee', roughness: 0.45, metalness: 0.05 }),
+    sill: new THREE.MeshStandardMaterial({ color: '#9ca2a8', roughness: 0.4, metalness: 0.6 }),
+    rail: new THREE.MeshStandardMaterial({ color: '#c9dde4', roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.32, depthWrite: false }),
     roof: new THREE.MeshStandardMaterial({ color: '#7d8287', roughness: 0.95 }),
     wood: new THREE.MeshStandardMaterial({ color: '#9a6a40', roughness: 0.6 }),
     strip: new THREE.MeshBasicMaterial({ color: '#ffe2b0' }),
@@ -202,10 +205,23 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
         fbox('frame', side, u0, u0 + f, s, e, fd0, fd1);
         fbox('frame', side, u1 - f, u1, s, e, fd0, fd1);
         if (u1 - u0 > 1.3) fbox('frame', side, (u0 + u1) / 2 - f / 2, (u0 + u1) / 2 + f / 2, s, e, fd0, fd1);
-        if (b.kind === 'window' && b.sill > 20) {
-          // Graphite panel under the window down to the storey band: windows of the storeys read as vertical stripes.
-          fbox('panel', side, u0 - 0.05, u1 + 0.05, y0 + 0.2, s, T - 0.01, T + 0.02);
-          fbox('frame', side, u0 - 0.05, u1 + 0.05, s - 0.04, s, T - 0.02, T + 0.07);   // sill
+        if (b.kind === 'window' && b.sill > 20) fbox('sill', side, u0 - 0.04, u1 + 0.04, s - 0.04, s, GLASS_D, T + 0.06);   // metal sill
+        // Living rooms on the long facades: a balcony slab with a glass rail on steel posts and a handrail.
+        if (b.kind === 'window' && n > 1 && ns && BALCONY.has(b.purpose)) {
+          const a0 = u0 - 0.35, a1 = u1 + 0.35, fl = y0 + SLAB * M, d1 = T + 1.1;
+          fbox('band', side, a0, a1, fl - 0.18, fl, T, d1);
+          fbox('rail', side, a0 + 0.04, a1 - 0.04, fl + 0.1, fl + 1.0, d1 - 0.07, d1 - 0.05);
+          fbox('rail', side, a0, a0 + 0.02, fl + 0.1, fl + 1.0, T, d1 - 0.05);
+          fbox('rail', side, a1 - 0.02, a1, fl + 0.1, fl + 1.0, T, d1 - 0.05);
+          fbox('sill', side, a0, a1, fl + 1.0, fl + 1.05, d1 - 0.09, d1 - 0.03);
+          fbox('sill', side, a0, a0 + 0.04, fl + 1.0, fl + 1.05, T, d1 - 0.03);
+          fbox('sill', side, a1 - 0.04, a1, fl + 1.0, fl + 1.05, T, d1 - 0.03);
+          for (const pu of [a0 + 0.02, a1 - 0.06]) fbox('sill', side, pu, pu + 0.04, fl, fl + 1.0, d1 - 0.1, d1 - 0.06);
+        }
+        // Shops: a slim canopy over the glass.
+        if (b.kind === 'shop') {
+          fbox('fin', side, u0 - 0.15, u1 + 0.15, e + 0.12, e + 0.2, T, T + 1.2);
+          fbox('sill', side, u0 - 0.15, u1 + 0.15, e + 0.2, e + 0.24, T + 1.15, T + 1.2);
         }
         at = u1;
       }
@@ -213,24 +229,28 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
       // Storey band, a slight step out of the wall.
       if (n > 1) fbox('band', side, ns ? -T - 0.05 : 0, ns ? sideLen(side) + T + 0.05 : sideLen(side), y0, y0 + 0.2, T - 0.01, T + 0.05);
     }
-    // Graphite fins between neighbouring apartments on the long facades.
+    // Stone pilasters between neighbouring apartments on the long facades, from the first storey band up.
     if (n > 1) {
       for (const side of ['north', 'south']) {
         const spans = fac.spans.filter(s => s.floor === n && s.side === side).sort((p, q) => p.x0 - q.x0);
         for (let i = 1; i < spans.length; i++) {
           const u = (spans[i - 1].x1 + spans[i].x0) / 2 * M;
-          fbox('fin', side, u - 0.12, u + 0.12, y0 + 0.2, y0 + level, T - 0.01, T + 0.38);
+          fbox('wall', side, u - 0.3, u + 0.3, y0 + 0.2, y0 + level, T - 0.01, T + 0.16);
         }
       }
     }
   }
-  // Corner pilasters, roof slab, parapet, lift room.
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box('fin', sx * (hx + T), (top + PARAPET) / 2, sz * (hz + T), 0.62, top + PARAPET, 0.62);
+  // Corner pilasters, roof slab, cornice, parapet with a metal cap, lift room.
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box('wall', sx * (hx + T), (level + top) / 2, sz * (hz + T), 0.7, top - level, 0.7);
   box('roof', 0, top + 0.12, 0, L + 2 * T, 0.24, W + 2 * T);
+  const CORN = 0.55;
   for (const side of ['north', 'south', 'west', 'east']) {
     const ns = side === 'north' || side === 'south';
-    fbox('wall', side, ns ? -T : 0, ns ? L + T : W, top, top + PARAPET, 0, T);
-    fbox('fin', side, ns ? -T : 0, ns ? L + T : W, top + PARAPET, top + PARAPET + 0.06, -0.02, T + 0.04);
+    const c0 = ns ? -T - CORN : -CORN, c1 = ns ? L + T + CORN : W + CORN;
+    fbox('band', side, c0, c1, top - 0.1, top + 0.22, T, T + CORN);
+    fbox('band', side, c0 + 0.1, c1 - 0.1, top - 0.32, top - 0.1, T, T + CORN * 0.55);
+    fbox('wall', side, ns ? -T : 0, ns ? L + T : W, top + 0.22, top + PARAPET, 0, T);
+    fbox('sill', side, ns ? -T : 0, ns ? L + T : W, top + PARAPET, top + PARAPET + 0.06, -0.03, T + 0.05);
   }
   const core = bld.core;
   if (core) box('fin', (core.x + core.w / 2) * M - hx, top + 1.7, (core.y + core.h / 2) * M - hz, core.w * M, 3.4, core.h * M * 0.7);
@@ -259,7 +279,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     const uv = { wall: PHOTO_UV.wall, base: PHOTO_UV.base, band: PHOTO_UV.concrete, roof: PHOTO_UV.concrete, wood: PHOTO_UV.wood }[kind];
     if (uv) worldUV(geo, ...uv);
     const mesh = new THREE.Mesh(geo, mats[kind]);
-    mesh.castShadow = kind !== 'strip';
+    mesh.castShadow = kind !== 'strip' && kind !== 'rail';
     mesh.receiveShadow = kind !== 'strip';
     building.add(mesh);
   }

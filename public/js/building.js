@@ -232,6 +232,8 @@ export function generateBuilding({ id = 'novostroyka-12', seed = 12, floors = 12
     floors, seed, pricePerM2,
     section: { L: SECTION, W: SECTION_W, H },
     core: CORE, corridor: { x: 0, y: CORR_Y, w: SECTION, h: CORR_W },
+    // the plot around the house, cm: street on the south (the entrance side), parking on the east
+    site: { L: 9000, W: 7600, road: 'south', parking: 'east', trees: 40 },
     floorsData
   };
 }

@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SLAB } from '../facade.js';
 import { SETTINGS, readPref, tierFor } from '../3d/perf.js';
+import { createSite } from './site.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
@@ -121,15 +122,9 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
   const lamp = new THREE.PointLight('#ffc98a', 0, 14, 1.6);   // canopy downlight at night
   scene.add(lamp);
 
-  // ---------- ground ----------
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ color: '#8d9c78', roughness: 1 }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-  const apron = new THREE.Mesh(new THREE.BoxGeometry(L + 2 * T + 2.4, 0.06, W + 2 * T + 2.4), new THREE.MeshStandardMaterial({ color: '#c3bcb0', roughness: 0.95 }));
-  apron.position.y = 0.03;
-  apron.receiveShadow = true;
-  scene.add(apron);
+  // ---------- site: lawn, paving, street, parking, trees, lamps ----------
+  const site = createSite({ fac, site: bld.site, seed: bld.seed || 12, wallT: T, lampLights: tier.lampShadows });
+  scene.add(site.group);
 
   // ---------- building ----------
   const mats = {
@@ -337,6 +332,7 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     renderer.toneMappingExposure = p.exposure;
     lamp.intensity = p.lamp * 30;
     mats.strip.color.set(p.lamp ? '#ffd9a0' : '#d9d2c4');
+    site.setTime(p);
     envRT?.dispose();
     envRT = pmrem.fromScene(envScene, 0, 1, 1000);
     scene.environment = envRT.texture;
@@ -499,6 +495,6 @@ export function createExterior(container, { bld, fac, title = '', onHover = () =
     getAuto: () => auto,
     pause(on) { paused = on; dirty = true; clock.getDelta(); },
     requestRender() { dirty = true; },
-    renderer, scene, camera
+    renderer, scene, camera, site
   };
 }

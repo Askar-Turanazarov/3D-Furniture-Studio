@@ -1,7 +1,9 @@
-// Floor view embedded in the showcase (building.html → iframe /?embed=floor&b=<id>&apt=<no>): the chosen apartment
-// and the floor corridor are a temporary project (full detail, never saved), the other apartments a low-detail
-// shell around them. From the corridor the doors of the neighbours lead in: free and booked ones open (the
-// detailed apartment is swapped behind a short fade), sold ones stay locked.
+// Floor view embedded in the showcase (building.html → iframe /?embed=floor&b=<id>&apt=<no>, or
+// /?embed=building&b=<id>&floor=<n> for a floor without an apartment, floor 1 = the lobby): the chosen apartment,
+// the floor corridor (or the lobby) are a temporary project (full detail, never saved), the other apartments
+// a low-detail shell around them. From the corridor the doors of the neighbours lead in: free and booked ones
+// open (the detailed apartment is swapped behind a short fade), sold ones stay locked. The lift goes to any
+// floor, the stairs one floor up or down.
 // Coordinates: the section's (cm), the scene origin is the section corner.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -15,12 +17,19 @@ import { openTemporary } from './projects.js';
 import { toast } from './ui.js';
 
 export const CORR_ID = 'corr';
+export const LOBBY_ID = 'lobby';
+const PASSAGE_ID = 'lobby2';
 const OPPOSITE = { north: 'south', south: 'north', west: 'east', east: 'west' };
+const PART = 10;     // partition between the lobby and the entrance passage, cm
 
 export function embedParams(search = location.search) {
   const q = new URLSearchParams(search);
-  const b = q.get('b') || '', apt = Number(q.get('apt'));
-  return q.get('embed') === 'floor' && /^[a-z0-9-]{1,60}$/.test(b) && Number.isInteger(apt) && apt > 0 ? { b, apt } : null;
+  const b = q.get('b') || '', mode = q.get('embed');
+  if (!/^[a-z0-9-]{1,60}$/.test(b)) return null;
+  const apt = Number(q.get('apt')), floor = Number(q.get('floor'));
+  if (mode === 'floor' && Number.isInteger(apt) && apt > 0) return { b, apt };
+  if (mode === 'building') return { b, floor: Number.isInteger(floor) && floor > 0 ? floor : 1 };
+  return null;
 }
 
 // Rooms of an apartment on the floor (section coordinates).
@@ -36,67 +45,139 @@ export function entranceDoor(a) {
   return { wall: OPPOSITE[o.wall], x: r.pos.x + o.offset, width: o.width, height: o.height || 210 };
 }
 
+const hallStyle = color => ({ ...styleOf({}), floor: 'tile', wall: { material: 'paint', color }, accentWall: null, finish: 'finished' });
+
+// Lift and stair doors in the wall `wall` of a room at `x0` (section x of the room's left edge); lifts come
+// first, so the walker arriving on a floor stands at the lift.
+function coreDoors(core, wall, x0, add) {
+  add(wall, core.x + 60 - x0, 110, 210, { lift: 1 });
+  add(wall, core.x + 200 - x0, 110, 210, { lift: 2 });
+  add(wall, core.x + core.w - 150 - x0, 90, 210, { stairs: true });
+}
+
+function doorAdder(openings, doors, roomId) {
+  let id = 1;
+  return (wall, offset, width, height, meta) => {
+    openings.push({ id, kind: 'door', wall, offset: Math.round(offset), width, height, hinge: 'start' });
+    if (meta) doors.set(`${roomId}:${id}`, meta);
+    id++;
+  };
+}
+
 /**
- * The floor corridor as a room of the project: the doors of the other apartments in its walls (they lead
- * "outside", i.e. to the shells), the lift and stair doors in the wall facing the core.
- * → { room, doors: Map(doorId → { aptNo } | { lift: i } | { stairs: true }) }
+ * The floor corridor as a room of the project: the lift and stair doors in the wall facing the core, the doors
+ * of the other apartments (they lead "outside", i.e. to the shells).
+ * → { rooms: [room], doors: Map('roomId:doorId' → { aptNo } | { lift } | { stairs }) }
  */
-export function corridorRooms(bld, floor, aptNo, lang = getLang()) {
+export function corridorRooms(bld, floor, aptNo) {
   const c = bld.corridor;
   if (!c) return null;
   const H = bld.section?.H || 280;
   const f = bld.floorsData.find(q => q.n === floor);
   const openings = [], doors = new Map();
-  let id = 1;
-  const add = (wall, x, width, height, meta) => {
-    openings.push({ id, kind: 'door', wall, offset: Math.round(x - c.x), width, height, hinge: 'start' });
-    doors.set(id++, meta);
-  };
+  const add = doorAdder(openings, doors, CORR_ID);
+  if (bld.core) coreDoors(bld.core, bld.core.y >= c.y + c.h ? 'south' : 'north', c.x, add);
   for (const o of f?.apartments || []) {
     if (o.no === aptNo) continue;
     const e = entranceDoor(o);
-    if (e) add(e.wall, e.x, e.width, e.height, { aptNo: o.no });
-  }
-  const core = bld.core;
-  if (core) {
-    const wall = core.y >= c.y + c.h ? 'south' : 'north';
-    add(wall, core.x + 60, 110, 210, { lift: 1 });
-    add(wall, core.x + 200, 110, 210, { lift: 2 });
-    add(wall, core.x + core.w - 150, 90, 210, { stairs: true });
+    if (e) add(e.wall, e.x - c.x, e.width, e.height, { aptNo: o.no });
   }
   const room = {
     id: CORR_ID, name: t('floor3d.corridor', { n: floor }), purpose: 'hall',
     pos: { x: c.x, y: c.y }, room: { L: c.w, W: c.h, H, plinth: 2 },
-    openings, items: [], obstacles: [],
-    style: { ...styleOf({}), floor: 'tile', wall: { material: 'paint', color: '#e6e1d8' }, accentWall: null, finish: 'finished' }
+    openings, items: [], obstacles: [], style: hallStyle('#e6e1d8')
   };
-  return { room, doors, lang };
+  return { rooms: [room], doors };
 }
 
-// The project: the apartment (names "Apt. №N · room") plus the corridor; the walker starts in its hall.
-function floorProject(bld, a, keep = null) {
+/**
+ * Ground floor: the lobby north of the core (glazed to the street, lifts and stairs in its south wall, locked
+ * doors to the commercial units) and the entrance passage east of the core with the street doors.
+ * → { rooms, doors, entrance: { x0, x1 } (section x of the street doors) }
+ */
+export function lobbyRooms(bld) {
+  const g = bld.floorsData.find(f => f.n === 1);
+  const lb = g?.lobby, core = bld.core;
+  if (!lb || !core) return null;
+  const H = bld.section?.H || 280;
+  const doors = new Map();
+  // Lobby: from the north facade to the core.
+  const L = lb.w, W = core.y - lb.y;
+  const ops = [];
+  const add = doorAdder(ops, doors, LOBBY_ID);
+  coreDoors(core, 'south', lb.x, add);
+  const px = core.x + core.w + PART, pw = lb.x + lb.w - px;      // the passage: x and width
+  add('south', px - lb.x + 40, pw - 80, 220, null);              // into the passage (an ordinary door)
+  add('west', W / 2 - 50, 100, 210, { rent: true });
+  add('east', W / 2 - 50, 100, 210, { rent: true });
+  // Shop-front glass to the north, like the facade (3 m pitch).
+  for (let x = 20; x + 260 <= L; x += 300) ops.push({ id: ops.length + 1, kind: 'window', wall: 'north', offset: x, width: 260, height: 250, sill: 0 });
+  const it = (id, type, x, y, w, d, h, rot, color) => ({ id, type, x, y, w, d, h, rot, color });
+  const lobby = {
+    id: LOBBY_ID, name: t('floor3d.lobby'), purpose: 'hall',
+    pos: { x: lb.x, y: lb.y }, room: { L, W, H, plinth: 2 }, openings: ops, obstacles: [],
+    items: [
+      it(1, 'desk', 80, 330, 180, 70, 105, 0, '#5d4037'),            // concierge
+      it(2, 'chair', 145, 260, 45, 45, 90, 0, '#37474f'),
+      it(3, 'bookshelf', 2, 520, 200, 35, 170, 270, '#9aa3ab'),    // mailboxes
+      it(4, 'sofa', 430, 20, 230, 95, 85, 0, '#6d7b8a'),
+      it(5, 'coffeetable', 495, 170, 100, 60, 45, 0, '#3e2723'),
+      it(6, 'armchair', 330, 150, 85, 85, 85, 90, '#8d6e63'),
+      it(7, 'plant', 2, 2, 60, 60, 140, 0, '#2e7d32'),
+      it(8, 'plant', L - 62, 2, 60, 60, 140, 0, '#2e7d32'),
+      it(9, 'floorlamp', 670, 30, 40, 40, 160, 0, '#cfd8dc')
+    ],
+    seq: 10, style: hallStyle('#ece6db')
+  };
+  // Passage: beside the core, from the lobby to the street doors.
+  const dw = 220, entrance = { x0: Math.round(px + (pw - dw) / 2), x1: Math.round(px + (pw + dw) / 2) };
+  const pops = [{ id: 1, kind: 'door', wall: 'south', offset: entrance.x0 - px, width: dw, height: 240, hinge: 'start' }];
+  doors.set(`${PASSAGE_ID}:1`, { street: true });
+  const passage = {
+    id: PASSAGE_ID, name: t('floor3d.entrance'), purpose: 'hall',
+    pos: { x: px, y: core.y + PART }, room: { L: pw, W: lb.y + lb.h - core.y - PART, H, plinth: 2 },
+    openings: pops, items: [], obstacles: [], style: hallStyle('#ece6db')
+  };
+  return { rooms: [lobby, passage], doors, entrance };
+}
+
+/**
+ * The project of a floor: the apartment `a` (names "Apt. №N · room", the walker in its hall) plus the corridor,
+ * or only the corridor (the walker at the lift), or on floor 1 the lobby.
+ */
+function floorProject(bld, floor, a, keep = null) {
   const lang = getLang();
-  const rooms = placed(a).map(r => ({ ...r, name: t('floor3d.room', { no: a.no, name: localRoomName(r.name, lang) }) }));
-  const start = entrances(rooms)[0] || rooms[0].id;
+  let rooms = [], start = null;
+  if (a) {
+    rooms = placed(a).map(r => ({ ...r, name: t('floor3d.room', { no: a.no, name: localRoomName(r.name, lang) }) }));
+    start = entrances(rooms)[0] || rooms[0].id;
+  }
+  const extra = floor === 1 ? lobbyRooms(bld) : corridorRooms(bld, floor, a?.no);
+  if (extra) {
+    rooms.push(...extra.rooms);
+    start ||= extra.rooms[0].id;
+  }
+  if (!rooms.length) throw new Error('empty floor');
   if (keep?.finish) for (const r of rooms) r.style = { ...styleOf(r.style), finish: keep.finish };
-  const corr = corridorRooms(bld, a.floor, a.no, lang);
-  const name = `${bld.name?.[lang] || bld.name?.ru || bld.id}, №${a.no}`;
+  const title = bld.name?.[lang] || bld.name?.ru || bld.id;
+  const name = a ? `${title}, №${a.no}` : `${title}, ${t('bld.floor', { n: floor })}`;
   // Not importProject: its size check (≤ 30 m) is for files, the corridor runs the whole section.
-  const p = normalizeProject({ name, activeRoomId: start, rooms: corr ? [...rooms, corr.room] : rooms,
+  const p = normalizeProject({ name, activeRoomId: start, rooms,
     ...(keep?.lighting ? { lighting: structuredClone(keep.lighting) } : {}) });
-  return { p, doors: corr?.doors || new Map() };
+  return { p, doors: extra?.doors || new Map() };
 }
 
-// Load the building, open the apartment and its corridor as a temporary project.
-export async function openFloor({ b, apt }) {
+// Load the building, open the apartment and its corridor (or a floor) as a temporary project.
+export async function openFloor({ b, apt, floor }) {
   const res = await fetch('/api/buildings/' + encodeURIComponent(b));
   if (!res.ok) throw new Error(res.status);
   const bld = await res.json();
-  const a = bld.floorsData.flatMap(f => f.apartments || []).find(q => q.no === apt);
-  if (!a) throw new Error('no apartment');
-  const { p, doors } = floorProject(bld, a);
+  const a = apt ? bld.floorsData.flatMap(f => f.apartments || []).find(q => q.no === apt) : null;
+  if (apt && !a) throw new Error('no apartment');
+  const n = a ? a.floor : Math.min(floor, bld.floorsData.length);
+  const { p, doors } = floorProject(bld, n, a);
   openTemporary(p);
-  return { bld, a, doors };
+  return { bld, a, floor: n, doors };
 }
 
 const WALL = 5;      // half a partition: every shell room gets this much wall outside its outline, cm
@@ -110,31 +191,31 @@ const materials = () => (mats ||= {
   glass: new THREE.MeshStandardMaterial({ color: '#9cc3e6', roughness: 0.1, transparent: true, opacity: 0.35, depthWrite: false })
 });
 
-const PLATE = { free: '#2b8a3e', booked: '#d9480f', sold: '#868e96' };
+const PLATE = { free: '#2b8a3e', booked: '#d9480f', sold: '#868e96', rent: '#1971c2' };
 
-// Number plate over a corridor door: the apartment number on a stripe of its status colour.
-function plate(no, status) {
+// Plate over a door: the text on a stripe of the status colour.
+function plate(text, status, wide = false) {
   const c = document.createElement('canvas');
-  c.width = 128; c.height = 64;
+  c.width = wide ? 256 : 128; c.height = 64;
   const g = c.getContext('2d');
   g.fillStyle = '#2f3337';
-  g.fillRect(0, 0, 128, 64);
+  g.fillRect(0, 0, c.width, 64);
   g.fillStyle = PLATE[status] || '#868e96';
-  g.fillRect(0, 54, 128, 10);
+  g.fillRect(0, 54, c.width, 10);
   g.fillStyle = '#f4efe6';
-  g.font = '600 38px system-ui, sans-serif';
+  g.font = `600 ${wide ? 30 : 38}px system-ui, sans-serif`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(String(no), 64, 28);
+  g.fillText(String(text), c.width / 2, 28);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.16), new THREE.MeshBasicMaterial({ map: tex }));
+  return new THREE.Mesh(new THREE.PlaneGeometry(wide ? 0.64 : 0.32, 0.16), new THREE.MeshBasicMaterial({ map: tex }));
 }
 
-// The floor around apartment `a`: other apartments as merged shells (floor, walls with window gaps, glass;
-// their doors stay closed), the lift/stair core, the slab, number plates on the corridor doors.
+// The floor around the detailed part: other apartments (or the commercial units) as merged shells (floor, walls
+// with window gaps, glass; their doors stay closed), the lift/stair core, the slab, plates over the doors.
 // One mesh per material, no shadows.
-export function floorContext({ bld, a }) {
+export function floorContext({ bld, a, floor: n = a?.floor }) {
   const parts = { wall: [], floor: [], core: [], slab: [], glass: [] };
   const box = (kind, x, z, w, d, y0, h) => {
     if (w <= 0 || d <= 0 || h <= 0) return;
@@ -142,46 +223,57 @@ export function floorContext({ bld, a }) {
     g.translate((x + w / 2) / 100, (y0 + h / 2) / 100, (z + d / 2) / 100);
     parts[kind].push(g);
   };
-  const floor = bld.floorsData.find(f => f.n === a.floor);
+  const floor = bld.floorsData.find(f => f.n === n);
   const H = bld.section?.H || 280;
-  for (const o of floor?.apartments || []) {
-    if (o.no === a.no) continue;
-    for (const r of o.plan) {
-      const q = roomRect(r), x = o.at.x + q.x, z = o.at.y + q.y;
-      box('floor', x, z, q.w, q.h, -2, 2);
-      const h = r.room.H || H;
-      const wins = (r.openings || []).filter(w => w.kind === 'window');
-      // Each wall: along its length, with gaps for the windows (sill below, lintel above, glass in between).
-      for (const wall of ['north', 'south', 'west', 'east']) {
-        const horiz = wall === 'north' || wall === 'south';
-        const len = horiz ? q.w : q.h;
-        const seg = (from, to, y0, hh) => {
-          if (to <= from) return;
-          if (horiz) box('wall', x + from, wall === 'north' ? z - WALL : z + q.h, to - from, WALL, y0, hh);
-          else box('wall', wall === 'west' ? x - WALL : x + q.w, z + from, WALL, to - from, y0, hh);
-        };
-        const glass = (from, to, y0, hh) => {
-          if (horiz) box('glass', x + from, (wall === 'north' ? z - WALL : z + q.h) + WALL / 2 - 0.5, to - from, 1, y0, hh);
-          else box('glass', (wall === 'west' ? x - WALL : x + q.w) + WALL / 2 - 0.5, z + from, 1, to - from, y0, hh);
-        };
-        let at = 0;
-        for (const w of wins.filter(w => w.wall === wall).sort((p, s) => p.offset - s.offset)) {
-          const s = Math.max(at, w.offset), e = Math.min(len, w.offset + w.width);
-          if (e <= s) continue;
-          seg(at, s, 0, h);
-          seg(s, e, 0, w.sill);
-          seg(s, e, w.sill + w.height, h - w.sill - w.height);
-          glass(s, e, w.sill, w.height);
-          at = e;
-        }
-        seg(at, len, 0, h);
+  // A shell room: q = rect in section coordinates, wins = its windows.
+  const shell = (q, h, wins) => {
+    const { x, y: z } = q;
+    box('floor', x, z, q.w, q.h, -2, 2);
+    for (const wall of ['north', 'south', 'west', 'east']) {
+      const horiz = wall === 'north' || wall === 'south';
+      const len = horiz ? q.w : q.h;
+      const seg = (from, to, y0, hh) => {
+        if (to <= from) return;
+        if (horiz) box('wall', x + from, wall === 'north' ? z - WALL : z + q.h, to - from, WALL, y0, hh);
+        else box('wall', wall === 'west' ? x - WALL : x + q.w, z + from, WALL, to - from, y0, hh);
+      };
+      const glass = (from, to, y0, hh) => {
+        if (horiz) box('glass', x + from, (wall === 'north' ? z - WALL : z + q.h) + WALL / 2 - 0.5, to - from, 1, y0, hh);
+        else box('glass', (wall === 'west' ? x - WALL : x + q.w) + WALL / 2 - 0.5, z + from, 1, to - from, y0, hh);
+      };
+      // Along the wall, with gaps for the windows (sill below, lintel above, glass in between).
+      let at = 0;
+      for (const w of wins.filter(w => w.wall === wall).sort((p, s) => p.offset - s.offset)) {
+        const s = Math.max(at, w.offset), e = Math.min(len, w.offset + w.width);
+        if (e <= s) continue;
+        seg(at, s, 0, h);
+        seg(s, e, 0, w.sill);
+        seg(s, e, w.sill + w.height, h - w.sill - w.height);
+        glass(s, e, w.sill, w.height);
+        at = e;
       }
-      // Corners between the wall strips.
-      for (const [cx, cz] of [[x - WALL, z - WALL], [x + q.w, z - WALL], [x - WALL, z + q.h], [x + q.w, z + q.h]]) box('wall', cx, cz, WALL, WALL, 0, h);
+      seg(at, len, 0, h);
+    }
+    // Corners between the wall strips.
+    for (const [cx, cz] of [[x - WALL, z - WALL], [x + q.w, z - WALL], [x - WALL, z + q.h], [x + q.w, z + q.h]]) box('wall', cx, cz, WALL, WALL, 0, h);
+  };
+  for (const o of floor?.apartments || []) {
+    if (o.no === a?.no) continue;
+    for (const r of o.plan) {
+      const q = roomRect(r);
+      shell({ x: o.at.x + q.x, y: o.at.y + q.y, w: q.w, h: q.h }, r.room.H || H, (r.openings || []).filter(w => w.kind === 'window'));
     }
   }
   const { core, section } = bld;
+  // Commercial units: glazed all round where they face the street.
+  for (const c of floor?.commercial || []) {
+    const wins = [];
+    for (const wall of ['north', 'south']) for (let x = 20; x + 260 <= c.w; x += 300) wins.push({ wall, offset: x, width: 260, sill: 0, height: 250 });
+    shell(c, H, wins);
+  }
   if (core) box('core', core.x, core.y, core.w, core.h, 0, H);
+  // On the ground floor the strip west of the core (technical rooms) closes the lobby.
+  if (floor?.lobby && core) box('core', floor.lobby.x, core.y + PART, core.x - floor.lobby.x - PART, floor.lobby.y + floor.lobby.h - core.y - PART, 0, H);
   if (section) box('slab', 0, 0, section.L, section.W, -2 - SLAB, SLAB);
   const group = new THREE.Group();
   group.name = 'floorContext';
@@ -194,10 +286,10 @@ export function floorContext({ bld, a }) {
     if (kind === 'glass') mesh.renderOrder = 1;
     group.add(mesh);
   }
-  // Plates over the neighbours' doors, on the corridor side.
+  // Plates over the neighbours' doors, on the corridor side; "for rent" over the doors to the shops.
   const c = bld.corridor;
   for (const o of floor?.apartments || []) {
-    if (o.no === a.no || !c) continue;
+    if (o.no === a?.no || !c) continue;
     const e = entranceDoor(o);
     if (!e) continue;
     const p = plate(o.no, o.status);
@@ -206,16 +298,25 @@ export function floorContext({ bld, a }) {
     if (!north) p.rotation.y = Math.PI;
     group.add(p);
   }
+  if (floor?.lobby && core) {
+    const lb = floor.lobby, zc = (lb.y + (core.y - lb.y) / 2) / 100;
+    for (const west of [true, false]) {
+      const p = plate(t('floor3d.rentSign'), 'rent', true);
+      p.position.set((west ? lb.x + 1 : lb.x + lb.w - 1) / 100, 2.32, zc);
+      p.rotation.y = west ? Math.PI / 2 : -Math.PI / 2;
+      group.add(p);
+    }
+  }
   return group;
 }
 
-// ---------- walking between apartments ----------
-let ctx = null, busy = false, corrShown = false;
+// ---------- walking: neighbours, lift, stairs ----------
+let ctx = null, busy = false, hintShown = false, panel = null;
 
-function fadeEl() {
-  let el = document.getElementById('fade3d');
+function overlayEl(id, cls) {
+  let el = document.getElementById(id);
   if (!el) {
-    el = Object.assign(document.createElement('div'), { id: 'fade3d', className: 'fade3d' });
+    el = Object.assign(document.createElement('div'), { id, className: cls });
     document.getElementById('view3d').append(el);
   }
   return el;
@@ -223,35 +324,36 @@ function fadeEl() {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /**
- * Corridor doors: sold → locked with a note, free / booked → enter (the detailed apartment is swapped).
- * Returns true when the door is handled here (the default opening is skipped). Lifts and stairs are locked.
+ * Doors handled here (true = the default opening is skipped): neighbours (sold → locked with a note, free /
+ * booked → enter), the lifts (floor panel), the stairs (one floor up / down), the shops (locked, for rent).
  */
 export function corridorDoor(roomId, doorId, enter = enterApartment) {
-  if (roomId !== CORR_ID || !ctx) return false;
-  const meta = ctx.doors.get(doorId);
-  if (!meta) return false;
+  const meta = ctx?.doors.get(`${roomId}:${doorId}`);
+  if (!meta || meta.street) return false;
   if (meta.aptNo) {
-    const o = ctx.bld.floorsData.flatMap(f => f.apartments).find(q => q.no === meta.aptNo);
+    const o = ctx.bld.floorsData.flatMap(f => f.apartments || []).find(q => q.no === meta.aptNo);
     if (o?.status === 'sold') toast(t('floor3d.sold', { no: o.no }));
     else if (o) enter(o);
-  }
+  } else if (meta.rent) toast(t('floor3d.rent'));
+  else openPanel(meta.lift ? 'lift' : 'stairs');
   return true;
 }
 
-// The neighbour's apartment becomes the detailed one; finish level and light stay as they are.
-export async function enterApartment(a2, setContext) {
+// Swap what is detailed behind a fade: the apartment `a` (with its corridor) or the floor `n` (at the lift).
+async function swap(n, a, ms) {
   if (busy) return;
   busy = true;
-  const fade = fadeEl();
+  const fade = overlayEl('fade3d', 'fade3d');
+  fade.style.transitionDuration = ms + 'ms';
   fade.classList.add('on');
-  await sleep(300);
+  await sleep(ms);
   try {
     const keep = { lighting: state.lighting, finish: styleOf(state.style).finish };
-    const { p, doors } = floorProject(ctx.bld, a2, keep);
+    const { p, doors } = floorProject(ctx.bld, n, a, keep);
     openTemporary(p);
-    ctx = { ...ctx, a: a2, doors };
-    (setContext || ctx.setContext)(floorContext(ctx));
-    try { window.parent?.postMessage({ type: 'fsp3d:apartment', no: a2.no }, location.origin); } catch { /* ignore */ }
+    ctx = { ...ctx, a, floor: n, doors };
+    ctx.setContext(floorContext(ctx));
+    try { window.parent?.postMessage({ type: 'fsp3d:place', no: a?.no ?? null, floor: n }, location.origin); } catch { /* ignore */ }
   } finally {
     await sleep(60);
     fade.classList.remove('on');
@@ -259,14 +361,54 @@ export async function enterApartment(a2, setContext) {
   }
 }
 
-// Called once the embedded floor is shown: door hook, corridor hint.
-export function enableCorridor(floorCtx, { setContext, setDoorHook }) {
-  ctx = { ...floorCtx, setContext };
+// The neighbour's apartment becomes the detailed one; finish level and light stay as they are.
+export const enterApartment = a2 => swap(a2.floor, a2, 300);
+export const goFloor = n => swap(n, null, 600);
+
+// Lift: a button for every floor (the current one marked); stairs: one floor up / down.
+function openPanel(kind) {
+  ctx.release?.();
+  const el = overlayEl('lift3d', 'lift3d');
+  const floors = ctx.bld.floorsData.map(f => f.n);
+  const nums = kind === 'lift' ? [...floors].reverse() : [ctx.floor + 1, ctx.floor - 1].filter(n => floors.includes(n));
+  el.innerHTML = '';
+  const head = Object.assign(document.createElement('div'), { className: 'lift3d-head' });
+  head.append(Object.assign(document.createElement('b'), { textContent: t(kind === 'lift' ? 'floor3d.lift' : 'floor3d.stairs') }),
+    Object.assign(document.createElement('span'), { textContent: t('floor3d.now', { n: ctx.floor }) }));
+  const grid = Object.assign(document.createElement('div'), { className: 'lift3d-grid' + (kind === 'lift' ? '' : ' stairs') });
+  for (const n of nums) {
+    const b = Object.assign(document.createElement('button'), { type: 'button' });
+    b.textContent = kind === 'lift' ? (n === 1 ? t('floor3d.liftLobby') : String(n))
+      : t(n > ctx.floor ? 'floor3d.up' : 'floor3d.down', { n });
+    if (n === ctx.floor) b.classList.add('on');
+    b.addEventListener('click', () => { closePanel(); if (n !== ctx.floor) goFloor(n); });
+    grid.append(b);
+  }
+  const close = Object.assign(document.createElement('button'), { type: 'button', className: 'lift3d-close', textContent: t('floor3d.close') });
+  close.addEventListener('click', closePanel);
+  el.append(head, grid, close);
+  el.hidden = false;
+  panel = kind;
+  grid.querySelector('button:not(.on)')?.focus();
+}
+
+function closePanel() {
+  const el = document.getElementById('lift3d');
+  if (el) el.hidden = true;
+  panel = null;
+}
+
+// Called once the embedded floor is shown: door hook, hints, Esc for the panel.
+export function enableCorridor(floorCtx, { setContext, setDoorHook, release }) {
+  ctx = { ...floorCtx, setContext, release };
   setDoorHook((roomId, doorId) => corridorDoor(roomId, doorId));
-  onChange(() => {
-    if (state.activeRoomId === CORR_ID && !corrShown) {
-      corrShown = true;
+  window.addEventListener('keydown', e => { if (panel && e.code === 'Escape') { e.preventDefault(); closePanel(); } });
+  const hint = () => {
+    if (!hintShown && (state.activeRoomId === CORR_ID || state.activeRoomId === LOBBY_ID)) {
+      hintShown = true;
       toast(t('floor3d.corrHint'));
     }
-  });
+  };
+  onChange(hint);
+  hint();
 }

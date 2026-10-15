@@ -40,11 +40,12 @@ test('windows face the side of their apartment, corner units also the ends', () 
   for (const a of apts.filter(q => q.corner)) assert.ok(wins.some(b => b.aptNo === a.no && (b.side === 'west' || b.side === 'east')), `corner ${a.no}`);
 });
 
-test('glazed ground floor and the entrance opposite the core', () => {
+test('glazed ground floor and the entrance beside the core', () => {
   const ground = fac.bays.filter(b => b.floor === 1);
   assert.ok(ground.some(b => b.kind === 'shop') && ground.some(b => b.kind === 'lobby'));
   assert.equal(fac.entrance.side, 'south');
-  assert.ok(fac.entrance.x0 >= bld.core.x && fac.entrance.x1 <= bld.core.x + bld.core.w);
+  const lobby = bld.floorsData[0].lobby;
+  assert.ok(fac.entrance.x0 >= bld.core.x + bld.core.w && fac.entrance.x1 <= lobby.x + lobby.w);
   for (const b of ground.filter(q => q.side === 'south')) assert.ok(b.x1 <= fac.entrance.x0 || b.x0 >= fac.entrance.x1);
 });
 

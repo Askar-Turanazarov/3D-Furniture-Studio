@@ -185,7 +185,7 @@ async function loadCatalog() {
 }
 
 // The floor view embedded in the showcase card: only the 3D scene, the apartment is not saved.
-const embed = new URLSearchParams(location.search).get('embed') === 'floor';
+const embed = ['floor', 'building'].includes(new URLSearchParams(location.search).get('embed'));
 
 async function startEmbed() {
   try {
@@ -195,8 +195,9 @@ async function startEmbed() {
     const ctx = await floor.openFloor(params);
     await setView('3d');
     view3d.setContext(floor.floorContext(ctx));
-    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await import('./3d/anim3d.js')).setDoorHook });
-    (await import('./3d/controls3d.js')).setMode('walk');
+    const controls = await import('./3d/controls3d.js');
+    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await import('./3d/anim3d.js')).setDoorHook, release: controls.release });
+    controls.setMode('walk');
   } catch {
     toast(t('bld.loadFail'), true);
   }

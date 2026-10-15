@@ -8,6 +8,7 @@ export const SLAB = 20;            // floor slab between storeys, cm
 const EDGE = 2;                    // a room wall closer than this to the section edge is on the facade
 const SHOP = { pitch: 300, glass: 260, sill: 0, h: 250 };   // ground-floor shop windows
 const DOOR_W = 220;                // entrance doors
+const PART = 10;                   // partition between the core and the entrance passage
 
 export const SIDES = ['north', 'south', 'west', 'east'];
 export const sideLength = (section, side) => (side === 'north' || side === 'south' ? section.L : section.W);
@@ -70,7 +71,9 @@ export function facadeOf(bld) {
   // Ground floor: shop fronts all round the commercial units, glass lobby, entrance doors facing the core.
   const ground = bld.floorsData.find(f => f.n === 1);
   const core = bld.core || { x: L / 2 - 250, w: 500 };
-  const mid = core.x + core.w / 2;
+  // The street doors open into the passage east of the lift core (the lobby wraps around the core).
+  const lobby = ground?.lobby;
+  const mid = lobby && bld.core ? (core.x + core.w + PART + lobby.x + lobby.w) / 2 : core.x + core.w / 2;
   const entrance = { side: 'south', x0: mid - DOOR_W / 2, x1: mid + DOOR_W / 2, h: 240 };
   if (ground) {
     for (const c of ground.commercial || []) {

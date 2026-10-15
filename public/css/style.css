@@ -342,6 +342,17 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 .view3d canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .fade3d { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 5; }
 .fade3d.on { opacity: 1; }
+.lift3d { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 6; width: min(300px, calc(100% - 32px));
+  background: rgba(30, 34, 40, .94); color: #f1ede6; border-radius: 12px; padding: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+.lift3d[hidden] { display: none; }
+.lift3d-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.lift3d-head span { font-size: 12px; opacity: .75; }
+.lift3d-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lift3d-grid.stairs { grid-template-columns: 1fr; }
+.lift3d-grid button { min-height: 40px; border-radius: 8px; border: 1px solid #5c636b; background: #3a4048; color: inherit; font: inherit; cursor: pointer; }
+.lift3d-grid button:hover, .lift3d-grid button:focus-visible { background: #4c545e; outline: 2px solid #e0b354; outline-offset: 1px; }
+.lift3d-grid button.on { background: #e0b354; color: #1e2228; border-color: #e0b354; }
+.lift3d-close { margin-top: 10px; width: 100%; min-height: 34px; border-radius: 8px; border: 0; background: transparent; color: inherit; opacity: .8; cursor: pointer; }
 .hud { position: absolute; z-index: 2; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 .hud-top { top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }

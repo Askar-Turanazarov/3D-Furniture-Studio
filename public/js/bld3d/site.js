@@ -275,7 +275,7 @@ export function createSite({ fac, site = {}, seed = 12, wallT = 0.3, lampLights 
   }
 
   function setTime(p) {
-    mats.head.color.set(p.lamp ? '#ffe2b0' : '#d9d6cf');
+    mats.head.color.set('#d9d6cf').lerp(new THREE.Color('#ffe2b0'), Math.min(1, p.lamp / 0.6));
     for (const l of lights) l.intensity = p.lamp * 25;
   }
 

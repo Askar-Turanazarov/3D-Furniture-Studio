@@ -11,6 +11,7 @@ import { SETTINGS, readPref, tierFor } from '../3d/perf.js';
 import { createSite } from './site.js';
 import { createStreetWalk } from './streetWalk.js';
 import { applyPhotoFacade, PHOTO_UV } from './facadeTex.js';
+import { TWEEN_SEC, easeInOut } from '../lighting.js';
 
 const M = 0.01;          // cm → m
 const T = 0.3;           // outer wall thickness, m
@@ -25,6 +26,18 @@ export const TIMES = {
   night: { top: '#03060f', mid: '#0b1428', bottom: '#1a2744', sun: '#9fb4ff', sunI: 0.3, elev: 42, azim: 35,
     hemi: 0.16, sky: '#33446f', ground: '#0d0d10', fog: '#111a2d', exposure: 1.15, lit: 0.55, lamp: 1 }
 };
+
+// A time of day between two presets (k = 0 … 1): numbers and colours blend, so the sky, the sun and the lamps
+// move smoothly as in the rooms' 3D.
+const NUMS = ['sunI', 'elev', 'azim', 'hemi', 'exposure', 'lit', 'lamp'];
+const COLS = ['top', 'mid', 'bottom', 'sun', 'sky', 'ground', 'fog'];
+export function mixTimes(a, b, k) {
+  const o = {};
+  for (const n of NUMS) o[n] = a[n] + (b[n] - a[n]) * k;
+  for (const c of COLS) o[c] = new THREE.Color(a[c]).lerp(new THREE.Color(b[c]), k);
+  return o;
+}
+const LAMPS_ON = 0.6;     // the evening level: strips, letters and doors fully lit from here
 
 const GLASS = new THREE.Color('#41505f');       // neutral glass under the sky reflection
 const GLASS_DIM = new THREE.Color('#2b3036');
@@ -383,13 +396,33 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
 
   // ---------- state ----------
   let time = 'day', style = { colorOf: () => null, dim: () => false, hover: null };
+  let cur = mixTimes(TIMES.day, TIMES.day, 0), tween = null;   // the levels on screen, the change under way
   let dirty = true, shadows = true, paused = false, visible = true, onScreen = true;
   let auto = true, pointerIn = false, lastTouch = -1e9, fly = null, orbitAcc = 0;
   const clock = new THREE.Clock();
 
-  function setTime(name) {
-    const p = TIMES[name] || TIMES.day;
+  // Day / evening / night: blends over TWEEN_SEC like the rooms' light; the first call (and `instant`) jumps.
+  function setTime(name, instant = false) {
     time = name in TIMES ? name : 'day';
+    if (instant) { tween = null; applyTime(mixTimes(TIMES[time], TIMES[time], 0), true); return; }
+    tween = { from: cur, to: TIMES[time], t: 0, env: 0 };
+    dirty = true;
+  }
+
+  function stepTime(dt) {
+    if (!tween) return;
+    tween.t = Math.min(1, tween.t + dt / TWEEN_SEC);
+    // The reflections follow the sky in steps (a re-render each ~1/8 of the way), not in one jump at the end.
+    const env = tween.t >= 1 || tween.t - tween.env >= 0.12;
+    if (env) tween.env = tween.t;
+    applyTime(mixTimes(tween.from, tween.to, easeInOut(tween.t)), env);
+    if (tween.t >= 1) tween = null;
+  }
+
+  // env: also re-render the reflections of the sky (not on every frame of the blend).
+  function applyTime(p, env) {
+    cur = p;
+    const on = Math.min(1, p.lamp / LAMPS_ON);
     skyMat.uniforms.top.value.set(p.top);
     skyMat.uniforms.mid.value.set(p.mid);
     skyMat.uniforms.bottom.value.set(p.bottom);
@@ -403,13 +436,15 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     sun.position.set(Math.sin(az) * Math.cos(el) * 120, Math.sin(el) * 120, Math.cos(az) * Math.cos(el) * 120);
     renderer.toneMappingExposure = p.exposure;
     lamp.intensity = p.lamp * 30;
-    mats.strip.color.set(p.lamp ? '#ffd9a0' : '#d9d2c4');
-    nameMat.color.set(p.lamp ? '#ffe7c2' : '#2c3036');     // dark letters by day, lit at dusk and night
-    doorMat.color.set(p.lamp ? '#fff1d6' : '#ffffff');
+    mats.strip.color.set('#d9d2c4').lerp(tmpC.set('#ffd9a0'), on);
+    nameMat.color.set('#2c3036').lerp(tmpC.set('#ffe7c2'), on);     // dark letters by day, lit at dusk and night
+    doorMat.color.set('#ffffff').lerp(tmpC.set('#fff1d6'), on);
     site.setTime(p);
-    envRT?.dispose();
-    envRT = pmrem.fromScene(envScene, 0, 1, 1000);
-    scene.environment = envRT.texture;
+    if (env) {
+      envRT?.dispose();
+      envRT = pmrem.fromScene(envScene, 0, 1, 1000);
+      scene.environment = envRT.texture;
+    }
     scene.environmentIntensity = Math.max(0.25, p.hemi);
     paint(style);
     shadows = dirty = true;
@@ -423,7 +458,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
   };
   function paint(next = style) {
     style = { ...style, ...next };
-    const p = TIMES[time];
+    const p = cur;     // windows light up one by one as the evening comes
     bays.forEach((b, i) => {
       const css = b.aptNo ? style.colorOf(b.aptNo) : null;
       const dim = b.aptNo ? style.dim(b.aptNo) : false;
@@ -577,6 +612,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     requestAnimationFrame(frame);
     let dt = Math.min(clock.getDelta(), 0.1);
     if (paused || !visible || !onScreen) return;
+    stepTime(dt);
     if (walker.active) {
       if (walker.update(dt)) { dirty = true; cue(); }
       if (!dirty) return;
@@ -609,7 +645,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
   }
 
   setTitle(title);
-  setTime('day');
+  setTime('day', true);
   setFloor(0);
   resize();
   frame();

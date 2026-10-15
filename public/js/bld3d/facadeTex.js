@@ -226,7 +226,7 @@ export async function applyPhotoFacade({ mats, site = {}, trees = null, anisotro
     if (trees && (leaves || g.bark)) trees({ leaves, bark: g.bark }, { anisotropy, small });
     if (g.pave && site.pave) {
       swap(site.pave, plain(g.pave), { roughness: 1 }, rep(g.pave, 1.6));
-      site.pave.color.set('#f4eee4');      // warm grey concrete pavers
+      site.pave.color.setRGB(1.5, 1.12, 0.7);    // the photo is a neutral grey stone: warm sandy pavers
     }
   };
 

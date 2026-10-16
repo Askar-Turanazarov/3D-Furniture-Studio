@@ -28,7 +28,9 @@ test('every tier has its settings, better tiers are not worse', () => {
   for (const n of TIERS) assert.ok(SETTINGS[n].pixelRatio >= 1);
   assert.ok(SETTINGS.low.pixelRatio <= SETTINGS.mid.pixelRatio && SETTINGS.mid.pixelRatio <= SETTINGS.high.pixelRatio);
   assert.ok(SETTINGS.low.shadowMap <= SETTINGS.high.shadowMap);
-  assert.equal(SETTINGS.low.lampShadows, false);
+  assert.equal(SETTINGS.low.lampShadows, 0);
+  assert.ok(SETTINGS.mid.lampShadows <= 2 && SETTINGS.high.lampShadows <= 4);
+  assert.equal(SETTINGS.mid.bloom, false);
 });
 
 test('governor steps down after 3 slow seconds and up after 10 fast ones, never above the start', () => {

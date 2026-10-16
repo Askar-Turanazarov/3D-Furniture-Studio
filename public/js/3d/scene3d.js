@@ -40,6 +40,9 @@ let dirty = true, shadowsDirty = true, visible = true, onScreen = true;
 const lastView = new THREE.Matrix4(), lastProj = new THREE.Matrix4();
 // Device tier (perf.js): pixel ratio, shadows, anisotropy; in Auto the governor lowers it when frames are slow.
 let tier = 'mid', gov = null, prevDrawn = false;
+const EXPOSURE = 1.45;
+// Glow of lit shades on the "high" tier: render → bloom → tone mapping (loaded only when needed).
+let composer = null, bloom = null, bloomLoading = false;
 
 export function requestRender() { dirty = true; }
 const redrawShadows = () => { dirty = shadowsDirty = true; };
@@ -59,8 +62,9 @@ function init(el) {
   applyTier(tier, false);
   gov = pref === 'auto' ? governor(tier, stepTier) : null;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  // AgX keeps the warm lamp light and bright windows from washing out to flat white (ACES burned them).
+  renderer.toneMapping = THREE.AgXToneMapping;
+  renderer.toneMappingExposure = EXPOSURE;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false;   // redrawn only when lights, doors or the scene change
@@ -176,6 +180,7 @@ function resize() {
   const w = host.clientWidth, h = host.clientHeight;
   if (!w || !h) return;
   renderer.setSize(w, h, false);
+  if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   dirty = true;
@@ -187,10 +192,35 @@ function applyTier(name, rebuildLights = true) {
   const s = SETTINGS[name];
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, s.pixelRatio));
   setShadowQuality(s);
+  setBloom(s.bloom);
   if (!rebuildLights) return;
   resize();
   for (const e of rooms3d.values()) e.lkey = '';
   if (running) rebuild();
+}
+
+async function setBloom(on) {
+  if (!on) { composer = null; dirty = true; return; }
+  if (composer || bloomLoading) return;
+  bloomLoading = true;
+  try {
+    const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }] = await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
+    if (!SETTINGS[tier].bloom) return;
+    const c = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+    c.addPass(new RenderPass(scene, camera));
+    // Only what is brighter than white glows: lit shades, the sun on glass; walls and furniture stay crisp.
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 1.1);
+    c.addPass(bloom);
+    c.addPass(new OutputPass());
+    composer = c;
+    resize();
+  } catch (err) {
+    console.warn('bloom off', err);
+  } finally {
+    bloomLoading = false;
+  }
 }
 
 function stepTier(name, dir) {
@@ -591,7 +621,8 @@ let drawFailed = false;
 function draw() {
   try {
     updateSpotClip(scene);
-    renderer.render(scene, camera);
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
   } catch (err) {
     if (drawFailed) return;
     drawFailed = true;

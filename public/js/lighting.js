@@ -93,6 +93,15 @@ export function clampFixture(x, y, L, W) {
 }
 
 /**
+ * Lamps that cast a shadow: indices of the n most powerful point and spot lights (area lights cast none);
+ * the first one on a tie, so a room keeps the same shadows while nothing changes.
+ */
+export function shadowSlots(lights, n) {
+  return lights.map((l, i) => [l, i]).filter(([l]) => l.type !== 'area')
+    .sort((a, b) => b[0].power - a[0].power || a[1] - b[1]).slice(0, Math.max(0, n)).map(([, i]) => i).sort((a, b) => a - b);
+}
+
+/**
  * The light sources of a room's ceiling fixtures, sizes in metres, the room from (0, 0) to (L, W), ceiling at H;
  * fixtures in cm of the room.
  * spot / point: { type, x, y, z, power (cd), distance (m, 0 = no cut-off) [, angle, penumbra], fixture };

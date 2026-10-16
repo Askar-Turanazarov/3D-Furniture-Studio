@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { getMats, furnitureMat } from './textures3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { lightingOf, targetsFor, easeInOut, TWEEN_SEC, fixturesSpec, defaultFixtures } from '../lighting.js';
+import { lightingOf, targetsFor, easeInOut, TWEEN_SEC, fixturesSpec, defaultFixtures, shadowSlots } from '../lighting.js';
 import { patchSpotClip } from './spotClip.js';
 
 patchSpotClip();   // spots light only their own room (before any shader is compiled)
@@ -25,11 +25,11 @@ export function setupEnvironment(renderer, scene) {
   RectAreaLightUniformsLib.init();
 }
 
-// Shadow quality of the device tier (perf.js): sun map size; lamps cast shadows only when `lamps`.
-const shadowCfg = { sun: 2048, lamps: true };
+// Shadow quality of the device tier (perf.js): sun map size; `lamps` — how many lamps of the main room cast one.
+const shadowCfg = { sun: 2048, lamps: 2 };
 export function setShadowQuality({ shadowMap, lampShadows }) {
   shadowCfg.sun = shadowMap;
-  shadowCfg.lamps = lampShadows;
+  shadowCfg.lamps = Number(lampShadows) || 0;
 }
 
 function shadowed(light, size, far) {
@@ -50,10 +50,11 @@ function ceilLight(light, power) {
 
 // The light sources of the fixture (fixtureSpec in lighting.js: positions, cones, power, cut-off distance).
 // Every room gets the same lights whether the camera is in it or not, so picking a room does not change its look.
-// The main lamp casts a shadow: in the room with the camera at full size, in the others small, so the light
-// does not shine through the partition into the next room.
+// Shadows by the tier's budget: in the room with the camera its brightest lamps (up to shadowCfg.lamps) at full
+// size, in the others the brightest one small, so the light does not shine through the partition.
 function addSpec(g, spec, main) {
   const shadow = shadowCfg.lamps ? (main ? 1024 : 512) : 0;
+  const cast = new Set(shadow ? shadowSlots(spec.lights, main ? shadowCfg.lamps : 1) : []);
   spec.lights.forEach((l, i) => {
     let light;
     if (l.type === 'point') light = new THREE.PointLight('#ffe2b8', 0, l.distance, 2);
@@ -68,7 +69,7 @@ function addSpec(g, spec, main) {
       light.lookAt(l.x, 0, l.z);
     }
     light.position.set(l.x, l.y, l.z);
-    if (i === 0 && shadow && l.type !== 'area') shadowed(light, shadow, l.distance || 10);
+    if (cast.has(i)) shadowed(light, shadow, l.distance || 10);
     g.add(ceilLight(light, l.power));
   });
 }

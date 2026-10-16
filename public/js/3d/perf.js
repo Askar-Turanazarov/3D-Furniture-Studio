@@ -3,9 +3,11 @@
 export const TIERS = ['low', 'mid', 'high'];
 
 export const SETTINGS = {
-  low: { pixelRatio: 1, shadowMap: 1024, lampShadows: false, antialias: false, anisotropy: 2, maxLamps: 8 },
-  mid: { pixelRatio: 1.5, shadowMap: 2048, lampShadows: true, antialias: true, anisotropy: 4, maxLamps: 18 },
-  high: { pixelRatio: 2, shadowMap: 2048, lampShadows: true, antialias: true, anisotropy: 8, maxLamps: 27 }
+  // lampShadows: lamps of the room with the camera that cast a shadow (the brightest ones), 1024 px each;
+  // bloom: the glow of lit shades (post-processing, the strong devices only).
+  low: { pixelRatio: 1, shadowMap: 1024, lampShadows: 0, antialias: false, anisotropy: 2, maxLamps: 8, bloom: false },
+  mid: { pixelRatio: 1.5, shadowMap: 2048, lampShadows: 2, antialias: true, anisotropy: 4, maxLamps: 18, bloom: false },
+  high: { pixelRatio: 2, shadowMap: 2048, lampShadows: 4, antialias: true, anisotropy: 8, maxLamps: 27, bloom: true }
 };
 
 // Older integrated (HD, UHD 6xx), mobile and software GPUs that struggle with soft shadows at a high pixel ratio.

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultFixtures, fixturesOf, fixturesSpec, fixtureSpec, floorLux, clampFixture, FIXTURE_WALL } from '../public/js/lighting.js';
+import { defaultFixtures, fixturesOf, fixturesSpec, fixtureSpec, floorLux, clampFixture, FIXTURE_WALL, shadowSlots } from '../public/js/lighting.js';
 import { normalizeRoom } from '../public/js/storage.js';
 import {
   state, applyDoc, docFromState, setActiveRoom, roomFixtures, ownFixture, addFixture, moveFixture,
@@ -77,4 +77,13 @@ test('a hanging light does not go over a door swing; a spot may', () => {
   assert.deepEqual([f.x, f.y], [200, 150]);
   f.kind = 'spot';
   assert.equal(moveFixture(f, 80, 40).ok, true);
+});
+
+test('shadow budget: the brightest lamps cast shadows, area panels never', () => {
+  const spec = fixturesSpec([
+    { id: 1, kind: 'pendant', x: 100, y: 150 }, { id: 2, kind: 'chandelier', x: 300, y: 150 }, { id: 3, kind: 'panel', x: 200, y: 80 }
+  ], 4, 3, 2.7);
+  assert.deepEqual(shadowSlots(spec.lights, 1), [1]);          // the chandelier, not the dimmer pendant
+  assert.deepEqual(shadowSlots(spec.lights, 4), [0, 1]);       // the panel is an area light
+  assert.deepEqual(shadowSlots(spec.lights, 0), []);
 });

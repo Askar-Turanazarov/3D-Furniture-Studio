@@ -41,6 +41,12 @@ app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'th
 // Files of the deployment: the CDN may keep them (a new deployment starts with an empty cache).
 const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
 
+// Is the server alive, which storage does it use (files / postgres). No database call, no secrets.
+const { version } = require('./package.json');
+app.get('/api/health', (req, res) => {
+  res.set('Cache-Control', 'no-store').json({ ok: true, db: db.kind, version });
+});
+
 app.get('/api/catalog', async (req, res) => {
   try {
     res.set('Cache-Control', SHARED_JSON).type('json').send(await fs.readFile(CATALOG, 'utf8'));

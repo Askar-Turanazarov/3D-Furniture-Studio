@@ -23,6 +23,13 @@ test('PATCH /api/orders/:id: a non-numeric id is 404', async () => {
   }
 });
 
+test('GET /api/health: ok, storage kind and version, not cached', async () => {
+  const res = await fetch(`${base()}/api/health`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await res.json(), { ok: true, db: 'files', version: require('../package.json').version });
+});
+
 test('unknown /api routes answer JSON 404; pages still work', async () => {
   for (const method of ['GET', 'POST']) {
     const res = await fetch(`${base()}/api/nope`, { method });

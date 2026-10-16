@@ -1,5 +1,5 @@
 import { t, initLangSwitcher, onLangChange } from './i18n.js';
-import { initTheme } from './theme.js';
+import { initTheme, onThemeChange } from './theme.js';
 import { initIcons } from './icons.js';
 import { state, onChange, emit, itemName, docFromState, applyDoc } from './state.js';
 import { history } from './history.js';
@@ -224,6 +224,8 @@ async function start() {
   initLangSwitcher();
   initTheme();
   initIcons();
+  onThemeChange(() => requestDraw());
+  document.fonts?.ready.then(() => requestDraw());
   initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
   initInteraction(document.getElementById('plan'));
   initUI({ autoPlace });

@@ -11,15 +11,16 @@ import { wallLen } from './openings.js';
 import { t } from './i18n.js';
 import { ruler, measure } from './ruler.js';
 import { CONFIG, sectionCount } from './config.js';
+import { cssVar } from './theme.js';
 
-const COLORS = {
-  floor: '#fbfaf7',
-  wall: '#2b3044',
-  gridMinor: '#eef0f4',
-  gridMajor: '#dde1ea',
-  plinth: '#f08c00',
-  dim: '#6b7280',
-  selected: '#3b5bdb',
+// The print sheet (drawing.js, project previews) is always light; the live plan follows the theme
+// (--plan-* tokens in style.css, re-read on every theme change).
+const SHEET = {
+  floor: '#fbfaf7', wall: '#2b3044', gridMinor: '#eef0f4', gridMajor: '#dde1ea', plinth: '#c08a3e',
+  dim: '#6b7280', selected: '#8c6a43', text: '#343a40', label: 'rgba(255, 255, 255, .88)', labelActive: 'rgba(246, 240, 230, .94)',
+  itemLine: 'rgba(0, 0, 0, .45)', obLine: '#495057', roomName: '#343a40', ruler: '#0b7285'
+};
+const FIXED = {
   toItem: '#9c36b5',
   bad: '#e03131',
   badFill: 'rgba(224, 49, 49, .28)',
@@ -30,6 +31,15 @@ const COLORS = {
   door: '#8d6e63',
   swing: 'rgba(141, 110, 99, .10)'
 };
+const COLORS = { ...FIXED, ...SHEET };
+const THEMED = { floor: '--plan-floor', wall: '--plan-wall', gridMinor: '--plan-grid-minor', gridMajor: '--plan-grid-major',
+  plinth: '--plan-plinth', dim: '--plan-dim', selected: '--plan-sel', text: '--plan-label-text', label: '--plan-label-bg',
+  labelActive: '--plan-label-bg', itemLine: '--plan-item-line', obLine: '--plan-dim', roomName: '--plan-label-text', ruler: '--plan-ruler' };
+function usePalette(sheet) {
+  Object.assign(COLORS, SHEET);
+  if (sheet || typeof document === 'undefined') return;
+  for (const [k, v] of Object.entries(THEMED)) { const c = cssVar(v); if (c) COLORS[k] = c; }
+}
 const MARGIN = 44;   // px around the room for wall + dimension labels
 const WALL_PX = 8;
 
@@ -240,6 +250,7 @@ function draw() {
   ctx.clearRect(0, 0, cw, ch);
   computeView(cw, ch);
   const sheet = drawOpts.drawing;
+  usePalette(sheet);
   if (sheet) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch); }
 
   const now = performance.now();
@@ -381,16 +392,16 @@ function drawRoomLabel(r, active) {
   const head = [r.name, purpose && !purpose.toLowerCase().startsWith(r.name.toLowerCase()) && purpose].filter(Boolean).join(' · ');
   const sub = `${L}×${W} · ${roomArea(r).toFixed(1)} ${t('unit.m2')}`;
   ctx.save();
-  ctx.font = '700 12px system-ui, sans-serif';
+  ctx.font = '700 12px Manrope, system-ui, sans-serif';
   const tw = Math.min(w - 12, Math.max(ctx.measureText(head).width, ctx.measureText(sub).width) + 12);
   if (tw < 40 || h < 40) { ctx.restore(); return; }
-  ctx.fillStyle = active ? 'rgba(237, 242, 255, .92)' : 'rgba(255, 255, 255, .85)';
+  ctx.fillStyle = active ? COLORS.labelActive : COLORS.label;
   ctx.fillRect(x + 6, y + 6, tw, 34);
-  ctx.fillStyle = active ? COLORS.selected : '#343a40';
+  ctx.fillStyle = active ? COLORS.selected : COLORS.roomName;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(fit(head, tw - 12), x + 12, y + 16);
-  ctx.font = '500 11px system-ui, sans-serif';
+  ctx.font = '500 11px Manrope, system-ui, sans-serif';
   ctx.fillStyle = COLORS.dim;
   ctx.fillText(fit(sub, tw - 12), x + 12, y + 30);
   ctx.restore();
@@ -460,7 +471,7 @@ function drawPassages() {
     ctx.restore();
     const label = `${p.n} ${t('unit.cm')}`;
     ctx.save();
-    ctx.font = '700 11px system-ui, sans-serif';
+    ctx.font = '700 11px Manrope, system-ui, sans-serif';
     const tw = ctx.measureText(label).width + 8;
     const cx = x + w / 2, cy = y + h / 2;
     ctx.fillStyle = '#e67700';
@@ -548,23 +559,23 @@ function drawObstacles(high) {
 
     ctx.save();
     const warn = obWarnings.has(o.id);
-    ctx.strokeStyle = sel ? COLORS.selected : warn ? '#f08c00' : '#495057';
+    ctx.strokeStyle = sel ? COLORS.selected : warn ? '#f08c00' : COLORS.obLine;
     ctx.lineWidth = sel || warn ? 2.5 : 1.2;
     if (high) ctx.setLineDash([5, 4]);
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
     const label = high ? `↑${o.elev}` : o.elev > 0 ? `${o.h} ↑${o.elev}` : `${o.h}`;
     const name = t('ob.' + o.kind);
-    ctx.font = '600 10px system-ui, sans-serif';
+    ctx.font = '600 10px Manrope, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const big = w > ctx.measureText(name).width + 8 && h > 26;
     if (w > ctx.measureText(label).width + 6 && h > 12) {
       const cx = x + w / 2, cy = y + h / 2;
-      ctx.fillStyle = 'rgba(255, 255, 255, .85)';
+      ctx.fillStyle = COLORS.label;
       const bw = Math.max(ctx.measureText(label).width, big ? ctx.measureText(name).width : 0) + 6;
       const bh = big ? 26 : 13;
       ctx.fillRect(cx - bw / 2, cy - bh / 2, bw, bh);
-      ctx.fillStyle = '#343a40';
+      ctx.fillStyle = COLORS.text;
       if (big) {
         ctx.fillText(name, cx, cy - 6);
         ctx.fillText(label, cx, cy + 6);
@@ -658,7 +669,7 @@ function drawOpeningDims(o, g) {
   const len = wallLen(o.wall, state.room);
   const s = view.scale;
   const segs = [[0, g.a, o.offset], [g.b, len * s, len - o.offset - o.width]];
-  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.font = '600 11px Manrope, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const [u0, u1, d] of segs) {
@@ -671,7 +682,7 @@ function drawOpeningDims(o, g) {
     const label = String(Math.round(d));
     const tw = ctx.measureText(label).width + 6;
     const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.fillStyle = COLORS.label;
     ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
     ctx.fillStyle = COLORS.selected;
     ctx.fillText(label, mx, my);
@@ -687,14 +698,14 @@ function drawDimensions() {
   const text = (s, px, py) => {
     if (pill) {
       const tw = ctx.measureText(s).width + 8;
-      ctx.fillStyle = 'rgba(255, 255, 255, .9)';
+      ctx.fillStyle = COLORS.label;
       ctx.fillRect(px - tw / 2, py - 15, tw, 15);
     }
     ctx.fillStyle = COLORS.dim;
     ctx.fillText(s, px, py);
   };
   ctx.save();
-  ctx.font = '600 12px system-ui, sans-serif';
+  ctx.font = '600 12px Manrope, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   text(`${L} ${t('unit.cm')}`, x + w / 2, y - WALL_PX - 6);
@@ -724,7 +735,7 @@ function drawItem(it, now) {
   else if (isFound) { ctx.fillStyle = COLORS.foundFill; ctx.fillRect(x, y, w, h); }
 
   ctx.lineWidth = isPrimary ? 3 : isSel ? 2 : 1.5;
-  ctx.strokeStyle = isBad ? COLORS.bad : isFound ? COLORS.found : isSel ? COLORS.selected : 'rgba(0,0,0,.45)';
+  ctx.strokeStyle = isBad ? COLORS.bad : isFound ? COLORS.found : isSel ? COLORS.selected : COLORS.itemLine;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   if (isSel && isBad) {
     // A selected problem item keeps its red outline plus a blue selection frame.
@@ -752,7 +763,7 @@ function drawNumber(no, x, y) {
   ctx.arc(x - r - 2, y + r + 2, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = '700 12px system-ui, sans-serif';
+  ctx.font = '700 12px Manrope, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(no), x - r - 2, y + r + 2);
@@ -761,7 +772,7 @@ function drawNumber(no, x, y) {
 // "↑140" badge in the corner of a wall-mounted item.
 function drawElevTag(it, x, y, w, h) {
   const text = `↑${it.elev}`;
-  ctx.font = '700 10px system-ui, sans-serif';
+  ctx.font = '700 10px Manrope, system-ui, sans-serif';
   const tw = ctx.measureText(text).width + 6;
   if (w < tw || h < 6) return;
   const bh = Math.min(13, h);
@@ -773,7 +784,7 @@ function drawElevTag(it, x, y, w, h) {
   ctx.fillText(text, x + 4, y + 1 + bh / 2);
 }
 
-const RULER = '#0b7285';
+
 
 // "Fill a niche" proposal: dashed green outline, front edge and the size.
 function drawNicheGhost(it) {
@@ -790,7 +801,7 @@ function drawNicheGhost(it) {
   ctx.setLineDash([]);
   drawFront(it, x, y, w, h);
   const text = `${it.w}×${it.d}×${it.h}`;
-  ctx.font = '700 12px system-ui, sans-serif';
+  ctx.font = '700 12px Manrope, system-ui, sans-serif';
   const tw = ctx.measureText(text).width + 10;
   ctx.fillStyle = '#2f9e44';
   ctx.fillRect(x + w / 2 - tw / 2, y + h / 2 - 9, tw, 18);
@@ -813,8 +824,8 @@ function drawRuler() {
 function drawRulerPoint(p, snapped) {
   const [x, y] = toScreen(p.x, p.y);
   ctx.save();
-  ctx.strokeStyle = RULER;
-  ctx.fillStyle = snapped ? RULER : '#fff';
+  ctx.strokeStyle = COLORS.ruler;
+  ctx.fillStyle = snapped ? COLORS.ruler : '#fff';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(x, y, 4, 0, Math.PI * 2);
@@ -831,7 +842,7 @@ function drawMeasure(a, b, preview) {
   const pl = Math.hypot(x1 - x0, y1 - y0) || 1;
   const nx = -(y1 - y0) / pl * 6, ny = (x1 - x0) / pl * 6;
   ctx.save();
-  ctx.strokeStyle = RULER;
+  ctx.strokeStyle = COLORS.ruler;
   ctx.lineWidth = 1.5;
   if (preview) ctx.setLineDash([5, 4]);
   ctx.beginPath();
@@ -846,20 +857,20 @@ function drawMeasure(a, b, preview) {
     const cm = t('unit.cm');
     const lines = [`${Math.round(len)} ${cm}`];
     if (dx >= 1 && dy >= 1) lines.push(`Δx ${Math.round(dx)} · Δy ${Math.round(dy)}`);
-    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.font = '700 12px Manrope, system-ui, sans-serif';
     const tw = Math.max(...lines.map(s => ctx.measureText(s).width)) + 10;
     const th = lines.length * 15 + 4;
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
-    ctx.fillStyle = 'rgba(255,255,255,.92)';
-    ctx.strokeStyle = RULER;
+    ctx.fillStyle = COLORS.label;
+    ctx.strokeStyle = COLORS.ruler;
     ctx.lineWidth = 1;
     ctx.fillRect(mx - tw / 2, my - th / 2, tw, th);
     ctx.strokeRect(mx - tw / 2 + 0.5, my - th / 2 + 0.5, tw - 1, th - 1);
-    ctx.fillStyle = RULER;
+    ctx.fillStyle = COLORS.ruler;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     lines.forEach((s, i) => {
-      if (i) ctx.font = '500 11px system-ui, sans-serif';
+      if (i) ctx.font = '500 11px Manrope, system-ui, sans-serif';
       ctx.fillText(s, mx, my - th / 2 + 10 + i * 15);
     });
   }
@@ -870,7 +881,7 @@ function drawMarquee(m) {
   const [x0, y0] = toScreen(Math.min(m.x0, m.x1), Math.min(m.y0, m.y1));
   const [x1, y1] = toScreen(Math.max(m.x0, m.x1), Math.max(m.y0, m.y1));
   ctx.save();
-  ctx.fillStyle = 'rgba(59, 91, 219, .08)';
+  ctx.fillStyle = 'rgba(201, 169, 110, .1)';
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
   ctx.strokeStyle = COLORS.selected;
   ctx.setLineDash([4, 3]);
@@ -927,11 +938,11 @@ function drawLabel(it, x, y, w, h) {
   ctx.textBaseline = 'middle';
   ctx.shadowColor = light ? 'rgba(255,255,255,.8)' : 'rgba(0,0,0,.45)';
   ctx.shadowBlur = 2;
-  ctx.font = `700 ${size}px system-ui, sans-serif`;
+  ctx.font = `700 ${size}px Manrope, system-ui, sans-serif`;
   const twoLines = h > size * 3;
   ctx.fillText(fit(name, w - 6), x + w / 2, y + h / 2 - (twoLines ? size * 0.6 : 0));
   if (twoLines) {
-    ctx.font = `500 ${size * 0.85}px system-ui, sans-serif`;
+    ctx.font = `500 ${size * 0.85}px Manrope, system-ui, sans-serif`;
     ctx.fillText(fit(dims, w - 6), x + w / 2, y + h / 2 + size * 0.7);
   }
   ctx.shadowBlur = 0;
@@ -953,7 +964,7 @@ function drawClearances(it, wallsOnly = false) {
   const lines = rayGaps(rectOf(it), others, state.room);
   ctx.save();
   ctx.lineWidth = 1;
-  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.font = '600 11px Manrope, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const { x1, y1, x2, y2, d, kind } of lines) {
@@ -968,7 +979,7 @@ function drawClearances(it, wallsOnly = false) {
     const label = String(Math.round(d * 10) / 10);
     const mx = (sx1 + sx2) / 2, my = (sy1 + sy2) / 2;
     const tw = ctx.measureText(label).width + 6;
-    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillStyle = COLORS.label;
     ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
     ctx.fillStyle = color;
     ctx.fillText(label, mx, my);

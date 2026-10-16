@@ -3,6 +3,7 @@
 import { makeRoom } from './storage.js';
 import { roomView, roomRect } from './apartment.js';
 import { furnish, kitsFor, rng } from './furnish.js';
+import { cssVar, getTheme } from './theme.js';
 
 let cache = null;
 export function loadApartments() {
@@ -52,12 +53,15 @@ export function drawAptPlan(canvas, a) {
   const L = Math.max(...rs.map(r => r.x + r.w)) - x0, W = Math.max(...rs.map(r => r.y + r.h)) - y0;
   const pad = 8, s = Math.min((cw - 2 * pad) / L, (ch - 2 * pad) / W);
   const ox = (cw - L * s) / 2 - x0 * s, oy = (ch - W * s) / 2 - y0 * s;
-  const FILL = { hall: '#f1f3f5', bathroom: '#e7f5ff', kitchen: '#fff4e6', kitchenLiving: '#fff4e6', other: '#f1f3f5' };
+  const FILL = getTheme() === 'dark'
+    ? { hall: '#22211e', bathroom: '#1c2526', kitchen: '#2a241a', kitchenLiving: '#2a241a', other: '#22211e' }
+    : { hall: '#f1ede6', bathroom: '#e9f1f1', kitchen: '#f6ecdc', kitchenLiving: '#f6ecdc', other: '#f1ede6' };
+  const floor = cssVar('--plan-floor', '#fff'), wall = cssVar('--plan-wall', '#343a40'), gap = cssVar('--plan-bg', '#fff');
   a.plan.forEach((r, i) => {
     const b = rs[i];
-    g.fillStyle = FILL[r.purpose] || '#fff';
+    g.fillStyle = FILL[r.purpose] || floor;
     g.fillRect(ox + b.x * s, oy + b.y * s, b.w * s, b.h * s);
-    g.strokeStyle = '#343a40';
+    g.strokeStyle = wall;
     g.lineWidth = 1.5;
     g.strokeRect(ox + b.x * s, oy + b.y * s, b.w * s, b.h * s);
   });
@@ -69,7 +73,7 @@ export function drawAptPlan(canvas, a) {
       g.beginPath();
       g.moveTo(ox + (b.x + seg[0]) * s, oy + (b.y + seg[1]) * s);
       g.lineTo(ox + (b.x + seg[2]) * s, oy + (b.y + seg[3]) * s);
-      g.strokeStyle = o.kind === 'window' ? '#4dabf7' : '#fff';
+      g.strokeStyle = o.kind === 'window' ? '#4dabf7' : gap;
       g.lineWidth = o.kind === 'window' ? 3 : 3.5;
       g.stroke();
     }

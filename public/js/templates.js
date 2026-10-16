@@ -1,6 +1,7 @@
 // Room templates (templates.json): loading, a room document from a template, a mini plan for the cards.
 import { normalizeDoc } from './storage.js';
 import { rectOf } from './geometry.js';
+import { cssVar } from './theme.js';
 
 let cache = null;
 export function loadTemplates() {
@@ -40,7 +41,7 @@ export function drawMiniPlan(canvas, t) {
   const ox = (cw - L * s) / 2, oy = (ch - W * s) / 2;
   const X = x => ox + x * s, Y = y => oy + y * s;
 
-  g.fillStyle = '#fff';
+  g.fillStyle = cssVar('--plan-floor', '#fff');
   g.fillRect(X(0), Y(0), L * s, W * s);
   g.fillStyle = '#adb5bd';
   for (const o of t.obstacles) g.fillRect(X(o.x), Y(o.y), o.w * s, o.d * s);
@@ -61,7 +62,7 @@ export function drawMiniPlan(canvas, t) {
     g.strokeRect(X(r.x) + 0.5, Y(r.y) + 0.5, Math.max(1, r.w * s - 1), Math.max(1, r.h * s - 1));
     g.restore();
   }
-  g.strokeStyle = '#343a40';
+  g.strokeStyle = cssVar('--plan-wall', '#343a40');
   g.lineWidth = 2;
   g.strokeRect(X(0), Y(0), L * s, W * s);
   for (const o of t.openings) {
@@ -70,7 +71,7 @@ export function drawMiniPlan(canvas, t) {
     g.beginPath();
     g.moveTo(X(seg[0]), Y(seg[1]));
     g.lineTo(X(seg[2]), Y(seg[3]));
-    g.strokeStyle = o.kind === 'window' ? '#4dabf7' : '#fff';
+    g.strokeStyle = o.kind === 'window' ? '#4dabf7' : cssVar('--plan-bg', '#fff');
     g.lineWidth = o.kind === 'window' ? 3 : 2.5;
     g.stroke();
   }

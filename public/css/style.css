@@ -68,6 +68,7 @@
   --plan-sel: #e3c995;
   --plan-item-line: rgba(236, 230, 219, .55);
   --plan-plinth: #b8955a;
+  --plan-ruler: #7cc8cc;
   --plan-room-name: rgba(236, 230, 219, .55);
   /* showcase statuses */
   --st-free: #6f9a7d;
@@ -130,6 +131,7 @@
   --plan-sel: #8c6a43;
   --plan-item-line: rgba(29, 26, 21, .5);
   --plan-plinth: #a8835a;
+  --plan-ruler: #0b7285;
   --plan-room-name: rgba(29, 26, 21, .5);
   --st-free: #7fa58a;
   --st-free-bg: rgba(127, 165, 138, .22);
@@ -926,4 +928,9 @@ dialog.floor3d-dlg { width: min(1200px, 96vw); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* the order button stays at the bottom of the side panel */
+@media (min-width: 861px) {
+  #orderBtn { position: sticky; bottom: 0; flex: none; z-index: 2; box-shadow: 0 -18px 22px 4px var(--bg); }
 }

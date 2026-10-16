@@ -2,9 +2,9 @@
 // data-theme before the first paint; here: the toggle button, the saved choice and the colours for canvas plans.
 const KEY = 'fsp3d.theme';
 const listeners = new Set();
-const root = document.documentElement;
+const root = typeof document === 'undefined' ? null : document.documentElement;   // null in node tests
 
-export const getTheme = () => (root.dataset.theme === 'light' ? 'light' : 'dark');
+export const getTheme = () => (root?.dataset.theme === 'light' ? 'light' : 'dark');
 export function onThemeChange(fn) { listeners.add(fn); }
 
 export function setTheme(theme) {
@@ -33,7 +33,8 @@ export function initTheme() {
 
 // CSS custom properties for canvas drawing (--plan-*, --st-* …), read once per theme.
 let cache = null;
-export function cssVar(name) {
+export function cssVar(name, fallback = '') {
+  if (!root) return fallback;
   cache ??= getComputedStyle(root);
-  return cache.getPropertyValue(name).trim();
+  return cache.getPropertyValue(name).trim() || fallback;
 }

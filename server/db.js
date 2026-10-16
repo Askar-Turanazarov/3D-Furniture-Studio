@@ -63,15 +63,18 @@ const SCHEMA = [
 ];
 
 // sql(text, params) → rows. Neon's HTTP driver: one statement per request, no connection to keep.
-function pgDb(url, { query } = {}) {
+// batch(texts) runs several statements in one request (the schema: one round trip per function instance, not four).
+function pgDb(url, { query, batch } = {}) {
   if (!query) {
     const { neon } = require('@neondatabase/serverless');
     const sql = neon(url);
     query = (text, params = []) => sql.query(text, params);
+    batch = texts => sql.transaction(texts.map(t => sql.query(t)));
   }
+  batch ||= async texts => { for (const t of texts) await query(t); };
   let ready = null;
   const q = async (text, params) => {
-    ready ||= (async () => { for (const s of SCHEMA) await query(s); })().catch(e => { ready = null; throw e; });
+    ready ||= batch(SCHEMA).catch(e => { ready = null; throw e; });
     await ready;
     return query(text, params);
   };

@@ -38,18 +38,25 @@ export function initAnim(cam, canvas, el, floorClick) {
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), quick = performance.now() - down.at < 400;
     down = null;
     if (moved > 5 || !quick) return;
-    // With pointer lock the crosshair is in the centre.
-    const centre = document.pointerLockElement === canvas;
-    const r = canvas.getBoundingClientRect();
-    const ndc = centre ? new THREE.Vector2(0, 0)
-      : new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
-    pick(ndc, centre ? REACH : Infinity);
+    clickAt(e);
   });
+  cnv = canvas;
   window.addEventListener('keydown', e => {
     if (e.code !== 'KeyE' || e.repeat || !el.offsetParent || !keysTo3d() || e.target.closest?.('input, textarea, select')) return;
     pick(new THREE.Vector2(0, 0), REACH);
   });
   updateAllBtn();
+}
+
+let cnv = null;
+/** A click at the pointer: opens or closes what is there (drag3d hands over clicks on the selected item). */
+export function clickAt(e) {
+  // With pointer lock the crosshair is in the centre.
+  const centre = document.pointerLockElement === cnv;
+  const r = cnv.getBoundingClientRect();
+  const ndc = centre ? new THREE.Vector2(0, 0)
+    : new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  pick(ndc, centre ? REACH : Infinity);
 }
 
 // ---- registration after every rebuild ----

@@ -2,7 +2,7 @@
 import { keysTo3d } from '../pane.js';
 import * as THREE from 'three';
 import { t, getLang, onLangChange } from '../i18n.js';
-import { state, onChange, emit, roomView, isSelected } from '../state.js';
+import { state, onChange, emit, roomView, isSelected, select } from '../state.js';
 import { rectOf } from '../geometry.js';
 import { buildRoom, disposeGroup, revealParts } from './room3d.js';
 import { liveRooms } from '../renderer.js';
@@ -11,7 +11,8 @@ import { switchRoom } from '../projects.js';
 import { buildObstacles } from './obstacles3d.js';
 import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights, setShadowQuality, lampCount } from './lights3d.js';
 import { lampsOn } from '../lighting.js';
-import { buildItem } from './models3d.js';
+import { buildItem, placeItem } from './models3d.js';
+import { initDrag } from './drag3d.js';
 import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import * as anim from './anim3d.js';
@@ -141,7 +142,16 @@ function init(el) {
   });
   fillCeilSel();
   onLangChange(fillCeilSel);
-  anim.initAnim(camera, renderer.domElement, el, id => { if (id !== state.activeRoomId) switchRoom(id); });
+  // A click on the floor: another room becomes active, in the active room it clears the selection.
+  anim.initAnim(camera, renderer.domElement, el, id => {
+    if (id !== state.activeRoomId) switchRoom(id);
+    else if (state.selectedId !== null && controls.getMode() !== 'walk') select(null);
+  });
+  initDrag(camera, renderer.domElement, el, {
+    entries: () => [...rooms3d.values()],
+    active: () => rooms3d.get(state.activeRoomId) || (rooms3d.size === 1 ? [...rooms3d.values()][0] : null),
+    render: () => syncSelection()   // the frame follows the dragged item
+  });
   onLangChange(anim.onLang);
 
   fillPerfSel();
@@ -403,10 +413,13 @@ function rebuild() {
   syncSelection();
 }
 
-// The items selected on the plan get a thin gold frame in the scene (one shared box, scaled per item).
+// The selected items get a thin gold frame in the scene (one shared box, scaled per item), the primary one also a
+// ring on the floor: it can be dragged (drag3d.js).
 const SEL_BOX = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
 const SEL_MAT = new THREE.LineBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.95, depthTest: false });
-let selFrames = null;
+const SEL_RING = new THREE.RingGeometry(0.985, 1, 72).rotateX(-Math.PI / 2);
+const RING_MAT = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
+let selFrames = null, selRing = null;
 function syncSelection() {
   if (!selFrames) { selFrames = new THREE.Group(); selFrames.name = 'selection'; scene.add(selFrames); }
   const e = rooms3d.get(state.activeRoomId) || (rooms3d.size === 1 ? [...rooms3d.values()][0] : null);
@@ -422,6 +435,14 @@ function syncSelection() {
     l.scale.set(r.w / 100 + 2 * pad, it.h / 100 + pad, r.h / 100 + 2 * pad);
     l.position.set(e.group.position.x + (r.x + r.w / 2) / 100, (it.elev || 0) / 100, e.group.position.z + (r.y + r.h / 2) / 100);
   });
+  if (!selRing) { selRing = new THREE.Mesh(SEL_RING, RING_MAT); selRing.renderOrder = 9; selFrames.parent.add(selRing); }
+  const main = items.find(it => it.id === state.selectedId);
+  selRing.visible = !!main;
+  if (main) {
+    const r = rectOf(main), k = Math.hypot(r.w, r.h) / 200 + 0.08;
+    selRing.scale.set(k, 1, k);
+    selRing.position.set(e.group.position.x + (r.x + r.w / 2) / 100, 0.006, e.group.position.z + (r.y + r.h / 2) / 100);
+  }
   requestRender();
 }
 
@@ -465,17 +486,38 @@ function buildFurniture(e, r) {
     foundTimer = setTimeout(() => { if (running) rebuild(); }, found.until - now + 20);
   }
   if (fkey === e.fkey) return false;
-  e.fkey = fkey;
-  if (e.furniture) disposeGroup(e.furniture);
-  e.furniture = new THREE.Group();
-  e.furniture.name = 'furniture';
-  for (const it of r.items) e.furniture.add(buildItem(it, status(it), state.materials, r.style, state.catalog));
-  const contact = contactShadows(footprints(e.furniture));
-  if (contact) {
-    contact.visible = softOn;
-    e.furniture.add(contact);
+  // A forced rebuild (new materials, quality) builds every model anew; otherwise a model whose look did not
+  // change is kept and only put in its new place, so dragging an item does not rebuild the room.
+  if (!e.fkey || !e.furniture) {
+    if (e.furniture) disposeGroup(e.furniture);
+    e.furniture = new THREE.Group();
+    e.furniture.name = 'furniture';
+    e.group.add(e.furniture);
+    e.models = new Map();
   }
-  e.group.add(e.furniture);
+  e.fkey = fkey;
+  const keep = new Map();
+  for (const it of r.items) {
+    const look = JSON.stringify([{ ...it, x: 0, y: 0, rot: 0 }, status(it), r.style, state.materials]);
+    let m = e.models.get(it.id);
+    if (m && m.look === look) {
+      placeItem(m.obj, it);
+      e.models.delete(it.id);
+    } else {
+      m = { look, obj: buildItem(it, status(it), state.materials, r.style, state.catalog) };
+      e.furniture.add(m.obj);
+    }
+    keep.set(it.id, m);
+  }
+  for (const m of e.models.values()) disposeGroup(m.obj);
+  e.models = keep;
+  e.contact?.geometry?.dispose();
+  e.contact?.removeFromParent();
+  e.contact = contactShadows(footprints(e.furniture));
+  if (e.contact) {
+    e.contact.visible = softOn;
+    e.furniture.add(e.contact);
+  }
   return true;
 }
 

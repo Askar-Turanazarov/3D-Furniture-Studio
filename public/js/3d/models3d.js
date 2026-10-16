@@ -740,10 +740,16 @@ export function buildItem(item, status, materials = [], roomStyle, catalog = [])
   look = { body: null, facade: null };
   sty = 'modern';
   obj.userData.movers = movers;
+  placeItem(obj, item);
+  obj.userData.itemId = item.id;
+  return obj;
+}
+
+/** Put a built model where the item stands on the plan (a move or a turn needs no new model). */
+export function placeItem(obj, item) {
   const r = rectOf(item);
   obj.position.set((r.x + r.w / 2) / 100, (item.elev || 0) / 100, (r.y + r.h / 2) / 100);
   // Same direction as the 2D front marker: 0° → +Z (south), clockwise on the plan.
   obj.rotation.y = -item.rot * Math.PI / 180;
-  obj.userData.itemId = item.id;
-  return obj;
+  obj.updateMatrixWorld(true);
 }

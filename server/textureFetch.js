@@ -80,13 +80,13 @@ let store = null;
 const useBlob = () => !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 const libStore = () => (store ||= useBlob() ? blobStore(process.env.BLOB_READ_WRITE_TOKEN || undefined) : diskStore);
 
-// Library entries with `available`: all maps of the set are there (bundled in the project, or downloaded).
+// Library entries with `available`: bundled sets are in the project (public/textures/sets/, checked by the tests; on
+// Vercel they are on the CDN, not in the function), downloaded sets — when all their maps are there.
 async function libraryStatus() {
   const lib = await readLibrary();
   return Promise.all(lib.map(async e => {
-    const ok = await Promise.all(mapsOf(e).map(f => (e.bundled
-      ? exists(path.join(ROOT, 'sets', e.id, f + '.jpg'))
-      : libStore().has(e.id, f).catch(() => false))));
+    if (e.bundled) return { ...e, available: true };
+    const ok = await Promise.all(mapsOf(e).map(f => libStore().has(e.id, f).catch(() => false)));
     return { ...e, available: ok.every(Boolean) };
   }));
 }

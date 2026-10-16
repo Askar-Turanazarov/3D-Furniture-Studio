@@ -73,12 +73,17 @@ app.get('/api/apartments', async (req, res) => {
 
 // ---------- new-building showcase: generated buildings (scripts/gen-building.mjs) + statuses by the manager ----------
 app.get('/api/buildings', async (req, res) => {
-  res.json(await buildings.list());
+  try {
+    res.json(await buildings.list());
+  } catch {
+    res.status(500).json({ error: 'buildings_unavailable' });
+  }
 });
 
 app.get('/api/buildings/:id', async (req, res) => {
   const t0 = Date.now();
-  const b = await buildings.get(req.params.id);
+  let b;
+  try { b = await buildings.get(req.params.id); } catch { return res.status(500).json({ error: 'buildings_unavailable' }); }
   if (!b) return res.status(404).json({ error: 'not_found' });
   // Server-Timing: the building file + the statuses from the database (seen in the browser's network panel).
   res.set({ 'Cache-Control': 'no-cache', 'Server-Timing': `data;desc="${db.kind}";dur=${Date.now() - t0}` });

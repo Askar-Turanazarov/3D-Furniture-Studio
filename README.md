@@ -65,7 +65,7 @@ Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/
 **Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
 1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
 2. Restart `npm start`, open http://localhost:3000/admin.html and enter the token (kept only in this browser tab). Requests go with `Authorization: Bearer <token>`.
-3. Without `ADMIN_TOKEN` the API answers 503 and the page says it is disabled.
+3. Without `ADMIN_TOKEN` (or with one shorter than 16 characters / the `change-me…` placeholder) the API answers 503 and the page says it is disabled.
 
 ### Deploy to Vercel
 
@@ -197,7 +197,7 @@ http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localho
 **ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
 1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
 2. `npm start` ni qayta ishga tushiring, http://localhost:3000/admin.html ni oching va tokenni kiriting (faqat shu brauzer yorlig‘ida saqlanadi). So‘rovlar `Authorization: Bearer <token>` bilan yuboriladi.
-3. `ADMIN_TOKEN` bo‘lmasa API 503 qaytaradi, sahifa o‘chirilganini aytadi.
+3. `ADMIN_TOKEN` bo‘lmasa (yoki 16 belgidan qisqa / `change-me…` namunasi bo‘lsa) API 503 qaytaradi, sahifa o‘chirilganini aytadi.
 
 ### Vercel’ga joylash
 
@@ -330,7 +330,7 @@ npm start
 **Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
 1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.
 2. Перезапустите `npm start`, откройте http://localhost:3000/admin.html и введите токен (хранится только в этой вкладке браузера). Запросы идут с `Authorization: Bearer <токен>`.
-3. Без `ADMIN_TOKEN` API отвечает 503, а страница пишет, что отключена.
+3. Без `ADMIN_TOKEN` (или если он короче 16 символов / это заглушка `change-me…`) API отвечает 503, а страница пишет, что отключена.
 
 ### Деплой на Vercel
 

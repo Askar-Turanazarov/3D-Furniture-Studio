@@ -115,7 +115,9 @@ app.post('/api/order', async (req, res) => {
 });
 
 // ---------- manager: orders list, statuses, notes (Authorization: Bearer ADMIN_TOKEN) ----------
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+// A short token or the .env.example placeholder counts as not set: the manager page stays off.
+const weakToken = s => s.length < 16 || /^change-me/i.test(s);
+const ADMIN_TOKEN = weakToken(process.env.ADMIN_TOKEN || '') ? '' : process.env.ADMIN_TOKEN;
 const STATUSES = ['new', 'inWork', 'measure', 'done', 'cancelled'];
 
 function admin(req, res, next) {

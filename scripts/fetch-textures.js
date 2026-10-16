@@ -1,5 +1,6 @@
 // Pre-download the on-demand texture sets of public/textures/library.json (ambientCG, CC0) into public/textures/lib/,
-// or with --blob into Vercel Blob (BLOB_READ_WRITE_TOKEN from .env.local / .env, e.g. after `vercel env pull`).
+// or with --blob into Vercel Blob (BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID + VERCEL_OIDC_TOKEN, from .env.local / .env —
+// e.g. after `vercel env pull`).
 // Usage: npm run textures [-- --kind floor|wall|rough|furniture] [-- --id oakPlanks] [-- --blob]
 // The facade and site sets are bundled in the project (public/textures/sets/), nothing to download for them.
 const fs = require('fs');
@@ -13,14 +14,15 @@ function arg(name) {
 if (process.argv.includes('--blob')) {
   for (const f of ['.env.local', '.env']) {
     const p = path.join(__dirname, '..', f);
-    if (!process.env.BLOB_READ_WRITE_TOKEN && fs.existsSync(p)) process.loadEnvFile(p);
+    if (fs.existsSync(p)) process.loadEnvFile(p);
   }
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    console.error('BLOB_READ_WRITE_TOKEN is not set (run `vercel env pull` first).');
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
+    console.error('No Blob store: BLOB_READ_WRITE_TOKEN or BLOB_STORE_ID is not set (run `vercel env pull` first).');
     process.exit(1);
   }
 } else {
   delete process.env.BLOB_READ_WRITE_TOKEN;
+  delete process.env.BLOB_STORE_ID;
 }
 
 const { fetchSet, libraryStatus } = require('../server/textureFetch');

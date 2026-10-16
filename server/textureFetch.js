@@ -1,7 +1,7 @@
 // Texture library sets on demand: download the ambientCG 1K-JPG zip of a whitelisted set (library.json,
 // bundled: false) and unpack its maps — color / normal (OpenGL) / roughness, or the set's own list (`maps`, e.g.
 // leaves: color / opacity) — into public/textures/lib/<id>/, or into Vercel Blob (textures/lib/<id>/) when
-// BLOB_READ_WRITE_TOKEN is set: functions there have no disk that lasts. Blob files are served through our own
+// the project has a Blob store (BLOB_READ_WRITE_TOKEN or BLOB_STORE_ID): functions there have no disk that lasts. Blob files are served through our own
 // /textures/lib/:id/:file (same origin, cached by the CDN), so the pages load them from the same address either way.
 const fs = require('fs/promises');
 const path = require('path');
@@ -75,7 +75,10 @@ function blobStore(token, sdk = require('@vercel/blob')) {
 }
 
 let store = null;
-const libStore = () => (store ||= process.env.BLOB_READ_WRITE_TOKEN ? blobStore(process.env.BLOB_READ_WRITE_TOKEN) : diskStore);
+// Blob when the project has a store: BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID (newer stores — the SDK signs in with
+// the function's Vercel OIDC token itself, no token is passed).
+const useBlob = () => !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+const libStore = () => (store ||= useBlob() ? blobStore(process.env.BLOB_READ_WRITE_TOKEN || undefined) : diskStore);
 
 // Library entries with `available`: all maps of the set are there (bundled in the project, or downloaded).
 async function libraryStatus() {

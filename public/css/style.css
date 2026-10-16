@@ -1202,3 +1202,16 @@ body.embed .site-foot { display: none; }
 @media (max-width: 600px) { .adm .site-foot.in-main { margin: 20px -10px -10px; } }
 .site-foot .sf-tag { font-weight: 600; color: var(--faint); }
 .brand h1 { letter-spacing: .06em; }
+
+/* desktop descriptor next to the name: hairline, small caps, an italic serif ampersand, gold 3D */
+.brand-desc {
+  display: none; align-items: baseline; gap: 7px; margin-left: 6px; padding-left: 18px; position: relative;
+  font: 600 10.5px/1 var(--f-ui); letter-spacing: .26em; text-transform: uppercase; color: var(--muted); white-space: nowrap;
+}
+.brand-desc::before {
+  content: ''; position: absolute; left: 0; top: 50%; width: 1px; height: 30px; transform: translateY(-50%);
+  background: linear-gradient(transparent, var(--gold), transparent); opacity: .7;
+}
+.brand-desc i { font: italic 500 17px/1 var(--f-display); letter-spacing: 0; text-transform: none; color: var(--gold); }
+.brand-desc b { font-weight: 700; color: var(--gold); letter-spacing: .3em; margin-left: 2px; }
+@media (min-width: 1100px) { .brand-desc { display: inline-flex; } }

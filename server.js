@@ -127,6 +127,7 @@ app.get('/api/orders', admin, async (req, res) => {
 
 app.patch('/api/orders/:id', admin, async (req, res) => {
   const id = Number(req.params.id), { status, note } = req.body || {};
+  if (!/^\d{1,16}$/.test(req.params.id)) return res.status(404).json({ error: 'not_found' });
   if (status !== undefined && !STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
   if (note !== undefined && (typeof note !== 'string' || note.length > 2000)) return res.status(400).json({ error: 'bad_note' });
   try {

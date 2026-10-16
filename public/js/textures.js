@@ -62,6 +62,8 @@ async function fetchLib(id) {
 }
 
 const setUrl = (e, file) => `/textures/${e.bundled ? 'sets' : 'lib'}/${e.id}/${file}.jpg`;
+// Relief-only sets (entry.maps without 'color', e.g. quilted leather) show their first map.
+const mainMap = e => (!e.maps || e.maps.includes('color')) ? 'color' : e.maps[0];
 
 function renderLibrary() {
   const box = document.getElementById('texLib');
@@ -70,12 +72,12 @@ function renderLibrary() {
     const list = library.filter(e => e.kind === k);
     if (!list.length) return '';
     return `<h4>${escapeHtml(t('tex.kind.' + k))}</h4><ul class="tex-list">` + list.map(e => `<li class="tex-row">
-      ${e.available ? `<img class="tex-thumb" src="${escapeHtml(setUrl(e, 'color'))}" alt="" loading="lazy">` : '<span class="tex-thumb tex-none">☁</span>'}
+      ${e.available ? `<img class="tex-thumb" src="${escapeHtml(setUrl(e, mainMap(e)))}" alt="" loading="lazy">` : '<span class="tex-thumb tex-none">☁</span>'}
       <div class="tex-info"><b>${escapeHtml(e.name[lang] || e.name.ru)}</b>
         <span class="tex-badge">ambientCG ${escapeHtml(e.source?.ambientcg || '')}</span></div>
       <div class="tex-actions">${e.available ? `
         ${e.style ? `<button class="btn sm" data-lib="${escapeHtml(e.id)}">${escapeHtml(t('tex.libApply'))}</button>` : ''}
-        <a class="btn sm" href="${escapeHtml(setUrl(e, 'color'))}" download="${escapeHtml(e.id)}-color.jpg" title="${escapeHtml(t('tex.download'))}">⬇</a>`
+        <a class="btn sm" href="${escapeHtml(setUrl(e, mainMap(e)))}" download="${escapeHtml(e.id)}-${mainMap(e)}.jpg" title="${escapeHtml(t('tex.download'))}">⬇</a>`
         : `<button class="btn sm" data-fetch="${escapeHtml(e.id)}" ${fetching ? 'disabled' : ''} title="${escapeHtml(t('tex.fetchTitle'))}">${
           escapeHtml(fetching === e.id ? t('tex.fetching', { s: 0 }) : t('tex.fetch', { mb: Math.round(e.mb || 5) }))}</button>`}
       </div></li>`).join('') + '</ul>';

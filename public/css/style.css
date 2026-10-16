@@ -1160,3 +1160,43 @@ select optgroup option { color: var(--text); background: var(--surface); font: 5
 .bld3d-hud .seg button.active, .hud .seg button.active, .v3d-bar .seg button.active {
   background: linear-gradient(rgba(201, 169, 110, .24), rgba(201, 169, 110, .24)), var(--hud-bg-2); color: #ecd3a0;
 }
+
+/* ---------- brand byline, site footer ---------- */
+.brand-text { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.byline {
+  font: italic 500 12.5px/1 var(--f-display); letter-spacing: .08em; color: var(--gold);
+  display: flex; align-items: center; gap: 8px; opacity: .9;
+}
+.byline::before { content: ''; width: 18px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }
+.site-foot {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 14px;
+  padding: 10px 24px; border-top: 1px solid var(--hairline); color: var(--faint);
+  font: 600 10.5px/1.2 var(--f-ui); letter-spacing: .2em; text-transform: uppercase; flex: none;
+}
+.site-foot .sf-name { font: 500 14px/1 var(--f-display); letter-spacing: .04em; text-transform: none; color: var(--muted); }
+.site-foot .sf-name .accent { font: 700 8.5px/1 var(--f-ui); letter-spacing: .3em; vertical-align: 3px; margin-left: 4px; }
+.site-foot .sf-sep { width: 22px; height: 1px; background: var(--gold); opacity: .55; }
+.site-foot .sf-by { font: italic 500 13px/1 var(--f-display); letter-spacing: .08em; text-transform: none; color: var(--gold); }
+.site-foot.in-side { display: none; }
+.site-foot.page-foot { padding: 6px 24px; }
+body.embed .site-foot { display: none; }
+@media (max-width: 860px) {
+  /* the planner scrolls inside .layout: its footer closes the side panel, at the very end of the page */
+  .site-foot.page-foot { display: none; }
+  .site-foot.in-side { display: flex; margin: 18px -12px -12px; padding: 18px 12px 22px; flex-direction: column; gap: 8px; }
+  .site-foot { flex-direction: column; gap: 8px; padding: 22px 16px 26px; }
+  .site-foot .sf-sep { width: 34px; }
+}
+@media (max-width: 600px) {
+  /* the full name on its own row; language, theme and links move to the row below */
+  .topbar { flex-wrap: wrap; row-gap: 8px; padding: 10px 12px 8px; }
+  .brand, .bld-page .brand { flex: 1 0 100%; min-width: 0; }
+  .brand h1, .bld-page .brand h1 { white-space: normal; overflow: visible; text-overflow: clip; font-size: 20px; line-height: 1.1; }
+  .brand h1 .accent { display: inline; }
+  .topbar > :not(.brand) { flex: none; }
+  .topbar > .top-btn:first-of-type, .topbar > .brand + * { margin-right: auto; }
+}
+.site-foot.in-main { grid-column: 1 / -1; margin: 8px -24px -18px; }
+.adm .site-foot.in-main { margin: 28px -24px -22px; }
+@media (max-width: 860px) { .site-foot.in-main { margin: 6px -10px -10px; } }
+@media (max-width: 600px) { .adm .site-foot.in-main { margin: 20px -10px -10px; } }

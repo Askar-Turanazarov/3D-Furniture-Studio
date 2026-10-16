@@ -25,6 +25,7 @@ function M(part, s, role = part === 'facade' ? 'facade' : 'body') {
   if (m && FAMILY[part] && familyOf(m.kind) === FAMILY[part]) return furnitureMat(m.kind, m.color, s);
   return furnitureMat(STYLE_MATS[st][part], TONE[st][part] || null, s);
 }
+export const luxePart = M;
 const white = s => furnitureMat('linen', '#f3efe8', s);      // bed linen
 
 function mesh(geo, mat, x = 0, y = 0, z = 0) {

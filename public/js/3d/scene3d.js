@@ -368,6 +368,7 @@ function rebuild() {
       e.key = key;
       if (e.shell) disposeGroup(e.shell.group);
       e.shell = buildRoom(r.room, openings, r.style, { holes, thick });
+      e.style = r.style;
       e.shell.group.add(buildObstacles(r.obstacles));
       for (const d of own) e.shell.group.add(revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style));
       const shade = cornerShade(r.room.L / 100, r.room.W / 100, r.room.H / 100, [...openings, ...holes]);
@@ -411,11 +412,12 @@ function buildAllLights() {
   const merged = total > SETTINGS[tier].maxLamps;
   for (const [id, e] of rooms3d) {
     const main = id === state.activeRoomId || rooms3d.size === 1;
-    const lk = [ceiling, main, merged && !main, tier, e.key].join('|');
+    const look = styleOf(e.style).furniture;
+    const lk = [ceiling, main, merged && !main, tier, e.key, look].join('|');
     if (lk !== e.lkey) {
       e.lkey = lk;
       if (e.lights) disposeGroup(e.lights);
-      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main, merged && !main);
+      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main, merged && !main, look);
       e.group.add(e.lights);
     } else {
       setLightTargets(e.lights, state.lighting);

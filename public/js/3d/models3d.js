@@ -7,7 +7,9 @@ import { furnitureMat, preloadSets } from './textures3d.js';
 import { rectOf } from '../geometry.js';
 import { itemLook, familyOf } from '../materials.js';
 import { itemStyle, packsOf, isLuxe } from '../style.js';
-import { LUXE_BUILDERS } from './modelsLuxe.js';
+import { LUXE_BUILDERS, luxePart } from './modelsLuxe.js';
+import { STYLE_MATS } from '../style.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { openSpec } from '../zones.js';
 import { sectionCount, drawerCount, slideDoors } from '../config.js';
 
@@ -51,6 +53,7 @@ function slider(leaf, dist, axis = 'z', part = 'drawer') {
 // Handle: modern keeps the original bar / knob, classic — a brass knob, loft — a black bar.
 // (x, y, z) — where the original was placed: y = its bottom, z = its centre.
 function handle(orig, x, y, z, len, vertical, s) {
+  if (isLuxe(sty)) return luxeHandle(x, y, z, len, vertical, s);
   if (sty === 'classic') {
     const k = new THREE.Mesh(new THREE.SphereGeometry(0.014, 16, 12), furnitureMat('brass', '', s));
     k.position.set(x, y + (vertical ? len / 2 : 0.008), z + 0.004);
@@ -67,6 +70,7 @@ function handle(orig, x, y, z, len, vertical, s) {
 
 // Leg of height lh: classic — turned wood with a bulb, loft — thin black steel.
 function leg(orig, x, z, lh, size, c, s) {
+  if (isLuxe(sty)) return luxeLeg(x, z, lh, size, s);
   if (sty === 'classic') {
     const g = new THREE.Group();
     const wood = fm('dark', c, s);
@@ -84,12 +88,83 @@ function leg(orig, x, z, lh, size, c, s) {
 
 // Classic facade: a raised moulding frame on the front (zFront = front face).
 function panel(g, fw, fh, x, y, zFront, mat) {
+  if (isLuxe(sty)) { luxePanel(g, fw, fh, x, y, zFront, mat); return; }
   if (sty !== 'classic' || fw < 0.12 || fh < 0.1) return;
   const m = Math.min(0.05, fw * 0.12, fh * 0.12), t = 0.012, dz = 0.006, z = zFront + dz / 2;
   g.add(box(fw - 2 * m, t, dz, mat, x, y + m, z));
   g.add(box(fw - 2 * m, t, dz, mat, x, y + fh - m - t, z));
   g.add(box(t, fh - 2 * m, dz, mat, x - fw / 2 + m + t / 2, y + m, z));
   g.add(box(t, fh - 2 * m, dz, mat, x + fw / 2 - m - t / 2, y + m, z));
+}
+
+// ---- luxe collections on the base models (cabinets, kitchens, shelves …): hardware, legs, facades ----
+// milano — slim bronze edge pulls, no mouldings; couture — brass knob on a rosette, brass moulding frame;
+// deco — long brass bars, fluted fronts; organic — flat oak knobs, plain fronts.
+const metalOf = (c, s) => isLuxe(sty) ? luxePart('metal', s) : metalOf(c, s);
+
+function luxeHandle(x, y, z, len, vertical, s) {
+  const metal = luxePart('metal', s), g = new THREE.Group();
+  if (sty === 'milano') {
+    const l = Math.max(len, 0.12);
+    g.add(vertical ? box(0.012, l, 0.016, metal, x, y, z) : box(l, 0.012, 0.016, metal, x, y, z));
+  } else if (sty === 'couture') {
+    const cy = y + (vertical ? len / 2 : 0.008);
+    const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.006, 20), metal);
+    rose.rotation.x = Math.PI / 2;
+    rose.position.set(x, cy, z - 0.006);
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), metal);
+    k.position.set(x, cy, z);
+    g.add(rose, k);
+  } else if (sty === 'deco') {
+    const l = Math.max(len, 0.18);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, l, 12), metal);
+    if (vertical) bar.position.set(x, y + l / 2, z + 0.006);
+    else { bar.rotation.z = Math.PI / 2; bar.position.set(x, y + 0.01, z + 0.006); }
+    g.add(bar);
+  } else {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 10), luxePart('body', s));
+    k.scale.z = 0.55;
+    k.position.set(x, y + (vertical ? len / 2 : 0.01), z + 0.004);
+    g.add(k);
+  }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
+function luxeLeg(x, z, lh, size, s) {
+  const metal = luxePart('metal', s), body = luxePart('body', s);
+  if (sty === 'milano') return box(0.018, lh, 0.018, metal, x, 0, z);
+  if (sty === 'deco') return cyl(Math.max(0.01, size * 0.4), lh, metal, x, 0, z);
+  if (sty === 'organic') return taper(size * 0.45, size * 0.3, lh, body, x, 0, z);
+  const g = new THREE.Group(), shoe = Math.min(0.04, lh * 0.3);
+  g.add(taper(size * 0.42, size * 0.26, lh - shoe, body, x, shoe, z));
+  g.add(cyl(size * 0.27, shoe, metal, x, 0, z));
+  return g;
+}
+
+function luxePanel(g, fw, fh, x, y, zFront, mat) {
+  if (fw < 0.12 || fh < 0.1) return;
+  const m = Math.min(0.05, fw * 0.12, fh * 0.12);
+  if (sty === 'couture') {
+    const metal = luxePart('metal', 'ok'), t = 0.007, dz = 0.004, z = zFront + dz / 2;
+    g.add(box(fw - 2 * m, t, dz, metal, x, y + m, z));
+    g.add(box(fw - 2 * m, t, dz, metal, x, y + fh - m - t, z));
+    g.add(box(t, fh - 2 * m, dz, metal, x - fw / 2 + m + t / 2, y + m, z));
+    g.add(box(t, fh - 2 * m, dz, metal, x + fw / 2 - m - t / 2, y + m, z));
+  } else if (sty === 'deco') {
+    // Fluting: half-round reeds over the front, merged into one mesh.
+    const r = 0.009, n = Math.min(40, Math.floor((fw - 2 * m) / (2 * r + 0.006))), fl = fh - 2 * m;
+    if (n < 2) return;
+    const step = (fw - 2 * m) / n, parts = [];
+    for (let i = 0; i < n; i++) {
+      const c = new THREE.CylinderGeometry(r, r, fl, 8, 1, false, -Math.PI / 2, Math.PI);
+      c.translate(x - fw / 2 + m + step * (i + 0.5), y + m + fl / 2, zFront);
+      parts.push(c);
+    }
+    const reeds = new THREE.Mesh(mergeGeometries(parts), mat);
+    reeds.castShadow = reeds.receiveShadow = true;
+    g.add(reeds);
+  }
 }
 
 // Look of the item being built: catalog materials for the body and the facade (doors, drawer fronts).
@@ -99,6 +174,9 @@ const FAMILY = { wood: 'board', dark: 'board', plain: 'board', fabric: 'fabric' 
 function fm(kind, c, s, role = 'body') {
   const m = look[role];
   if (m && FAMILY[kind] === familyOf(m.kind)) return furnitureMat(m.kind, m.color, s);
+  // Luxe collections: boards in the collection woods / lacquer, upholstery in its fabric (the colour stays).
+  if (isLuxe(sty) && FAMILY[kind] === 'board') return luxePart(role === 'facade' ? 'facade' : 'body', s, role);
+  if (isLuxe(sty) && FAMILY[kind] === 'fabric') return furnitureMat(STYLE_MATS[sty].soft, c, s);
   return furnitureMat(kind, c, s);
 }
 
@@ -154,7 +232,7 @@ function cushion(w, h, d, mat, x, y, z) {
 // ---------- builders: (w, d, h, color, status) → Group ----------
 function wardrobe(w, d, h, c, s) {
   const g = new THREE.Group();
-  const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s), dark = fm('dark', c, s);
+  const wood = fm('wood', c, s), metal = metalOf(c, s), dark = fm('dark', c, s);
   const base = Math.min(0.08, h * 0.05), doorT = 0.018, t = 0.018, cd = d - doorT;
   g.add(box(w - 0.02, base, d - 0.04, dark, 0, 0, -0.01));                 // recessed base
   // Hollow carcass: back, sides, top, bottom; inside — partitions between sections, shelves, a rail.
@@ -261,7 +339,7 @@ function sofa(w, d, h, c, s, seats) {
 
 function nightstand(w, d, h, c, s) {
   const g = new THREE.Group();
-  const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s), dark = fm('dark', c, s);
+  const wood = fm('wood', c, s), metal = metalOf(c, s), dark = fm('dark', c, s);
   const legH = Math.min(0.08, h * 0.15);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const x = sx * (w / 2 - 0.04), z = sz * (d / 2 - 0.04);
@@ -330,7 +408,7 @@ const armchair = (w, d, h, c, s) => sofa(w, d, h, c, s, 1);
 // Carcass on short legs with a column of drawers (dresser, shoe cabinet, desk pedestal).
 function drawers(w, d, h, c, s, rows) {
   const g = new THREE.Group();
-  const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s), dark = fm('dark', c, s);
+  const wood = fm('wood', c, s), metal = metalOf(c, s), dark = fm('dark', c, s);
   const legH = Math.min(0.08, h * 0.1), front = 0.018, gap = 0.008;
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const x = sx * (w / 2 - 0.04), z = sz * (d / 2 - 0.04);
@@ -422,7 +500,7 @@ function desk(w, d, h, c, s) {
 // Kitchen: base cabinets with countertop, sink and hob; wall cabinets if tall enough.
 function kitchen(w, d, h, c, s) {
   const g = new THREE.Group();
-  const front = fm('plain', c, s, 'facade'), body = fm('plain', c, s), metal = furnitureMat('metal', c, s);
+  const front = fm('plain', c, s, 'facade'), body = fm('plain', c, s), metal = metalOf(c, s);
   const counter = furnitureMat('plain', '#5d5f63', s), dark = furnitureMat('plain', '#202124', s);
   const baseH = Math.min(0.86, h), plinth = 0.1, ct = 0.04;
   g.add(box(w, plinth, d - 0.06, dark, 0, 0, -0.03));
@@ -458,7 +536,7 @@ function kitchen(w, d, h, c, s) {
 // Fridge: enamel body, freezer door at the bottom, vertical handles.
 function fridge(w, d, h, c, s) {
   const g = new THREE.Group();
-  const body = fm('plain', c, s), metal = furnitureMat('metal', c, s);
+  const body = fm('plain', c, s), metal = metalOf(c, s);
   const door = 0.04, split = h * 0.36, lowH = Math.min(0.3, split * 0.6);
   g.add(box(w, h, d - door, body, 0, 0, -door / 2));
   const low = new THREE.Group(), up = new THREE.Group();
@@ -475,7 +553,7 @@ function fridge(w, d, h, c, s) {
 // Wall cabinet / mezzanine: carcass with 1–3 hinged doors and handles at the bottom edge.
 function wallcabinet(w, d, h, c, s) {
   const g = new THREE.Group();
-  const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s);
+  const wood = fm('wood', c, s), metal = metalOf(c, s);
   const front = 0.018, gap = 0.004;
   g.add(box(w, h, d - front, wood, 0, 0, -front / 2));
   const n = Math.max(1, Math.min(3, Math.round(w / 0.45)));
@@ -496,7 +574,7 @@ const mezzanine = wallcabinet;
 // Floating shelf: a board with two hidden brackets.
 function wallshelf(w, d, h, c, s) {
   const g = new THREE.Group();
-  const wood = fm('wood', c, s), metal = furnitureMat('metal', c, s);
+  const wood = fm('wood', c, s), metal = metalOf(c, s);
   g.add(box(w, h, d, wood));
   for (const sx of [-1, 1]) g.add(box(0.02, 0.02, d * 0.8, metal, sx * w * 0.35, -0.02, -d * 0.1));
   return g;
@@ -551,7 +629,7 @@ function lampHead(rTop, rBottom, hh, c, s, power) {
 
 function floorlamp(w, d, h, c, s) {
   const g = new THREE.Group();
-  const metal = furnitureMat('metal', c, s);
+  const metal = metalOf(c, s);
   const r = Math.min(w, d) / 2;
   g.add(cyl(r * 0.6, 0.02, metal, 0, 0, 0));
   const hh = Math.min(0.32, h * 0.25);
@@ -564,7 +642,7 @@ function floorlamp(w, d, h, c, s) {
 
 function sconce(w, d, h, c, s) {
   const g = new THREE.Group();
-  const metal = furnitureMat('metal', c, s);
+  const metal = metalOf(c, s);
   // Back plate on the wall (-Z), arm forward, shade at the front.
   g.add(box(Math.min(0.1, w), Math.min(0.14, h), 0.02, metal, 0, h * 0.2, -d / 2 + 0.01));
   g.add(box(0.02, 0.02, d * 0.6, metal, 0, h * 0.35, -d / 2 + d * 0.3));
@@ -631,7 +709,7 @@ function hob(w, d, x, y, z, s) {
 export const conf = () => cfg;
 export const style3d = () => sty;
 export const look3d = () => look;
-export { box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
+export { metalOf, box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
   wardrobe, drawers, wallcabinet, bed, sofa, table };
 
 const BUILDERS = {

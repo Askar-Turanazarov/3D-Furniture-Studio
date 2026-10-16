@@ -58,3 +58,21 @@ test('luxe drawers still open (movers), the base style keeps the base model', ()
   const b = buildItem({ id: 3, type: 'sofa', w: 200, d: 90, h: 85, x: 0, y: 0, rot: 0, style: 'couture' }, 'ok', [], {}, catalog);
   assert.notEqual(triangles(a), triangles(b));
 });
+
+test('cabinets, kitchens and lamps in luxe collections: hardware and facades stay inside the box', () => {
+  const types = ['wardrobe', 'drawers', 'dresser', 'kitchen', 'bookshelf', 'tvstand', 'wallcabinet', 'floorlamp', 'sconce', 'mirror']
+    .filter(t => catalog.some(x => x.type === t));
+  assert.ok(types.length >= 6);
+  for (const type of types) {
+    const c = catalog.find(x => x.type === type);
+    for (const style of LUXE_STYLES) {
+      const obj = buildItem({ id: 4, type, w: c.w, d: c.d, h: c.h, x: 0, y: 0, rot: 0, color: c.color, style }, 'ok', [], {}, catalog);
+      obj.position.set(0, 0, 0);
+      obj.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(obj), tol = 0.03, where = `${style} ${type}`;
+      assert.ok(b.min.x >= -c.w / 200 - tol && b.max.x <= c.w / 200 + tol, `${where} x`);
+      assert.ok(b.max.z <= c.d / 200 + tol, `${where} z ${b.max.z.toFixed(3)}`);
+      assert.ok(triangles(obj) <= 12000, `${where}: ${triangles(obj)} triangles`);
+    }
+  }
+});

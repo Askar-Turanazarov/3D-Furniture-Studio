@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { getMats } from './textures3d.js';
+import { getMats, furnitureMat } from './textures3d.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { lightingOf, targetsFor, easeInOut, TWEEN_SEC, fixtureSpec } from '../lighting.js';
 import { patchSpotClip } from './spotClip.js';
 
@@ -72,8 +73,91 @@ function addSpec(g, spec, main) {
   });
 }
 
+// Luxe chandeliers by the room's furniture collection (the same light source, other fixture geometry):
+// couture — a cascade of crystal drops under a brass ring, deco — a brass ring of opal tubes,
+// milano — an opal globe on a slim rod, organic — a linen drum.
+let glass = null, linenShade = null;
+const crystal = () => glass ??= new THREE.MeshStandardMaterial({ color: '#fff6e6', emissive: '#ffe2b0', emissiveIntensity: 0.6,
+  roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.72 });
+
+function stem(g, cx, cz, H, len, mat, r = 0.006) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), mat);
+  m.position.set(cx, H - len / 2, cz);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 24), mat);
+  cap.position.set(cx, H - 0.01, cz);
+  g.add(m, cap);
+}
+
+const LUXE_FIXTURE = {
+  couture(g, cx, cz, H) {
+    const brass = furnitureMat('brushedBrass', '', 'ok'), y = H - 0.5;
+    stem(g, cx, cz, H, 0.42, brass);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.012, 10, 48), brass);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(cx, y, cz);
+    g.add(ring);
+    // Three tiers of drops on strings, longer towards the middle.
+    const drops = [];
+    for (const [r, n, len] of [[0.28, 22, 0.22], [0.19, 16, 0.32], [0.1, 10, 0.42]]) {
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2 + r * 7;
+        for (let k = 0; k < 3; k++) {
+          const d = new THREE.OctahedronGeometry(0.018 - k * 0.003);
+          d.scale(1, 1.8, 1);
+          d.translate(cx + Math.cos(a) * r, y - len * (k + 1) / 3, cz + Math.sin(a) * r);
+          drops.push(d);
+        }
+      }
+    }
+    g.add(new THREE.Mesh(mergeGeometries(drops), crystal()));
+  },
+  deco(g, cx, cz, H) {
+    const brass = furnitureMat('brushedBrass', '', 'ok'), y = H - 0.42;
+    stem(g, cx, cz, H, 0.36, brass);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.016, 10, 56), brass);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(cx, y, cz);
+    g.add(ring);
+    const tubes = [];
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2, t = new THREE.CylinderGeometry(0.022, 0.022, 0.22, 14);
+      t.translate(cx + Math.cos(a) * 0.32, y - 0.12, cz + Math.sin(a) * 0.32);
+      tubes.push(t);
+      const arm = new THREE.CylinderGeometry(0.004, 0.004, 0.32, 6);
+      arm.rotateZ(Math.PI / 2); arm.rotateY(-a);
+      arm.translate(cx + Math.cos(a) * 0.16, y + 0.02, cz + Math.sin(a) * 0.16);
+      g.add(new THREE.Mesh(arm, brass));
+    }
+    g.add(new THREE.Mesh(mergeGeometries(tubes), getMats().lampShade));
+  },
+  milano(g, cx, cz, H) {
+    const bronze = furnitureMat('bronze', '', 'ok');
+    stem(g, cx, cz, H, 0.55, bronze, 0.004);
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(0.17, 32, 20), getMats().lampShade);
+    globe.position.set(cx, H - 0.72, cz);
+    g.add(globe);
+  },
+  organic(g, cx, cz, H) {
+    const bronze = furnitureMat('bronze', '', 'ok'), y = H - 0.6;
+    stem(g, cx, cz, H, 0.5, bronze, 0.003);
+    const shadeMat = linenShade ??= Object.assign(furnitureMat('linen', '#efe6d6', 'ok').clone(),
+      { side: THREE.DoubleSide, emissive: new THREE.Color('#ffd9a0'), emissiveIntensity: 0.45 });
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.26, 40, 1, true), shadeMat);
+    drum.position.set(cx, y, cz);
+    const diffuser = new THREE.Mesh(new THREE.CircleGeometry(0.29, 32), getMats().lampShade);
+    diffuser.rotation.x = Math.PI / 2;
+    diffuser.position.set(cx, y - 0.12, cz);
+    g.add(drum, diffuser);
+  }
+};
+
 // Chandelier: stem, hub, five arms with glowing shades; one point light.
-function chandelier(g, L, W, H, main) {
+function chandelier(g, L, W, H, main, merged, look) {
+  if (LUXE_FIXTURE[look]) {
+    LUXE_FIXTURE[look](g, L / 2, W / 2, H);
+    addSpec(g, fixtureSpec('chandelier', L, W, H), main);
+    return;
+  }
   const M = getMats(), cx = L / 2, cz = W / 2, y = H - 0.45;
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.4), M.metal);
   stem.position.set(cx, H - 0.2, cz);
@@ -127,8 +211,9 @@ export const lampCount = (ceiling, { L, W, H }) => fixtureSpec(ceiling, L, W, H)
  * group.userData.cur.env — environment intensity for the scene.
  * main — the room with the camera: sky light, sun and full-size shadows; the other rooms get the same fixture.
  * merged — spots as one wide down-light (the lamp budget is spent).
+ * look — the room's furniture collection: luxe ones get their own chandelier.
  */
-export function buildLights({ L, W, H }, win, lighting, prev = null, main = true, merged = false) {
+export function buildLights({ L, W, H }, win, lighting, prev = null, main = true, merged = false, look = 'modern') {
   const { ceiling } = lightingOf(lighting);
   const group = new THREE.Group();
   group.name = 'lights';
@@ -136,7 +221,7 @@ export function buildLights({ L, W, H }, win, lighting, prev = null, main = true
   // Ambient: warm floor bounce + cool sky.
   const hemi = main ? new THREE.HemisphereLight('#f4f6ff', '#8a7660', 0) : null;
   if (hemi) group.add(hemi);
-  if (FIXTURES[ceiling]) FIXTURES[ceiling](group, L, W, H, main, merged);
+  if (FIXTURES[ceiling]) FIXTURES[ceiling](group, L, W, H, main, merged, look);
 
   // Sun from outside through the first window (north by default); it sinks and turns warm towards the evening.
   const sun = new THREE.DirectionalLight('#ffffff', 0);

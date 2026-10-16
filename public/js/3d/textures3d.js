@@ -378,7 +378,16 @@ export const canFetchLib = () => libServer;
 // time ('busy', e.g. the facade sets for another visitor): wait and retry.
 export async function fetchLibSet(id) {
   for (let tries = 0; ; tries++) {
-    const res = await fetch('/api/textures/fetch/' + encodeURIComponent(id), { method: 'POST' });
+    // A request never hangs: the server answers within its own limit, this is the backstop.
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 120 * 1000);
+    let res;
+    try {
+      res = await fetch('/api/textures/fetch/' + encodeURIComponent(id), { method: 'POST', signal: ctrl.signal });
+    } catch {
+      throw new Error('download_failed');
+    } finally {
+      clearTimeout(timer);
+    }
     if (res.ok) break;
     const body = await res.json().catch(() => ({}));
     if (res.status !== 429 || tries > 60) throw new Error(body.error || 'download_failed');
@@ -389,7 +398,7 @@ export async function fetchLibSet(id) {
   mats = null;
   furnCache.clear();
   finishCache.clear();
-  libListeners.forEach(fn => fn(id));
+  libListeners.forEach(fn => fn(id, 'fetched'));   // rebuild: the scene asks for the set again and loads it
 }
 
 async function loadLib(id) {
@@ -564,12 +573,14 @@ function luxeMat(kind, color) {
     const src = set || surface('wood');
     return P({ ...maps(src), color: set ? col : tint(own, src.photo), roughness: set ? 1 : 0.5, clearcoat: L.coat, clearcoatRoughness: 0.22 });
   }
+  // Upholstery keeps the collection colour exactly: the photo set gives only the weave / grain (normal, roughness).
+  const relief = src => maps({ normalMap: src.normalMap, roughnessMap: src.roughnessMap });
   if (L.fabric) {
     const src = set || surface('fabric');
-    return P({ ...maps(src), color: set ? col : own, roughness: 1, sheen: L.sheen, sheenRoughness: L.sheenR,
-      sheenColor: new THREE.Color(own).lerp(new THREE.Color('#ffffff'), 0.5) });
+    return P({ ...(set ? relief(set) : maps(src)), color: own, roughness: 1, sheen: L.sheen, sheenRoughness: L.sheenR,
+      sheenColor: new THREE.Color(own).lerp(new THREE.Color('#ffffff'), 0.35) });
   }
-  if (L.leather) return P({ ...(set ? maps(set) : {}), color: col, roughness: set ? 1 : 0.5, clearcoat: 0.3, clearcoatRoughness: 0.45 });
+  if (L.leather) return P({ ...(set ? relief(set) : {}), color: own, roughness: set ? 1 : 0.5, clearcoat: 0.3, clearcoatRoughness: 0.45 });
   if (L.metal) return P({ ...(set ? maps(set) : {}), color: set ? '#ffffff' : L.base, metalness: 1, roughness: set ? 1 : L.rough });
   // stone
   return P({ ...(set ? maps(set) : {}), color: set ? '#ffffff' : own, roughness: set ? 1 : 0.22, clearcoat: L.coat, clearcoatRoughness: 0.08 });

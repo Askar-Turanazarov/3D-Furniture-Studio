@@ -6,7 +6,8 @@ import { MORE_BUILDERS } from './models3dMore.js';
 import { furnitureMat, preloadSets } from './textures3d.js';
 import { rectOf } from '../geometry.js';
 import { itemLook, familyOf } from '../materials.js';
-import { itemStyle, packsOf } from '../style.js';
+import { itemStyle, packsOf, isLuxe } from '../style.js';
+import { LUXE_BUILDERS } from './modelsLuxe.js';
 import { openSpec } from '../zones.js';
 import { sectionCount, drawerCount, slideDoors } from '../config.js';
 
@@ -629,6 +630,7 @@ function hob(w, d, x, y, z, s) {
 
 export const conf = () => cfg;
 export const style3d = () => sty;
+export const look3d = () => look;
 export { box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
   wardrobe, drawers, wallcabinet, bed, sofa, table };
 
@@ -644,9 +646,10 @@ const BUILDERS = {
  * @param item plan item (cm); status 'ok' | 'bad' | 'found'
  */
 export function buildItem(item, status, materials = [], roomStyle, catalog = []) {
-  const make = BUILDERS[item.type] || generic;
   look = itemLook(item, materials);
   sty = itemStyle(item, roomStyle);
+  // Luxe collections have their own silhouettes; the other types keep the base model in collection materials.
+  const make = (isLuxe(sty) && LUXE_BUILDERS[item.type]) || BUILDERS[item.type] || generic;
   preloadSets(packsOf(sty));      // luxe collections: their photo sets (downloaded on first use)
   movers = [];
   openKind = item.open?.kind || null;

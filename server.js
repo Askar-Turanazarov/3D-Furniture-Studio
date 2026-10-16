@@ -36,6 +36,7 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
+app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
 // Vercel serves public/ from its CDN but sends "/" to the function: the planner page from here.
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
 const pages = require('./server/pages');

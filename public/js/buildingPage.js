@@ -3,21 +3,40 @@
 // (a copy in this browser's projects) and a request for the apartment (POST /api/order with apartmentRef).
 // The main view is the building in 3D (bld3d/exterior.js); the floor grid stays as a scheme and without WebGL.
 import { t, getLang, langPath, initLangSwitcher, onLangChange } from './i18n.js';
-import { initTheme } from './theme.js';
 import { initIcons } from './icons.js';
 import { roomRect, roomArea } from './apartment.js';
 import { rectOf } from './geometry.js';
 import { DEPTH, TYPES, localRoomName } from './building.js';
 import { FILE_FORMAT, VERSION } from './storage.js';
 import { photoAuto } from './3d/perf.js';
+import { initTheme, getTheme, onThemeChange } from './theme.js';
 
 const $ = id => document.getElementById(id);
 const BUILDING = new URLSearchParams(location.search).get('b') || 'novostroyka-12';
 export const HANDOFF = 'fsp3d.handoff';
 const STATUSES = ['free', 'booked', 'sold'];
-const ST_FILL = { free: '#b2f2bb', booked: '#ffd8a8', sold: '#dee2e6' };
-const ST_LINE = { free: '#2b8a3e', booked: '#d9480f', sold: '#868e96' };
-const ROOMS_FILL = ['#e5dbff', '#d0ebff', '#c3fae8', '#fff3bf', '#ffdeeb'];   // studio, 1–4 rooms
+// Floor-plan colours per theme: muted statuses (sage / champagne / graphite) and room-count tints.
+const PALETTE = {
+  dark: {
+    st: { free: '#4f6f5a', booked: '#8a7448', sold: '#34332f' },
+    rooms: ['#4b4458', '#3e4c5a', '#3d5650', '#5a5240', '#584450'],
+    floor: '#16161a', lobby: '#1d2428', shop: '#26221b', shopLine: '#4a463f', corridor: '#1f1f22', core: '#2c2b29',
+    wall: '#d9cfbd', outer: '#ece6db', hover: '#e3c995', text: '#ece6db', textOff: '#7a756c', sub: '#b8b0a3',
+    room: '#1d1c1a', item: 'rgba(236,230,219,.1)', decor: 'rgba(236,230,219,.05)', itemLine: 'rgba(236,230,219,.4)',
+    gap: '#141416', label: 'rgba(20,20,22,.82)'
+  },
+  light: {
+    st: { free: '#bcd3c1', booked: '#e6d2ac', sold: '#dcd6cc' },
+    rooms: ['#ddd6e6', '#d3dfe8', '#d1e4dc', '#ece2c6', '#ead6dd'],
+    floor: '#f6f2ec', lobby: '#e6eef0', shop: '#f3e9d9', shopLine: '#b9ad9a', corridor: '#ebe5dc', core: '#d6cec2',
+    wall: '#3a332a', outer: '#17140f', hover: '#8c6a43', text: '#17140f', textOff: '#9a9184', sub: '#5f574c',
+    room: '#fffdf9', item: 'rgba(60,50,35,.12)', decor: 'rgba(60,50,35,.06)', itemLine: 'rgba(60,50,35,.5)',
+    gap: '#fbf9f5', label: 'rgba(255,253,249,.85)'
+  }
+};
+const C = () => PALETTE[getTheme()];
+const ST_FILL = new Proxy({}, { get: (_, k) => C().st[k] });
+const ROOMS_FILL = new Proxy([], { get: (_, k) => C().rooms[k] });
 const LOCALE = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-GB' };
 const ROOM_COUNTS = [...new Set(Object.values(TYPES).map(x => x.rooms))].sort();
 
@@ -39,6 +58,7 @@ const matches = a => (!filter.rooms.size || filter.rooms.has(a.rooms))
   && (filter.areaMin == null || a.area >= filter.areaMin) && (filter.areaMax == null || a.area <= filter.areaMax)
   && (filter.priceMax == null || a.price <= filter.priceMax * 1e6) && (!filter.free || a.status === 'free');
 const fillOf = a => (colorBy === 'status' ? ST_FILL[a.status] : ROOMS_FILL[a.rooms]);
+const tintOf = a => (colorBy === 'status' ? PALETTE.light.st[a.status] : PALETTE.light.rooms[a.rooms]);   // the 3D facade keeps light tints
 
 function el(tag, props = {}, ...kids) {
   const e = Object.assign(document.createElement(tag), props);
@@ -112,7 +132,7 @@ function legend() {
 
 // ---------- drawing ----------
 // Rooms of an apartment at `at` (cm on the floor) with walls, windows and doors; s — px per cm, (ox, oy) — px offset.
-function drawRooms(g, plan, at, s, ox, oy, { fill = '#fff', wall = '#343a40', lw = 1, furniture = false } = {}) {
+function drawRooms(g, plan, at, s, ox, oy, { fill = C().room, wall = C().wall, lw = 1, furniture = false } = {}) {
   const box = r => { const q = roomRect(r); return [ox + (at.x + q.x) * s, oy + (at.y + q.y) * s, q.w * s, q.h * s]; };
   for (const r of plan) {
     g.fillStyle = typeof fill === 'function' ? fill(r) : fill;
@@ -123,8 +143,8 @@ function drawRooms(g, plan, at, s, ox, oy, { fill = '#fff', wall = '#343a40', lw
       const [x0, y0] = box(r);
       for (const it of r.items || []) {
         const q = rectOf(it);
-        g.fillStyle = it.layer === 'decor' ? 'rgba(134,142,150,.12)' : 'rgba(73,80,87,.16)';
-        g.strokeStyle = 'rgba(73,80,87,.55)';
+        g.fillStyle = it.layer === 'decor' ? C().decor : C().item;
+        g.strokeStyle = C().itemLine;
         g.lineWidth = 0.75;
         g.fillRect(x0 + q.x * s, y0 + q.y * s, q.w * s, q.h * s);
         g.strokeRect(x0 + q.x * s, y0 + q.y * s, q.w * s, q.h * s);
@@ -142,7 +162,7 @@ function drawRooms(g, plan, at, s, ox, oy, { fill = '#fff', wall = '#343a40', lw
       g.beginPath();
       g.moveTo(x + seg[0], y + seg[1]);
       g.lineTo(x + seg[2], y + seg[3]);
-      g.strokeStyle = o.kind === 'window' ? '#4dabf7' : '#fff';
+      g.strokeStyle = o.kind === 'window' ? '#7fb8d8' : C().gap;
       g.lineWidth = o.kind === 'window' ? lw + 2 : lw + 1.5;
       g.stroke();
     }
@@ -159,8 +179,8 @@ function sizeCanvas(cv, cw, ch) {
   return g;
 }
 
-function label(g, text, x, y, { size = 12, color = '#212529', bold = false } = {}) {
-  g.font = `${bold ? 600 : 400} ${size}px system-ui, sans-serif`;
+function label(g, text, x, y, { size = 12, color = C().text, bold = false } = {}) {
+  g.font = `${bold ? 600 : 400} ${size}px Manrope, system-ui, sans-serif`;
   g.fillStyle = color;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -179,38 +199,38 @@ function drawFloor() {
   view = { s, ox: pad, oy: pad };
   const R = q => [pad + q.x * s, pad + q.y * s, q.w * s, q.h * s];
   g.clearRect(0, 0, cw, cv.height);
-  g.fillStyle = '#f8f9fa';
+  g.fillStyle = C().floor;
   g.fillRect(...R({ x: 0, y: 0, w: b.section.L, h: b.section.W }));
   const small = Math.max(10, Math.min(13, s * 40));
   if (f.lobby) {
-    g.fillStyle = '#e7f5ff';
+    g.fillStyle = C().lobby;
     g.fillRect(...R(f.lobby));
     const [x, y, w, h] = R(f.lobby);
     label(g, t('bld.lobby'), x + w / 2, y + h / 2, { size: small + 2, bold: true });
     for (const c of f.commercial) {
-      g.fillStyle = '#fff4e6';
+      g.fillStyle = C().shop;
       g.fillRect(...R(c));
-      g.strokeStyle = '#adb5bd';
+      g.strokeStyle = C().shopLine;
       g.strokeRect(...R(c));
       const [cx, cy, cw2, ch2] = R(c);
       label(g, t('bld.commercial'), cx + cw2 / 2, cy + ch2 / 2, { size: small + 1 });
     }
   } else {
-    g.fillStyle = '#e9ecef';
+    g.fillStyle = C().corridor;
     g.fillRect(...R(b.corridor));
     const [x, y, w, h] = R(b.corridor);
-    label(g, t('bld.corridor'), x + w * 0.25, y + h / 2, { size: small, color: '#868e96' });
-    label(g, t('bld.corridor'), x + w * 0.75, y + h / 2, { size: small, color: '#868e96' });
+    label(g, t('bld.corridor'), x + w * 0.25, y + h / 2, { size: small, color: C().textOff });
+    label(g, t('bld.corridor'), x + w * 0.75, y + h / 2, { size: small, color: C().textOff });
   }
-  g.fillStyle = '#ced4da';
+  g.fillStyle = C().core;
   g.fillRect(...R(b.core));
   const [kx, ky, kw, kh] = R(b.core);
-  label(g, t('bld.core'), kx + kw / 2, ky + kh / 2, { size: small, color: '#495057' });
+  label(g, t('bld.core'), kx + kw / 2, ky + kh / 2, { size: small, color: C().sub });
   for (const a of f.apartments) {
     const on = matches(a);
     const [x, y, w, h] = R(unitBox(a));
     // the apartment outline first: windows and the front door are drawn over it
-    g.strokeStyle = '#343a40';
+    g.strokeStyle = C().wall;
     g.lineWidth = 2;
     g.strokeRect(x, y, w, h);
     g.save();
@@ -218,17 +238,17 @@ function drawFloor() {
     drawRooms(g, a.plan, a.at, s, pad, pad, { fill: fillOf(a), lw: 1 });
     g.restore();
     if (a.no === hover) {
-      g.strokeStyle = '#3b5bdb';
+      g.strokeStyle = C().hover;
       g.lineWidth = 3;
       g.strokeRect(x - 1, y - 1, w + 2, h + 2);
     }
     const cy = y + h * (a.side === 'north' ? 0.3 : 0.7);
-    label(g, `№${a.no}`, x + w / 2, cy - small * 0.7, { size: small + 1, bold: true, color: on ? '#212529' : '#868e96' });
+    label(g, `№${a.no}`, x + w / 2, cy - small * 0.7, { size: small + 1, bold: true, color: on ? C().text : C().textOff });
     label(g, `${a.rooms ? a.rooms + t('bld.roomsShort') : t('bld.type.studio')} · ${num(a.area)} ${t('unit.m2')}`,
-      x + w / 2, cy + small * 0.6, { size: small - 1, color: on ? '#343a40' : '#868e96' });
+      x + w / 2, cy + small * 0.6, { size: small - 1, color: on ? C().sub : C().textOff });
   }
   // outer walls (outside the facade line, so the windows stay visible)
-  g.strokeStyle = '#212529';
+  g.strokeStyle = C().outer;
   g.lineWidth = 3;
   g.strokeRect(...R({ x: -6 - 1.5 / s, y: -6 - 1.5 / s, w: b.section.L + 12 + 3 / s, h: b.section.W + 12 + 3 / s }));
   $('floorTitle').textContent = t('bld.floor', { n: floorN });
@@ -270,21 +290,21 @@ function drawCard(a) {
   const g = sizeCanvas(cv, cw, Math.round(W * s + 2 * pad));
   g.clearRect(0, 0, cw, cv.height);
   const ox = pad - x0 * s, oy = pad - y0 * s;
-  drawRooms(g, a.plan, { x: 0, y: 0 }, s, ox, oy, { fill: '#fff', lw: 2, furniture: true });
+  drawRooms(g, a.plan, { x: 0, y: 0 }, s, ox, oy, { fill: C().room, lw: 2, furniture: true });
   for (const r of a.plan) {
     const q = roomRect(r), cx = ox + (q.x + q.w / 2) * s, cy = oy + (q.y + q.h / 2) * s;
     const fs = q.w * s < 70 || q.h * s < 50 ? 9 : 11;
-    g.fillStyle = 'rgba(255,255,255,.8)';
+    g.fillStyle = C().label;
     const name = roomName(r), dims = `${num(r.room.L / 100, 2)}×${num(r.room.W / 100, 2)}`;
-    g.font = `600 ${fs}px system-ui, sans-serif`;
+    g.font = `600 ${fs}px Manrope, system-ui, sans-serif`;
     const tw = Math.max(g.measureText(name).width, g.measureText(dims).width) + 6;
     g.fillRect(cx - tw / 2, cy - fs * 1.6, tw, fs * 3.4);
     label(g, name, cx, cy - fs * 0.8, { size: fs, bold: true });
-    label(g, dims, cx, cy + fs * 0.25, { size: fs - 1, color: '#495057' });
-    label(g, `${num(roomArea(r))} ${t('unit.m2')}`, cx, cy + fs * 1.2, { size: fs - 1, color: '#495057' });
+    label(g, dims, cx, cy + fs * 0.25, { size: fs - 1, color: C().sub });
+    label(g, `${num(roomArea(r))} ${t('unit.m2')}`, cx, cy + fs * 1.2, { size: fs - 1, color: C().sub });
   }
   // overall size of the apartment
-  label(g, `${num(L / 100, 2)} ${t('bld.m')}`, pad + L * s / 2, pad / 2, { size: 11, color: '#495057' });
+  label(g, `${num(L / 100, 2)} ${t('bld.m')}`, pad + L * s / 2, pad / 2, { size: 11, color: C().sub });
 }
 
 function openCard(a) {
@@ -405,7 +425,7 @@ function setFloor(n) {
 
 // ---------- 3D facade ----------
 function paint3d() {
-  ext?.paint({ colorOf: no => (tint3d ? fillOf(byNo(no)) : null), dim: no => !matches(byNo(no)), hover: hover3d });
+  ext?.paint({ colorOf: no => (tint3d ? tintOf(byNo(no)) : null), dim: no => !matches(byNo(no)), hover: hover3d });
 }
 
 function sync3dHud() {
@@ -416,6 +436,7 @@ function sync3dHud() {
   });
   $('bld3dOrbit').classList.toggle('active', ext.getAuto() && !ext.isWalking());
   $('bld3dWalk').classList.toggle('active', ext.isWalking());
+  $('bldHero').hidden = ext.isWalking();
   $('bld3dPad').hidden = !(ext.isWalking() && matchMedia('(pointer: coarse)').matches);
   $('bld3dTint').classList.toggle('active', tint3d);
   const touch = matchMedia('(pointer: coarse)').matches;
@@ -590,9 +611,13 @@ function bind() {
   $('reqCancel').addEventListener('click', () => $('reqDlg').close());
   $('reqForm').addEventListener('submit', sendRequest);
   new ResizeObserver(() => drawFloor()).observe($('planWrap'));
+  $('bldHeroPick').addEventListener('click', () => $('bldPlan').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  $('bldHeroWalk').addEventListener('click', () => $('bld3dWalk').click());
+  onThemeChange(() => { renderAll(); if ($('aptDlg').open) drawCard(cardApt); });
   onLangChange(() => {
     document.title = `${local(b.name)} — ${t('bld.title')}`;
     $('bldName').textContent = local(b.name);
+    $('bldHeroName').textContent = local(b.name);
     ext?.setTitle(local(b.name), t('bld3d.entranceSign'));
     if (cue3d) showCue(cue3d);
     sync3dHud();
@@ -617,6 +642,7 @@ async function start() {
   }
   document.title = `${local(b.name)} — ${t('bld.title')}`;
   $('bldName').textContent = local(b.name);
+  $('bldHeroName').textContent = local(b.name);
   const n = Number(new URLSearchParams(location.search).get('floor'));
   floorN = n >= 1 && n <= b.floors ? n : 2;
   bind();

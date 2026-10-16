@@ -24,6 +24,7 @@
   <meta property="og:locale:alternate" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
   <!--/og-->
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap">
@@ -89,6 +90,13 @@
         </div>
         <div class="bld-tip" id="bld3dTip" hidden></div>
         <div class="bld3d-cue" id="bld3dCue" role="status" hidden><span class="bld3d-cue-arrow" id="bld3dCueArrow">⬆</span><span id="bld3dCueText"></span></div>
+        <div class="bld-hero" id="bldHero">
+          <span class="bld-hero-kicker" data-i18n="bld.heroKicker">Жилой комплекс</span>
+          <b class="bld-hero-title" id="bldHeroName"></b>
+          <span class="bld-hero-sub" data-i18n="bld.heroSub">Планировки, свободные квартиры и прогулка в 3D</span>
+          <span class="bld-hero-acts"><button type="button" class="btn primary" id="bldHeroPick" data-i18n="bld.heroPick">Выбрать квартиру</button>
+            <button type="button" class="btn" id="bldHeroWalk" data-i18n="bld3d.walk">Прогулка от улицы</button></span>
+        </div>
         <p class="bld3d-hint" id="bld3dHint"></p>
         <div class="bld3d-pad" id="bld3dPad" hidden>
           <button type="button" data-f="1" aria-label="Forward">▲</button>

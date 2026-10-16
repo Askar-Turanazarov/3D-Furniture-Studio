@@ -5,50 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>Заявки — менеджер</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap">
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('fsp3d.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
   <link rel="stylesheet" href="css/style.css">
-  <style>
-    .top-actions { display: flex; gap: 8px; align-items: center; }
-    .top-actions .btn.ghost { color: var(--text); border-color: var(--line-2); }
-    .adm { flex: 1; overflow: auto; padding: 16px; }
-    .adm-card { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
-    .adm-login { max-width: 420px; margin: 40px auto; display: flex; flex-direction: column; gap: 10px; }
-    .adm-login input, .adm-tools input, .adm-tools select, .adm-table select, .adm-note {
-      font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--input-bg); color: var(--text);
-    }
-    .adm-err { color: var(--danger); min-height: 1.4em; margin: 0; }
-    .adm-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-    .adm-tools input[type=search] { flex: 1; min-width: 180px; }
-    .adm-scroll { overflow-x: auto; }
-    .adm-table { width: 100%; border-collapse: collapse; min-width: 760px; }
-    .adm-table th, .adm-table td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
-    .adm-table th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
-    .adm-table tbody tr { cursor: pointer; }
-    .adm-table tbody tr:hover { background: var(--surface-2); }
-    .adm-table td.num { text-align: right; white-space: nowrap; }
-    .adm-table a { color: var(--primary); }
-    .st-new { border-left: 4px solid var(--primary); }
-    .st-inWork { border-left: 4px solid #f59f00; }
-    .st-measure { border-left: 4px solid #7048e8; }
-    .st-done { border-left: 4px solid var(--accent); }
-    .st-cancelled { border-left: 4px solid #adb5bd; color: var(--muted); }
-    .adm-empty { color: var(--muted); text-align: center; padding: 30px; }
-    dialog.adm-dlg { width: min(1000px, 96vw); max-height: 92vh; overflow: auto; }
-    .adm-pics { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    .adm-pics img { width: 100%; border: 1px solid var(--line); border-radius: 8px; }
-    .adm-meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0; }
-    .adm-meta dt { color: var(--muted); }
-    .adm-meta dd { margin: 0; white-space: pre-wrap; }
-    .adm-spec { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 13px; }
-    .adm-spec th, .adm-spec td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
-    .adm-spec th { background: var(--surface-2); }
-    .adm-note { width: 100%; min-height: 80px; resize: vertical; }
-    .adm-hist { color: var(--muted); font-size: 13px; padding-left: 18px; }
-    @media (max-width: 600px) { .adm { padding: 10px; } }
-  </style>
 </head>
 <body>
   <header class="topbar">

@@ -4,26 +4,29 @@
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=Manrope:wght@500;700&display=block">
 <style>
   html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
-  body { font-family: "Segoe UI", system-ui, sans-serif; color: #fff;
-    background: radial-gradient(circle at 78% 45%, #2f4ac0 0, #1e2a5a 42%, #141a33 100%); }
+  body { font-family: Manrope, "Segoe UI", system-ui, sans-serif; color: #ece6db;
+    background: radial-gradient(circle at 76% 48%, #2a2620 0, #141416 46%, #0b0b0d 100%); }
+  body::after { content: ''; position: absolute; inset: 28px; border: 1px solid rgba(201,169,110,.28); pointer-events: none; }
   canvas { position: absolute; right: 0; top: 0; }
-  .text { position: absolute; left: 64px; top: 64px; width: 520px; }
-  .brand { font-size: 26px; font-weight: 600; opacity: .9; display: flex; gap: 12px; align-items: center; }
-  .brand b { color: #63e6be; }
-  .logo { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: #3b5bdb; font-size: 26px; }
-  h1 { font-size: 54px; line-height: 1.08; margin: 54px 0 22px; font-weight: 700; }
-  p { font-size: 25px; line-height: 1.38; margin: 0; color: #d0d7f5; }
-  .langs { position: absolute; left: 64px; bottom: 56px; display: flex; gap: 10px; font-size: 20px; font-weight: 600; }
-  .langs span { padding: 6px 14px; border-radius: 8px; border: 2px solid #4c5fa8; color: #aeb8e6; }
-  .langs span.on { background: #3b5bdb; border-color: #3b5bdb; color: #fff; }
+  .text { position: absolute; left: 76px; top: 76px; width: 450px; }
+  .brand { font-size: 13px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: #c9a96e; display: flex; gap: 14px; align-items: center; }
+  .brand b { color: #e3c995; font-weight: 700; }
+  .logo { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(201,169,110,.5); color: #c9a96e; }
+  .logo svg { width: 26px; height: 26px; }
+  h1 { font: 500 54px/1.06 "Cormorant Garamond", Georgia, serif; margin: 56px 0 24px; letter-spacing: .005em; }
+  p { font-size: 23px; line-height: 1.45; margin: 0; color: #a39c90; }
+  .langs { position: absolute; left: 76px; bottom: 70px; display: flex; gap: 18px; font-size: 15px; font-weight: 700; letter-spacing: .24em; }
+  .langs span { color: #6f6a62; }
+  .langs span.on { color: #c9a96e; }
 </style>
 </head>
 <body>
 <canvas id="c" width="700" height="630"></canvas>
 <div class="text">
-  <div class="brand"><span class="logo">▦</span><span>Furniture Super Planner <b>3D</b></span></div>
+  <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8.5 18V6h7.5M8.5 12h6"/></svg></span><span>Furniture Super Planner <b>3D</b></span></div>
   <h1 id="title"></h1>
   <p id="sub"></p>
 </div>
@@ -84,8 +87,8 @@ async function planner(b) {
   const parts = [];
   for (const r of rooms) {
     const { x, y } = r.pos, { L, W } = r.room;
-    parts.push({ key: x + y, draw: () => box(x - WALL / 2, y - WALL / 2, L + WALL, WALL, 0, WH, '#f1f3f5') });
-    parts.push({ key: x + y + 1, draw: () => box(x - WALL / 2, y - WALL / 2, WALL, W + WALL, 0, WH, '#f1f3f5') });
+    parts.push({ key: x + y, draw: () => box(x - WALL / 2, y - WALL / 2, L + WALL, WALL, 0, WH, '#e6dfd2') });
+    parts.push({ key: x + y + 1, draw: () => box(x - WALL / 2, y - WALL / 2, WALL, W + WALL, 0, WH, '#e6dfd2') });
     for (const it of r.items || []) {
       const turned = it.rot === 90 || it.rot === 270;
       const w = turned ? it.d : it.w, d = turned ? it.w : it.d;
@@ -94,8 +97,8 @@ async function planner(b) {
     }
   }
   // outer walls of the south and east edges last (they are in front)
-  parts.push({ key: 1e9, draw: () => box(-WALL / 2, maxY - WALL / 2, maxX + WALL, WALL, 0, WH * .35, '#e9ecef') });
-  parts.push({ key: 1e9 + 1, draw: () => box(maxX - WALL / 2, -WALL / 2, WALL, maxY + WALL, 0, WH * .35, '#e9ecef') });
+  parts.push({ key: 1e9, draw: () => box(-WALL / 2, maxY - WALL / 2, maxX + WALL, WALL, 0, WH * .35, '#d8d0c2') });
+  parts.push({ key: 1e9 + 1, draw: () => box(maxX - WALL / 2, -WALL / 2, WALL, maxY + WALL, 0, WH * .35, '#d8d0c2') });
   parts.sort((a, b) => a.key - b.key).forEach(p => p.draw());
 }
 
@@ -105,9 +108,9 @@ async function building(b) {
   ox = 380 - (L - W) * 0.866 * k / 2; oy = 40 + N * H * k;
   // ground with a lawn and a path
   const G = 900;
-  poly([P(-G, -G), P(L + G, -G), P(L + G, W + G), P(-G, W + G)], '#3f6e4a');
-  poly([P(-G, W + 260), P(L + G, W + 260), P(L + G, W + 520), P(-G, W + 520)], '#8a8f98');
-  const statusColor = { free: '#8ce99a', booked: '#ffd43b', sold: '#4dabf7' };
+  poly([P(-G, -G), P(L + G, -G), P(L + G, W + G), P(-G, W + G)], '#2c3a2e');
+  poly([P(-G, W + 260), P(L + G, W + 260), P(L + G, W + 520), P(-G, W + 520)], '#4a4843');
+  const statusColor = { free: '#9fc3a8', booked: '#e3c995', sold: '#6f7a86' };
   // facade: travertine faces, windows coloured by status of the apartment behind
   poly([P(L, 0, 0), P(L, W, 0), P(L, W, N * H), P(L, 0, N * H)], '#cdbfa5', 'rgba(0,0,0,.2)');
   poly([P(0, W, 0), P(L, W, 0), P(L, W, N * H), P(0, W, N * H)], '#e3d7bf', 'rgba(0,0,0,.2)');

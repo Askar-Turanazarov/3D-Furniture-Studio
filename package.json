@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "textures": "node scripts/fetch-textures.js"
+    "textures": "node scripts/fetch-textures.js",
+    "og": "node scripts/og-images.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

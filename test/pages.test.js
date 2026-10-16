@@ -51,3 +51,14 @@ test('vercel.json ships both pages with the function', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   for (const f of ['public/index.html', 'public/building.html']) assert.ok(v.functions['server.js'].includeFiles.includes(f), f);
 });
+
+test('preview pictures: one per page and language, PNG 1200×630, small enough for messengers', () => {
+  for (const page of ['planner', 'building']) {
+    for (const lang of pages.LANGS) {
+      const png = readFileSync(new URL(`../public/og/${page}-${lang}.png`, import.meta.url));
+      assert.equal(png.subarray(1, 4).toString(), 'PNG', `${page}-${lang}`);
+      assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [1200, 630], `${page}-${lang}`);
+      assert.ok(png.length < 1024 * 1024, `${page}-${lang}: ${png.length} bytes`);
+    }
+  }
+});

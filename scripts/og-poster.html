@@ -1,0 +1,146 @@
+<!doctype html>
+<!-- Link-preview picture 1200×630 (scripts/og-images.js takes a screenshot): title on the left, on the right an
+     isometric drawing from the real data — a furnished apartment of the new building, or the building itself. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; color: #fff;
+    background: radial-gradient(circle at 78% 45%, #2f4ac0 0, #1e2a5a 42%, #141a33 100%); }
+  canvas { position: absolute; right: 0; top: 0; }
+  .text { position: absolute; left: 64px; top: 64px; width: 520px; }
+  .brand { font-size: 26px; font-weight: 600; opacity: .9; display: flex; gap: 12px; align-items: center; }
+  .brand b { color: #63e6be; }
+  .logo { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: #3b5bdb; font-size: 26px; }
+  h1 { font-size: 54px; line-height: 1.08; margin: 54px 0 22px; font-weight: 700; }
+  p { font-size: 25px; line-height: 1.38; margin: 0; color: #d0d7f5; }
+  .langs { position: absolute; left: 64px; bottom: 56px; display: flex; gap: 10px; font-size: 20px; font-weight: 600; }
+  .langs span { padding: 6px 14px; border-radius: 8px; border: 2px solid #4c5fa8; color: #aeb8e6; }
+  .langs span.on { background: #3b5bdb; border-color: #3b5bdb; color: #fff; }
+</style>
+</head>
+<body>
+<canvas id="c" width="700" height="630"></canvas>
+<div class="text">
+  <div class="brand"><span class="logo">▦</span><span>Furniture Super Planner <b>3D</b></span></div>
+  <h1 id="title"></h1>
+  <p id="sub"></p>
+</div>
+<div class="langs"><span data-l="ru">RU</span><span data-l="uz">UZ</span><span data-l="en">EN</span></div>
+<script>
+const q = new URLSearchParams(location.search);
+const page = q.get('page') === 'building' ? 'building' : 'planner';
+const lang = ['ru', 'uz', 'en'].includes(q.get('lang')) ? q.get('lang') : 'ru';
+const TEXT = {
+  planner: {
+    ru: ['Планировщик квартиры и мебели на заказ', 'Размеры комнат и мебели, проверка «поместится ли», прогулка по квартире в 3D и заявка.'],
+    uz: ['Kvartira va buyurtma mebel rejalashtiruvchisi', 'Xona va mebel o‘lchamlari, «sig‘adimi» tekshiruvi, kvartirada 3D sayr va ariza.'],
+    en: ['Apartment and custom furniture planner', 'Room and furniture sizes, a “does it fit” check, a 3D walk through the apartment and a request.']
+  },
+  building: {
+    ru: ['ЖК «Новостройка-12»', 'Подбор квартиры, план этажа и прогулка от улицы до двери в 3D.'],
+    uz: ['«Novostroyka-12» TJM', 'Kvartira tanlash, qavat rejasi va ko‘chadan eshikgacha 3D sayr.'],
+    en: ['Novostroyka-12', 'Pick an apartment, see the floor plan and walk from the street to the door in 3D.']
+  }
+};
+document.getElementById('title').textContent = TEXT[page][lang][0];
+document.getElementById('sub').textContent = TEXT[page][lang][1];
+document.querySelector(`[data-l="${lang}"]`).classList.add('on');
+
+const ctx = document.getElementById('c').getContext('2d');
+// Isometric projection: x to the right-down, y to the left-down, z up (cm → px by scale k).
+let k = 0.1, ox = 350, oy = 120;
+const P = (x, y, z = 0) => [ox + (x - y) * 0.866 * k, oy + (x + y) * 0.5 * k - z * k];
+const poly = (pts, fill, stroke) => {
+  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+};
+const shade = (hex, f) => {
+  const n = parseInt(hex.slice(1), 16), c = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f)));
+  return `rgb(${c(16)},${c(8)},${c(0)})`;
+};
+// A box: top and the two faces turned to the viewer.
+function box(x, y, w, d, z, h, color, edge = 'rgba(0,0,0,.18)') {
+  poly([P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x, y + d, z + h)], shade(color, .78), edge);
+  poly([P(x + w, y, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x + w, y, z + h)], shade(color, .9), edge);
+  poly([P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)], shade(color, 1.05), edge);
+}
+
+async function planner(b) {
+  const apt = b.floorsData.flatMap(f => f.apartments).find(a => a.no === 1);
+  const rooms = apt.plan;
+  const maxX = Math.max(...rooms.map(r => r.pos.x + r.room.L)), maxY = Math.max(...rooms.map(r => r.pos.y + r.room.W));
+  k = Math.min(620 / ((maxX + maxY) * 0.866), 470 / ((maxX + maxY) * 0.5 + 120));
+  ox = 350 + (maxY - maxX) * 0.866 * k / 2; oy = 315 - (maxX + maxY) * 0.25 * k + 30;
+  const FLOOR = { parquet: '#c8a27a', laminate: '#c9ab84', tile: '#d9dde3', linoleum: '#b9a68e' };
+  const WALL = 24, WH = 90;   // walls drawn low, as a cut-away model
+  for (const r of rooms) {
+    const { x, y } = r.pos, { L, W } = r.room;
+    poly([P(x, y), P(x + L, y), P(x + L, y + W), P(x, y + W)], FLOOR[r.style?.floor] || '#cdb59a', 'rgba(0,0,0,.25)');
+  }
+  // far walls first (north and west edges of every room), then the furniture, sorted back to front
+  const parts = [];
+  for (const r of rooms) {
+    const { x, y } = r.pos, { L, W } = r.room;
+    parts.push({ key: x + y, draw: () => box(x - WALL / 2, y - WALL / 2, L + WALL, WALL, 0, WH, '#f1f3f5') });
+    parts.push({ key: x + y + 1, draw: () => box(x - WALL / 2, y - WALL / 2, WALL, W + WALL, 0, WH, '#f1f3f5') });
+    for (const it of r.items || []) {
+      const turned = it.rot === 90 || it.rot === 270;
+      const w = turned ? it.d : it.w, d = turned ? it.w : it.d;
+      const ix = x + it.x, iy = y + it.y;
+      parts.push({ key: ix + iy + (w + d) / 2 + 2, draw: () => box(ix, iy, w, d, 0, Math.min(it.h, 200), it.color || '#b0bec5') });
+    }
+  }
+  // outer walls of the south and east edges last (they are in front)
+  parts.push({ key: 1e9, draw: () => box(-WALL / 2, maxY - WALL / 2, maxX + WALL, WALL, 0, WH * .35, '#e9ecef') });
+  parts.push({ key: 1e9 + 1, draw: () => box(maxX - WALL / 2, -WALL / 2, WALL, maxY + WALL, 0, WH * .35, '#e9ecef') });
+  parts.sort((a, b) => a.key - b.key).forEach(p => p.draw());
+}
+
+async function building(b) {
+  const { L, W, H } = b.section, N = b.floors;
+  k = Math.min(560 / ((L + W) * 0.866), 520 / ((L + W) * 0.5 + N * H));   // the whole building, roof included
+  ox = 380 - (L - W) * 0.866 * k / 2; oy = 40 + N * H * k;
+  // ground with a lawn and a path
+  const G = 900;
+  poly([P(-G, -G), P(L + G, -G), P(L + G, W + G), P(-G, W + G)], '#3f6e4a');
+  poly([P(-G, W + 260), P(L + G, W + 260), P(L + G, W + 520), P(-G, W + 520)], '#8a8f98');
+  const statusColor = { free: '#8ce99a', booked: '#ffd43b', sold: '#4dabf7' };
+  // facade: travertine faces, windows coloured by status of the apartment behind
+  poly([P(L, 0, 0), P(L, W, 0), P(L, W, N * H), P(L, 0, N * H)], '#cdbfa5', 'rgba(0,0,0,.2)');
+  poly([P(0, W, 0), P(L, W, 0), P(L, W, N * H), P(0, W, N * H)], '#e3d7bf', 'rgba(0,0,0,.2)');
+  poly([P(0, 0, N * H), P(L, 0, N * H), P(L, W, N * H), P(0, W, N * H)], '#9aa1ab', 'rgba(0,0,0,.2)');
+  const win = (x0, x1, y, z, color, side) => {
+    const pts = side === 'south'
+      ? [P(x0, y, z), P(x1, y, z), P(x1, y, z + 150), P(x0, y, z + 150)]
+      : [P(L, x0, z), P(L, x1, z), P(L, x1, z + 150), P(L, x0, z + 150)];
+    poly(pts, color, 'rgba(0,0,0,.35)');
+  };
+  for (const f of b.floorsData) {
+    const z = (f.n - 1) * H + 85;
+    if (f.n === 1) {
+      for (let x = 120; x < L - 200; x += 330) win(x, x + 260, W, z - 60, '#a5d8ff', 'south');
+      continue;
+    }
+    for (const a of f.apartments.filter(a => a.side === 'south')) {
+      for (let x = a.at.x + 70; x < a.at.x + a.w - 160; x += 230) win(x, x + 150, W, z, statusColor[a.status] || '#a5d8ff', 'south');
+    }
+    for (let y = 120; y < W - 160; y += 260) win(y, y + 150, 0, z, '#a5d8ff', 'east');
+  }
+  // trees in front
+  for (let i = 0; i < 9; i++) {
+    const tx = -500 + i * ((L + 1000) / 8), ty = W + 700 + (i % 2) * 140;
+    const [px, py] = P(tx, ty, 0);
+    ctx.fillStyle = '#5c4033'; ctx.fillRect(px - 2, py - 18, 4, 18);
+    ctx.beginPath(); ctx.arc(px, py - 30, 18, 0, 7); ctx.fillStyle = '#2f9e44'; ctx.fill();
+  }
+}
+
+fetch('/api/buildings/novostroyka-12').then(r => r.json())
+  .then(b => (page === 'building' ? building(b) : planner(b)))
+  .then(() => { document.title = 'ready'; });
+</script>
+</body>
+</html>

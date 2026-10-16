@@ -29,6 +29,11 @@ const db = createDb({ root: __dirname, dataDir: DATA });
 const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => db.statuses(), set: db.setStatus });
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
+// Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
+app.use((req, res, next) => {
+  res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+  next();
+});
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public')));
 // Vercel serves public/ from its CDN but sends "/" to the function: the planner page from here.

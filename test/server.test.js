@@ -30,6 +30,15 @@ test('GET /api/health: ok, storage kind and version, not cached', async () => {
   assert.deepEqual(await res.json(), { ok: true, db: 'files', version: require('../package.json').version });
 });
 
+test('security headers on pages, static files and the API', async () => {
+  for (const url of ['/', '/building.html', '/js/i18n.js', '/api/catalog', '/api/nope']) {
+    const h = (await fetch(base() + url)).headers;
+    assert.equal(h.get('x-content-type-options'), 'nosniff', url);
+    assert.equal(h.get('x-frame-options'), 'SAMEORIGIN', url);
+    assert.equal(h.get('referrer-policy'), 'strict-origin-when-cross-origin', url);
+  }
+});
+
 test('unknown /api routes answer JSON 404; pages still work', async () => {
   for (const method of ['GET', 'POST']) {
     const res = await fetch(`${base()}/api/nope`, { method });

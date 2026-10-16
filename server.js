@@ -40,6 +40,8 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // 
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
 const pages = require('./server/pages');
 const sendPage = (page, self) => (req, res) => {
+  const ua = req.get('user-agent') || '';
+  if (/bot|telegram|whatsapp|facebookexternalhit|preview/i.test(ua)) console.log('preview fetch', req.method, req.originalUrl, ua);   // which messengers come for the preview
   res.set('Cache-Control', 'public, max-age=0, s-maxage=3600').type('html')
     .send(pages.render(page, req.params.lang ?? 'ru', `${req.protocol}://${req.get('host')}`, self));
 };

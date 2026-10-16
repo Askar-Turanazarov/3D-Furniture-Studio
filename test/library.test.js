@@ -27,9 +27,9 @@ test('library entries are complete and unique', () => {
   assert.ok(library.length >= 40);
 });
 
-test('bundled sets have their three maps in the repository', () => {
+test('bundled sets have their maps in the repository', () => {
   for (const e of library.filter(x => x.bundled)) {
-    for (const f of ['color', 'normal', 'roughness']) {
+    for (const f of e.maps || ['color', 'normal', 'roughness']) {
       const p = new URL(`sets/${e.id}/${f}.jpg`, root);
       assert.ok(existsSync(p), `${e.id}/${f}.jpg`);
       assert.ok(statSync(p).size > 10000, `${e.id}/${f}.jpg is too small`);

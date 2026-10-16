@@ -158,10 +158,13 @@ export async function fetchFacadeSets(onStep = () => {}) {
   return missing.length;
 }
 
-// The three maps of a library set on disk, or null.
+// Bundled sets are in the project, the others are downloaded on demand (disk or Blob, the same address).
+const setDir = e => `/textures/${e.bundled ? 'sets' : 'lib'}/${e.id}/`;
+
+// The three maps of a library set, or null.
 async function libSet(entry) {
   if (!entry?.available) return null;
-  const dir = `/textures/${entry.bundled ? 'sets' : 'lib'}/${entry.id}/`;
+  const dir = setDir(entry);
   try {
     const [color, normal, roughness] = await Promise.all(['color', 'normal', 'roughness'].map(f => bitmap(dir + f + '.jpg')));
     return { color, normal, roughness, tile: entry.tile || 1 };
@@ -194,7 +197,7 @@ export async function applyPhotoFacade({ mats, site = {}, trees = null, anisotro
     }
   }
   const leafEntry = list.find(e => e.id === SITE_SETS.leaves);
-  const leaves = leafEntry?.available ? await Promise.all(['color', 'opacity'].map(f => bitmap(`/textures/lib/${leafEntry.id}/${f}.jpg`)))
+  const leaves = leafEntry?.available ? await Promise.all(['color', 'opacity'].map(f => bitmap(`${setDir(leafEntry)}${f}.jpg`)))
     .then(([color, opacity]) => ({ color, opacity }), () => null) : null;
   const siteSets = Object.fromEntries(await Promise.all(Object.entries(SITE_SETS).filter(([k]) => k !== 'leaves')
     .map(async ([k, id]) => [k, await libSet(list.find(e => e.id === id))])));

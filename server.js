@@ -19,7 +19,7 @@ const APARTMENTS = path.join(__dirname, 'apartments.json');
 const { validateOrder } = require('./server/validateOrder');
 const { createDb } = require('./server/db');
 const { writeZip } = require('./server/zip');
-const { fetchSet, libraryStatus } = require('./server/textureFetch');
+const { fetchSet, libraryStatus, readLibMap } = require('./server/textureFetch');
 const { APT_STATUSES, BUILDING_ID, createBuildings } = require('./server/buildings');
 const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 // Orders and apartment statuses: files locally, Postgres (Neon) with DATABASE_URL (server/db.js).
@@ -186,6 +186,15 @@ app.get('/api/textures/pack.zip', async (req, res) => {
 // Texture library: which sets are on disk; download a whitelisted set from ambientCG on demand.
 app.get('/api/textures/library', async (req, res) => {
   try { res.json(await libraryStatus()); } catch { res.status(500).json({ error: 'library_failed' }); }
+});
+
+// A downloaded set's map that is not a static file (Vercel: it is in Blob). Same origin for the WebGL loaders;
+// the CDN keeps it (s-maxage), so the function reads each file about once.
+app.get('/textures/lib/:id/:file', async (req, res) => {
+  const m = /^(\w+)\.jpg$/.exec(req.params.file);
+  const buf = m && await readLibMap(String(req.params.id), m[1]).catch(() => null);
+  if (!buf) return res.status(404).end();
+  res.set('Cache-Control', 'public, max-age=86400, s-maxage=31536000, immutable').type('jpg').send(buf);
 });
 
 app.post('/api/textures/fetch/:id', async (req, res) => {

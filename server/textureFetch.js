@@ -1,6 +1,8 @@
 // Texture library sets on demand: download the ambientCG 1K-JPG zip of a whitelisted set (library.json,
 // bundled: false) and unpack its maps — color / normal (OpenGL) / roughness, or the set's own list (`maps`, e.g.
-// leaves: color / opacity) — into public/textures/lib/<id>/.
+// leaves: color / opacity) — into public/textures/lib/<id>/, or into Vercel Blob (textures/lib/<id>/) when
+// BLOB_READ_WRITE_TOKEN is set: functions there have no disk that lasts. Blob files are served through our own
+// /textures/lib/:id/:file (same origin, cached by the CDN), so the pages load them from the same address either way.
 const fs = require('fs/promises');
 const path = require('path');
 const { listZip, readEntry } = require('./zip');
@@ -26,14 +28,71 @@ async function downloadable(id) {
 
 const exists = p => fs.access(p).then(() => true, () => false);
 
-// Library entries with `available`: all maps of the set are on disk (bundled or downloaded).
+// Where downloaded sets are kept: { has(id, map), write(id, map, buf), read(id, map) → Buffer | null }.
+const diskStore = {
+  kind: 'disk',
+  has: async (id, map) => exists(path.join(LIB_DIR, id, map + '.jpg')),
+  async write(id, map, buf) {
+    await fs.mkdir(path.join(LIB_DIR, id), { recursive: true });
+    await fs.writeFile(path.join(LIB_DIR, id, map + '.jpg'), buf);
+  },
+  read: (id, map) => fs.readFile(path.join(LIB_DIR, id, map + '.jpg')).catch(() => null)
+};
+
+// Vercel Blob: one list of textures/lib/ (cached for a minute) tells which maps are there.
+function blobStore(token, sdk = require('@vercel/blob')) {
+  const PREFIX = 'textures/lib/';
+  let names = null, at = 0;
+  async function list() {
+    if (!names || Date.now() - at > 60 * 1000) {
+      const all = new Set();
+      let cursor;
+      do {
+        const r = await sdk.list({ prefix: PREFIX, cursor, limit: 1000, token });
+        r.blobs.forEach(b => all.add(b.pathname));
+        cursor = r.hasMore ? r.cursor : null;
+      } while (cursor);
+      names = all;
+      at = Date.now();
+    }
+    return names;
+  }
+  const key = (id, map) => `${PREFIX}${id}/${map}.jpg`;
+  return {
+    kind: 'blob',
+    has: async (id, map) => (await list()).has(key(id, map)),
+    async write(id, map, buf) {
+      await sdk.put(key(id, map), buf, { access: 'public', addRandomSuffix: false, allowOverwrite: true,
+        contentType: 'image/jpeg', cacheControlMaxAge: 365 * 24 * 3600, token });
+      names?.add(key(id, map));
+    },
+    async read(id, map) {
+      const r = await sdk.get(key(id, map), { access: 'public', token });
+      if (!r || r.statusCode !== 200) return null;
+      return Buffer.from(await new Response(r.stream).arrayBuffer());
+    }
+  };
+}
+
+let store = null;
+const libStore = () => (store ||= process.env.BLOB_READ_WRITE_TOKEN ? blobStore(process.env.BLOB_READ_WRITE_TOKEN) : diskStore);
+
+// Library entries with `available`: all maps of the set are there (bundled in the project, or downloaded).
 async function libraryStatus() {
   const lib = await readLibrary();
   return Promise.all(lib.map(async e => {
-    const dir = path.join(ROOT, e.bundled ? 'sets' : 'lib', e.id);
-    const ok = await Promise.all(mapsOf(e).map(f => exists(path.join(dir, f + '.jpg'))));
+    const ok = await Promise.all(mapsOf(e).map(f => (e.bundled
+      ? exists(path.join(ROOT, 'sets', e.id, f + '.jpg'))
+      : libStore().has(e.id, f).catch(() => false))));
     return { ...e, available: ok.every(Boolean) };
   }));
+}
+
+/** One map of a downloaded set (a library id and one of its maps only), or null. */
+async function readLibMap(id, map) {
+  const e = await downloadable(id);
+  if (!e || !mapsOf(e).includes(map)) return null;
+  return libStore().read(id, map);
 }
 
 // The maps from a zip buffer → { color, normal, roughness } buffers (or the keys asked for).
@@ -71,7 +130,7 @@ async function download(url) {
 
 let busy = false;
 
-// Download and unpack one set; one download at a time. Resolves to the written folder.
+// Download and unpack one set; one download at a time (per function instance).
 async function fetchSet(id, { log = () => {} } = {}) {
   const e = await downloadable(id);
   if (!e) throw Object.assign(new Error('unknown set'), { status: 404 });
@@ -82,14 +141,11 @@ async function fetchSet(id, { log = () => {} } = {}) {
     log(`${id}: downloading ${asset}_1K-JPG.zip`);
     const buf = await download(`https://ambientcg.com/get?file=${asset}_1K-JPG.zip`);
     const maps = mapsFromZip(buf, mapsOf(e));
-    const dir = path.join(LIB_DIR, id);
-    await fs.mkdir(dir, { recursive: true });
-    for (const [k, data] of Object.entries(maps)) await fs.writeFile(path.join(dir, k + '.jpg'), data);
-    log(`${id}: ${(buf.length / 1048576).toFixed(1)} MB zip → ${dir}`);
-    return dir;
+    for (const [k, data] of Object.entries(maps)) await libStore().write(id, k, data);
+    log(`${id}: ${(buf.length / 1048576).toFixed(1)} MB zip → ${libStore().kind}`);
   } finally {
     busy = false;
   }
 }
 
-module.exports = { fetchSet, libraryStatus, mapsFromZip, downloadable, LIB_DIR };
+module.exports = { fetchSet, libraryStatus, readLibMap, mapsFromZip, downloadable, blobStore, LIB_DIR };

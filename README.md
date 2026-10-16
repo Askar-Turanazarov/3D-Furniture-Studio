@@ -60,7 +60,7 @@ Node.js + Express (static files + small JSON API), plain HTML/CSS/JS (ES modules
 npm install
 npm start
 ```
-Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand). Building facade photos (travertine, black stone, concrete, timber, ≈ 21 MB) and the site (grass, asphalt, pavers, leaves, bark, ≈ 35 MB): the first visitor's page downloads them to the server once by itself (on obviously weak devices — the **📷 Photo facade** button) — after that every visitor gets them; or in advance with `npm run textures -- --facade`. Without them the facade is composed from the bundled sets.
+Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand). Building facade photos (travertine, black stone, concrete, timber) and the site (grass, asphalt, pavers, leaves, bark) are in the project (`public/textures/sets/`, ≈ 26 MB). Downloaded room sets go to `public/textures/lib/`, or to Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set (`npm run textures -- --blob` fills it in advance).
 
 **Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
 1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
@@ -182,7 +182,7 @@ Node.js + Express (statik fayllar + kichik JSON API), oddiy HTML/CSS/JS (ES modu
 npm install
 npm start
 ```
-http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi). Bino fasadi fotolari (travertin, qora tosh, beton, yog‘och, ≈ 21 MB) va hovli (o‘t, asfalt, plitka, barglar, po‘stloq, ≈ 35 MB): birinchi tashrif buyuruvchining sahifasi ularni serverga bir marta o‘zi yuklaydi (aniq kuchsiz qurilmalarda — **📷 Foto-fasad** tugmasi) — keyin barcha tashrif buyuruvchilarda bo‘ladi; yoki oldindan `npm run textures -- --facade`. Ularsiz fasad ilova bilan keladigan to‘plamlardan yig‘iladi.
+http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi). Bino fasadi fotolari (travertin, qora tosh, beton, yog‘och) va hovli (o‘t, asfalt, plitka, barglar, po‘stloq) loyihada (`public/textures/sets/`, ≈ 26 MB). Yuklangan xona to‘plamlari `public/textures/lib/`ga, `BLOB_READ_WRITE_TOKEN` berilganda esa Vercel Blob’ga tushadi (`npm run textures -- --blob` uni oldindan to‘ldiradi).
 
 **ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
 1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
@@ -305,7 +305,7 @@ Node.js + Express (статика + небольшой JSON API), чистый H
 npm install
 npm start
 ```
-Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию). Фото фасада новостройки (травертин, чёрный камень, бетон, дерево, ≈ 21 МБ) и участка (трава, асфальт, плитка, листья, кора, ≈ 35 МБ): страница первого посетителя сама один раз скачивает их на сервер (на очевидно слабых устройствах — кнопка **📷 Фото-фасад**) — дальше они сразу у всех посетителей; или заранее `npm run textures -- --facade`. Без них фасад собирается из наборов, идущих с приложением.
+Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию). Фото фасада новостройки (травертин, чёрный камень, бетон, дерево) и участка (трава, асфальт, плитка, листья, кора) лежат в проекте (`public/textures/sets/`, ≈ 26 МБ). Скачанные наборы комнат — в `public/textures/lib/`, а при заданном `BLOB_READ_WRITE_TOKEN` — в Vercel Blob (`npm run textures -- --blob` заполняет его заранее).
 
 **Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
 1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.

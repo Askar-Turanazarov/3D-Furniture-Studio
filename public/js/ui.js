@@ -1,4 +1,5 @@
 // Sidebar forms, item list, selection panel, notes column and toasts.
+import { keysToPlan } from './pane.js';
 import { t, getLang } from './i18n.js';
 import { state, emit, addItem, removeItems, rotateItem, duplicateItems, select, selected, selectedItems, getItem, itemName,
   selectOpening, selectedOpening, addOpening, removeOpening, updateOpening, setOpeningsLocked,
@@ -182,7 +183,7 @@ function initOpenings() {
   window.addEventListener('keydown', e => {
     if (e.code !== 'KeyP' || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
-    if (!$('view3d').hidden) return;
+    if (!keysToPlan()) return;
     togglePassages();
     e.preventDefault();
   });
@@ -201,7 +202,7 @@ function initOpenings() {
   window.addEventListener('keydown', e => {
     if (e.code !== 'KeyZ' || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
-    if (!$('view3d').hidden) return;
+    if (!keysToPlan()) return;
     cycleZones();
     e.preventDefault();
   });

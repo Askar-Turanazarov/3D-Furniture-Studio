@@ -1,7 +1,9 @@
 // 3D view: renderer, camera, render loop. Scene units are metres (cm / 100).
+import { keysTo3d } from '../pane.js';
 import * as THREE from 'three';
 import { t, getLang, onLangChange } from '../i18n.js';
-import { state, onChange, emit, roomView } from '../state.js';
+import { state, onChange, emit, roomView, isSelected } from '../state.js';
+import { rectOf } from '../geometry.js';
 import { buildRoom, disposeGroup, revealParts } from './room3d.js';
 import { liveRooms } from '../renderer.js';
 import { doorLinks, adjacent, wallLine, posOf, roomRect, twinIds } from '../apartment.js';
@@ -99,7 +101,7 @@ function init(el) {
   // N: day → sunset → night.
   window.addEventListener('keydown', e => {
     if ((e.code !== 'KeyL' && e.code !== 'KeyN') || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !el.offsetParent
-      || e.target.closest?.('input, textarea, select')) return;
+      || e.target.closest?.('input, textarea, select') || !keysTo3d()) return;
     if (e.code === 'KeyL') toggleLamps();
     else nextScene();
   });
@@ -398,6 +400,29 @@ function rebuild() {
   buildAllLights();
   syncLightHud();
   syncRoomHud(rooms);
+  syncSelection();
+}
+
+// The items selected on the plan get a thin gold frame in the scene (one shared box, scaled per item).
+const SEL_BOX = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
+const SEL_MAT = new THREE.LineBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.95, depthTest: false });
+let selFrames = null;
+function syncSelection() {
+  if (!selFrames) { selFrames = new THREE.Group(); selFrames.name = 'selection'; scene.add(selFrames); }
+  const e = rooms3d.get(state.activeRoomId) || (rooms3d.size === 1 ? [...rooms3d.values()][0] : null);
+  const items = e ? (e.doc.items || []).filter(it => isSelected(it.id)) : [];
+  while (selFrames.children.length > items.length) selFrames.remove(selFrames.children.at(-1));
+  while (selFrames.children.length < items.length) {
+    const l = new THREE.LineSegments(SEL_BOX, SEL_MAT);
+    l.renderOrder = 10;
+    selFrames.add(l);
+  }
+  items.forEach((it, i) => {
+    const r = rectOf(it), l = selFrames.children[i], pad = 0.015;
+    l.scale.set(r.w / 100 + 2 * pad, it.h / 100 + pad, r.h / 100 + 2 * pad);
+    l.position.set(e.group.position.x + (r.x + r.w / 2) / 100, (it.elev || 0) / 100, e.group.position.z + (r.y + r.h / 2) / 100);
+  });
+  requestRender();
 }
 
 // Lights: every room gets its full fixture; the active room (where the walker is) also sky light, sun and

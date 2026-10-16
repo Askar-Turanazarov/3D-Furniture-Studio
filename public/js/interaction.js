@@ -1,4 +1,5 @@
 // Pointer (mouse + touch) drag with snap, multi-select, keyboard rotate / delete / nudge.
+import { keysToPlan } from './pane.js';
 import { state, emit, select, selected, rotateItem, removeItems, moveItems, snapValue,
   selectOpening, selectedOpening, removeOpening, updateOpening,
   isSelected, selectedItems, toggleSelect, selectMany,
@@ -225,7 +226,7 @@ export function initInteraction(canvas) {
 
   window.addEventListener('keydown', e => {
     if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
-    if (!document.getElementById('view3d').hidden) return;   // keys belong to the 3D view
+    if (!keysToPlan()) return;   // keys belong to the 3D view
     const mod = e.ctrlKey || e.metaKey;
     if (!mod && e.code === 'KeyM') { toggleRuler(); return e.preventDefault(); }
     if (niche.active && e.key === 'Escape') { nicheEscape(); return e.preventDefault(); }
@@ -334,7 +335,7 @@ function initZoom(canvas) {
   onZoom(z => { document.getElementById('zoomFitBtn').textContent = Math.round(z * 100) + '%'; });
   const typing = e => e.target instanceof Element && e.target.closest('input, textarea, select');
   window.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !typing(e) && document.getElementById('view3d').hidden) {
+    if (e.code === 'Space' && !typing(e) && keysToPlan()) {
       if (!space) canvas.style.cursor = 'grab';
       space = true;
       e.preventDefault();

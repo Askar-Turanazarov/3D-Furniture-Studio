@@ -1215,3 +1215,24 @@ body.embed .site-foot { display: none; }
 .brand-desc i { font: italic 500 17px/1 var(--f-display); letter-spacing: 0; text-transform: none; color: var(--gold); }
 .brand-desc b { font-weight: 700; color: var(--gold); letter-spacing: .3em; margin-left: 2px; }
 @media (min-width: 1100px) { .brand-desc { display: inline-flex; } }
+
+/* ---------- plan + 3D (split): the plan above, the scene below, a draggable divider ---------- */
+.canvas-wrap { --split: 42%; }
+.stage.isSplit #plan { bottom: auto; height: calc(var(--split) - 5px); }
+.stage.isSplit .view3d { top: calc(var(--split) + 5px); border-top: 1px solid var(--hairline); }
+.stage.isSplit .notes { display: none; }
+.split-handle {
+  position: absolute; left: 0; right: 0; top: calc(var(--split) - 5px); height: 10px; z-index: 6;
+  cursor: row-resize; touch-action: none; display: grid; place-items: center;
+  background: linear-gradient(transparent 4px, var(--hairline) 4px, var(--hairline) 6px, transparent 6px);
+}
+.split-handle span {
+  width: 54px; height: 6px; border-radius: 6px; background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--gold), 0 2px 8px rgba(0, 0, 0, .35); transition: width .18s var(--ease), background .18s;
+}
+.split-handle:hover span, .split-handle.drag span { width: 84px; background: var(--gold); }
+@media (max-width: 860px) {
+  .stage.isSplit .canvas-wrap { flex: none; height: calc(100dvh - 112px); min-height: 420px; border-radius: var(--r-s); }
+  .stage.isSplit .split-handle { height: 22px; top: calc(var(--split) - 11px); background: linear-gradient(transparent 10px, var(--hairline) 10px, var(--hairline) 12px, transparent 12px); }
+}
+@media (max-width: 860px) and (orientation: landscape) { #viewSplitBtn { display: none; } }

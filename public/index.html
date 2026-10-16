@@ -283,6 +283,7 @@
         <div class="seg" role="group" aria-label="View">
           <button id="view2dBtn" class="active">2D <span data-i18n="view.plan">план</span></button>
           <button id="view3dBtn">3D <span data-i18n="view.scene">сцена</span></button>
+          <button id="viewSplitBtn" data-i18n-title="view.splitTitle"><span data-i18n="view.split">План + 3D</span></button>
         </div>
         <div class="btn-group">
         <div class="zoom-group">
@@ -306,6 +307,7 @@
       <div class="stage-body" id="stageBody">
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="plan"></canvas>
+        <div class="split-handle" id="splitHandle" role="separator" aria-orientation="horizontal" hidden><span></span></div>
         <div class="niche-panel" id="nichePanel" hidden>
           <b data-i18n="niche.title">Заполнить нишу</b>
           <div id="nicheInfo"></div>

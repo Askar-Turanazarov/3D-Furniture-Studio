@@ -1,4 +1,5 @@
 // Camera controls: Overview (orbit with wall cutaway) and Walk (first person with collisions).
+import { keysTo3d } from '../pane.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
@@ -72,7 +73,7 @@ export function initControls(cam, dom, el) {
 
   const typing = e => e.target instanceof Element && e.target.closest('input, textarea, select');
   window.addEventListener('keydown', e => {
-    if (mode !== 'walk' || typing(e)) return;
+    if (mode !== 'walk' || typing(e) || !keysTo3d()) return;
     if (e.code === 'Escape' && touchInput.active) { stopFree(); return; }
     if (!keys.has(e.code)) downAt.set(e.code, performance.now());
     keys.add(e.code);

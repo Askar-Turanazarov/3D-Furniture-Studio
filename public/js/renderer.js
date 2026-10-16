@@ -62,7 +62,9 @@ export function initRenderer(canvasEl, wrapEl) {
   canvas = canvasEl;
   ctx = canvas.getContext('2d');
   wrap = wrapEl;
-  new ResizeObserver(() => requestDraw()).observe(wrap);
+  const ro = new ResizeObserver(() => requestDraw());
+  ro.observe(wrap);
+  ro.observe(canvasEl);
 }
 
 export function setErrors(map) { errors = map; }
@@ -241,7 +243,7 @@ function changed() {
 
 function draw() {
   const dpr = drawOpts.dpr || window.devicePixelRatio || 1;
-  const [cw, ch] = drawOpts.size || [wrap.clientWidth, wrap.clientHeight];
+  const [cw, ch] = drawOpts.size || [canvas.clientWidth || wrap.clientWidth, canvas.clientHeight || wrap.clientHeight];
   if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
     canvas.width = Math.round(cw * dpr);
     canvas.height = Math.round(ch * dpr);

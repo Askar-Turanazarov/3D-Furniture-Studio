@@ -2,6 +2,7 @@
 // Movers come from models3d (userData.movers on an item) and room3d (door pivots).
 // Every animation frame the moving part is probed with a grid of points against the other furniture,
 // structure and the walls; on contact it turns red, stops there, and the HUD says what is in the way.
+import { keysTo3d } from '../pane.js';
 import * as THREE from 'three';
 import { itemName } from '../state.js';
 import { rectOf } from '../geometry.js';
@@ -45,7 +46,7 @@ export function initAnim(cam, canvas, el, floorClick) {
     pick(ndc, centre ? REACH : Infinity);
   });
   window.addEventListener('keydown', e => {
-    if (e.code !== 'KeyE' || e.repeat || !el.offsetParent || e.target.closest?.('input, textarea, select')) return;
+    if (e.code !== 'KeyE' || e.repeat || !el.offsetParent || !keysTo3d() || e.target.closest?.('input, textarea, select')) return;
     pick(new THREE.Vector2(0, 0), REACH);
   });
   updateAllBtn();

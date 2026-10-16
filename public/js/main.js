@@ -1,3 +1,4 @@
+import { pane } from './pane.js';
 import { t, initLangSwitcher, onLangChange } from './i18n.js';
 import { initTheme, onThemeChange } from './theme.js';
 import { initIcons } from './icons.js';
@@ -141,20 +142,26 @@ function autoPlace(item) {
   }
 }
 
-// 2D plan ⇄ 3D scene (the 3D module is loaded on first use).
+// 2D plan ⇄ 3D scene ⇄ both (plan above, scene below); the 3D module is loaded on first use.
 let view3d = null;
 async function setView(mode) {
-  const is3d = mode === '3d';
-  document.getElementById('view2dBtn').classList.toggle('active', !is3d);
+  const is3d = mode === '3d', split = mode === 'split';
+  pane.mode = mode;
+  pane.last = is3d ? '3d' : 'plan';
+  document.getElementById('view2dBtn').classList.toggle('active', mode === '2d');
   document.getElementById('view3dBtn').classList.toggle('active', is3d);
-  document.getElementById('view3d').hidden = !is3d;
+  document.getElementById('viewSplitBtn').classList.toggle('active', split);
+  document.getElementById('view3d').hidden = !is3d && !split;
+  document.getElementById('splitHandle').hidden = !split;
   document.querySelector('.stage').classList.toggle('is3d', is3d);
+  document.querySelector('.stage').classList.toggle('isSplit', split);
+  requestDraw();
   // On a phone the scene is about a screen tall: bring it up under the 2D / 3D switch (lying: the scene alone).
   if (is3d && !embed && matchMedia('(max-width: 860px)').matches) {
     const lying = matchMedia('(orientation: landscape)').matches;
     requestAnimationFrame(() => document.querySelector(lying ? '#canvasWrap' : '.stage-bar').scrollIntoView({ block: lying ? 'end' : 'start' }));
   }
-  if (is3d) {
+  if (is3d || split) {
     view3d ??= await import('./3d/scene3d.js');
     view3d.show(document.getElementById('view3d'));
   } else if (view3d) {
@@ -167,6 +174,8 @@ function initViewSwitch() {
   const wrap = document.getElementById('stageBody');
   document.getElementById('view2dBtn').addEventListener('click', () => setView('2d'));
   document.getElementById('view3dBtn').addEventListener('click', () => setView('3d'));
+  document.getElementById('viewSplitBtn').addEventListener('click', () => setView('split'));
+  initSplit();
   const toggleFs = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else wrap.requestFullscreen?.().catch(() => {});
@@ -177,6 +186,31 @@ function initViewSwitch() {
   document.addEventListener('fullscreenchange', () => {
     document.getElementById('exitFsBtn').hidden = !document.fullscreenElement;
   });
+}
+
+// Split divider: drag to share the height between the plan and the scene (kept per browser).
+function initSplit() {
+  const wrap = document.getElementById('canvasWrap'), handle = document.getElementById('splitHandle');
+  const set = f => wrap.style.setProperty('--split', `${Math.round(Math.min(78, Math.max(22, f)) * 10) / 10}%`);
+  try { set(Number(localStorage.getItem('fsp3d.split')) || 42); } catch { set(42); }
+  let dragging = false;
+  handle.addEventListener('pointerdown', e => { dragging = true; handle.setPointerCapture(e.pointerId); handle.classList.add('drag'); });
+  handle.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const r = wrap.getBoundingClientRect();
+    set((e.clientY - r.top) / r.height * 100);
+    requestDraw();
+  });
+  handle.addEventListener('pointerup', () => {
+    dragging = false;
+    handle.classList.remove('drag');
+    try { localStorage.setItem('fsp3d.split', parseFloat(wrap.style.getPropertyValue('--split'))); } catch { /* storage unavailable */ }
+  });
+  // Keys follow the half pressed last.
+  document.getElementById('plan').addEventListener('pointerdown', () => { pane.last = 'plan'; }, true);
+  document.getElementById('view3d').addEventListener('pointerdown', () => { pane.last = '3d'; }, true);
+  // A phone turned sideways has no room for both: the scene alone.
+  matchMedia('(max-width: 860px) and (orientation: landscape)').addEventListener('change', e => { if (e.matches && pane.mode === 'split') setView('3d'); });
 }
 
 async function loadCatalog() {

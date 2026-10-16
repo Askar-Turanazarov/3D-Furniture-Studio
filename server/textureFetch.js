@@ -143,14 +143,20 @@ async function fetchSet(id, { log = () => {} } = {}) {
   if (inFlight.has(id)) return inFlight.get(id);
   if (queued > MAX_QUEUE) throw Object.assign(new Error('busy'), { status: 429 });
   queued++;
-  const run = tail.then(async () => {
+  const job = async () => {
     const asset = e.source.ambientcg;
     log(`${id}: downloading ${asset}_1K-JPG.zip`);
     const buf = await download(`https://ambientcg.com/get?file=${asset}_1K-JPG.zip`);
     const maps = mapsFromZip(buf, mapsOf(e));
     for (const [k, data] of Object.entries(maps)) await libStore().write(id, k, data);
     log(`${id}: ${(buf.length / 1048576).toFixed(1)} MB zip → ${libStore().kind}`);
-  }).finally(() => { queued--; inFlight.delete(id); });
+  };
+  // Each job has a hard limit, so one stuck download (or storage write) never stalls the queue.
+  const limited = () => new Promise((ok, fail) => {
+    const t = setTimeout(() => fail(new Error('timeout')), TIMEOUT + 8000);
+    job().then(ok, fail).finally(() => clearTimeout(t));
+  });
+  const run = tail.then(limited).finally(() => { queued--; inFlight.delete(id); });
   tail = run.catch(() => {});
   inFlight.set(id, run);
   return run;

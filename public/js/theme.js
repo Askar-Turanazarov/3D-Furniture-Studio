@@ -20,7 +20,8 @@ function applyTheme(theme) {
 export function setTheme(theme, from = null) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce) { applyTheme(theme); return; }
-  if (!document.startViewTransition || !from) {
+  // a live WebGL scene makes the page snapshot slow: there the colours cross-fade at once instead
+  if (!document.startViewTransition || !from || webglOnScreen()) {
     root.classList.add('theme-fade');
     applyTheme(theme);
     clearTimeout(setTheme.t);
@@ -31,10 +32,17 @@ export function setTheme(theme, from = null) {
   const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const R = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
   // the canvases redraw on the next frame: the new picture is taken after it
-  const vt = document.startViewTransition(() => { applyTheme(theme); return new Promise(ok => requestAnimationFrame(() => requestAnimationFrame(ok))); });
+  const vt = document.startViewTransition(() => { applyTheme(theme); return new Promise(ok => requestAnimationFrame(ok)); });
   vt.ready.then(() => root.animate(
     { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${R}px at ${x}px ${y}px)`] },
     { duration: 750, easing: 'cubic-bezier(.65, 0, .25, 1)', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
+}
+
+function webglOnScreen() {
+  return [...document.querySelectorAll('canvas[data-engine]')].some(c => {
+    const r = c.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight;
+  });
 }
 
 function syncButtons() {

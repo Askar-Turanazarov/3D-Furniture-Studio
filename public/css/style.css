@@ -1126,3 +1126,37 @@ dialog::backdrop { animation: fade .3s var(--ease); }
 :root.theme-fade, :root.theme-fade * , :root.theme-fade *::before, :root.theme-fade *::after {
   transition: background-color .5s var(--ease), color .5s var(--ease), border-color .5s var(--ease), box-shadow .5s var(--ease), fill .5s, stroke .5s !important;
 }
+
+/* ---------- fixes: panel badges, primary hover, selects, texture rows ---------- */
+/* The lock badge in a section title: the title wraps, the badge never leaves the card. */
+.sidebar > .panel > h2 > span { flex: 0 1 auto; min-width: 0; }
+.sidebar > .panel > h2:has(> .lock-btn)::after { display: none; }
+.panel h2 > .lock-btn { flex: none; white-space: nowrap; padding: 4px 9px; letter-spacing: .06em; font-size: 10px; max-width: 58%; }
+.panel h2 > .lock-btn svg.ic { width: 13px; height: 13px; }
+
+/* Primary buttons keep their gold (bronze in the light theme) on hover: only the light changes. */
+.btn.primary:hover:not(:disabled) { background: var(--btn-primary-bg); color: var(--btn-primary-ink); border-color: transparent; }
+
+/* Native dropdown lists: readable group headers in both themes. */
+select optgroup { background: var(--surface-2); color: var(--gold); font: italic 600 12px/1.6 var(--f-ui); letter-spacing: .04em; }
+select optgroup option { color: var(--text); background: var(--surface); font: 500 14px/1.5 var(--f-ui); font-style: normal; }
+.field-hint { display: block; margin-top: 6px; font-size: 11.5px; line-height: 1.4; color: var(--faint); letter-spacing: .01em; text-transform: none; }
+.field-hint::before { content: '✦'; color: var(--gold); opacity: .7; margin-right: 6px; font-size: 9px; vertical-align: 1px; }
+
+/* Texture library rows: the buttons go under the name, so they never push past the card. */
+.tex-row { display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-areas: 'thumb info' 'thumb acts'; column-gap: 12px; row-gap: 6px; align-items: start; }
+.tex-row > .tex-thumb { grid-area: thumb; }
+.tex-row > .tex-info { grid-area: info; }
+.tex-row > .tex-actions { grid-area: acts; flex-wrap: wrap; }
+.tex-row > .tex-info b { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.tex-actions .btn.sm { width: auto; }
+
+/* active HUD buttons over a bright sky / light page: gold tint on a solid dark base, never see-through */
+.bld3d-hud .hud-btn.active, .v3d-bar .hud-btn.active, .hud .hud-btn.active {
+  background: linear-gradient(rgba(201, 169, 110, .22), rgba(201, 169, 110, .22)), var(--hud-bg-2);
+  color: #ecd3a0; border-color: rgba(201, 169, 110, .6);
+}
+.bld3d-hud .hud-btn.active:hover, .v3d-bar .hud-btn.active:hover, .hud .hud-btn.active:hover { border-color: #c9a96e; color: #f3dcae; }
+.bld3d-hud .seg button.active, .hud .seg button.active, .v3d-bar .seg button.active {
+  background: linear-gradient(rgba(201, 169, 110, .24), rgba(201, 169, 110, .24)), var(--hud-bg-2); color: #ecd3a0;
+}

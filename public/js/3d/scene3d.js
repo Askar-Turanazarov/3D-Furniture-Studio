@@ -255,8 +255,11 @@ async function downloadMissing() {
   if (failed) {
     showNote(t('tex.fetchFail'), 'error');
     hideNote(4000);
-  } else {
+  } else if (libPending()) {
     showNote(t('tex3d.libLoading'), 'lib');
+    hideNote(30000);            // backstop: the note never stays for good
+  } else {
+    hideNote();
   }
 }
 

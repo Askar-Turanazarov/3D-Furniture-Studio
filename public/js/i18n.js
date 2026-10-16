@@ -333,11 +333,32 @@ export const dict = {
 };
 
 const LANGS = ['ru', 'uz', 'en'];
+// The language of the page: /en… in the address, ?lang= (the embedded 3D), "/" and the showcase without a language are
+// Russian, other pages (print, admin) keep the last choice.
+const PAGE_PATH = /^\/(?:(ru|uz|en)(?=\/|$))?\/?(building(?:\.html)?|index\.html)?\/?$/;
+const page = typeof location === 'undefined' ? null : location;
 let lang = 'ru';
 try {
+  const inPath = page?.pathname.match(/^\/(ru|uz|en)(\/|$)/)?.[1];
+  const inQuery = page && new URLSearchParams(page.search).get('lang');
   const saved = localStorage.getItem('fsp3d.lang');
-  if (LANGS.includes(saved)) lang = saved;
+  if (inPath) lang = inPath;
+  else if (LANGS.includes(inQuery)) lang = inQuery;
+  else if (page && PAGE_PATH.test(page.pathname)) lang = 'ru';
+  else if (LANGS.includes(saved)) lang = saved;
 } catch { /* storage unavailable */ }
+
+// The address of a page in the current language: langPath('') → /en, langPath('/building') → /en/building.
+export function langPath(p = '') { return `/${lang}${p}`; }
+
+// After a switch, the address of the planner / showcase shows the language, so a copied link opens the same one.
+function syncAddress() {
+  if (!page || new URLSearchParams(page.search).has('embed')) return;
+  const m = page.pathname.match(PAGE_PATH);
+  if (!m) return;
+  const target = langPath(m[2]?.startsWith('building') ? '/building' : '');
+  if (target !== page.pathname) history.replaceState(history.state, '', target + page.search + page.hash);
+}
 
 const listeners = new Set();
 
@@ -352,6 +373,7 @@ export function setLang(next) {
   if (!LANGS.includes(next)) return;
   lang = next;
   try { localStorage.setItem('fsp3d.lang', lang); } catch { /* ignore */ }
+  syncAddress();
   applyStatic();
   listeners.forEach(fn => fn(lang));
 }
@@ -364,6 +386,7 @@ export function applyStatic() {
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
   document.querySelectorAll('.lang button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  document.querySelectorAll('a[data-lang-href]').forEach(a => { a.href = langPath(a.dataset.langHref); });
 }
 
 export function initLangSwitcher() {

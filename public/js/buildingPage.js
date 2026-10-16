@@ -2,7 +2,7 @@
 // by status or rooms with a tooltip, the apartment card (plan with sizes, rooms, price), "Open in the planner"
 // (a copy in this browser's projects) and a request for the apartment (POST /api/order with apartmentRef).
 // The main view is the building in 3D (bld3d/exterior.js); the floor grid stays as a scheme and without WebGL.
-import { t, getLang, initLangSwitcher, onLangChange } from './i18n.js';
+import { t, getLang, langPath, initLangSwitcher, onLangChange } from './i18n.js';
 import { roomRect, roomArea } from './apartment.js';
 import { rectOf } from './geometry.js';
 import { DEPTH, TYPES, localRoomName } from './building.js';
@@ -319,7 +319,7 @@ function openInPlanner(a) {
     toast(t('storage.full'), true);
     return;
   }
-  location.href = '/';
+  location.href = langPath('');
 }
 
 // From the street through the doors: a short fade, then the lobby in the floor dialog (the walker at the doors).
@@ -334,7 +334,7 @@ async function enterLobby() {
   await new Promise(r => setTimeout(r, 320));
   ext?.endWalk();
   sync3dHud();
-  showFloor3d(`${t('bld.lobbyFloor')} · 3D`, `/?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street`, t('bld.entering'));
+  showFloor3d(`${t('bld.lobbyFloor')} · 3D`, `/?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street&lang=${getLang()}`, t('bld.entering'));
   fade.remove();
   entering = false;
 }
@@ -342,7 +342,7 @@ async function enterLobby() {
 // The floor in 3D: the planner's 3D view embedded (temporary project, nothing saved), walking from the entrance.
 function open3d(a) {
   showFloor3d(`${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`,
-    `/?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}`, t('bld.loading3d'));
+    `/?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}&lang=${getLang()}`, t('bld.loading3d'));
 }
 
 // The dialog shows "loading" over the frame until the scene inside reports it is ready to walk.

@@ -38,6 +38,14 @@ app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG 
 app.use(express.static(path.join(__dirname, 'public')));
 // Vercel serves public/ from its CDN but sends "/" to the function: the planner page from here.
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// The same pages with the language in the address: link previews (Open Graph) and the interface in that language.
+const pages = require('./server/pages');
+const sendPage = page => (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=3600').type('html')
+    .send(pages.render(page, req.params.lang, `${req.protocol}://${req.get('host')}`));
+};
+app.get('/:lang(ru|uz|en)/?', sendPage('planner'));
+app.get('/:lang(ru|uz|en)/building/?', sendPage('building'));
 // three.js from the package (on Vercel this runs in the function: let the CDN keep the files, the version is pinned)
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), {
   setHeaders: res => res.set('Cache-Control', 'public, max-age=604800, s-maxage=31536000')

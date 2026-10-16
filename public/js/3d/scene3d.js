@@ -22,7 +22,7 @@ import { updateSpotClip } from './spotClip.js';
 import { toast } from '../ui.js';
 import { compose, savePicture, canShareFiles } from '../snapshot.js';
 
-let renderer, scene, camera, container, clock;
+let renderer, scene, camera, container, host, clock;   // host: the scene area under the 3D toolbar
 let running = false;
 // Every room of the apartment: { group (at pos), doc, shell, key, furniture, fkey, lights, lkey }.
 const rooms3d = new Map();
@@ -43,6 +43,7 @@ const redrawShadows = () => { dirty = shadowsDirty = true; };
 
 function init(el) {
   container = el;
+  host = el.querySelector('.v3d-scene') ?? el;
   const pref = readPref();
   tier = tierFor(pref);
   setAnisotropy(SETTINGS[tier].anisotropy);
@@ -60,7 +61,7 @@ function init(el) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false;   // redrawn only when lights, doors or the scene change
-  el.prepend(renderer.domElement);
+  host.prepend(renderer.domElement);
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#1e2235');
@@ -155,14 +156,14 @@ function init(el) {
   // Nothing is drawn while the tab is hidden or the view is scrolled away.
   document.addEventListener('visibilitychange', () => { visible = !document.hidden; dirty = true; });
   new IntersectionObserver(list => { onScreen = list[list.length - 1].isIntersecting; dirty = true; }).observe(el);
-  new ResizeObserver(resize).observe(el);
+  new ResizeObserver(resize).observe(host);
   onChange(() => { if (running) rebuild(); });
   onLangChange(() => { if (running) controls.updateHint(); });
   return true;
 }
 
 function resize() {
-  const w = container.clientWidth, h = container.clientHeight;
+  const w = host.clientWidth, h = host.clientHeight;
   if (!w || !h) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;

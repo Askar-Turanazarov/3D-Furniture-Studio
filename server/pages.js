@@ -58,10 +58,10 @@ function ogBlock(page, lang, origin = SITE) {
   ].join('\n');
 }
 
-const cache = new Map();
+const cache = new Map();   // on Vercel the files never change; locally an edited page is read again
 function render(page, lang, origin = SITE, publicDir = path.join(__dirname, '..', 'public')) {
   const file = path.join(publicDir, PAGES[page].file);
-  if (!cache.has(file)) cache.set(file, fs.readFileSync(file, 'utf8'));
+  if (!cache.has(file) || !process.env.VERCEL) cache.set(file, fs.readFileSync(file, 'utf8'));
   return cache.get(file)
     .replace(/<html lang="[a-z]+">/, `<html lang="${lang}">`)
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(TEXT[page][lang][0])}</title>`)

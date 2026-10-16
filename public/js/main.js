@@ -19,6 +19,7 @@ import { narrowPassages } from './passages.js';
 import { clampOpening } from './openings.js';
 import { fitObstacleHeight } from './obstacles.js';
 import { initInteraction } from './interaction.js';
+import { initV3dBar } from './v3dBar.js';
 import { initUI, fillCatalog, syncForms, refresh, toast, describe, setErrors as setUiErrors, setWarnings, setObWarnings, setPassages,
   setRoomNotes } from './ui.js';
 
@@ -146,6 +147,11 @@ async function setView(mode) {
   document.getElementById('view3dBtn').classList.toggle('active', is3d);
   document.getElementById('view3d').hidden = !is3d;
   document.querySelector('.stage').classList.toggle('is3d', is3d);
+  // On a phone the scene is about a screen tall: bring it up under the 2D / 3D switch (lying: the scene alone).
+  if (is3d && !embed && matchMedia('(max-width: 860px)').matches) {
+    const lying = matchMedia('(orientation: landscape)').matches;
+    requestAnimationFrame(() => document.querySelector(lying ? '#canvasWrap' : '.stage-bar').scrollIntoView({ block: lying ? 'end' : 'start' }));
+  }
   if (is3d) {
     view3d ??= await import('./3d/scene3d.js');
     view3d.show(document.getElementById('view3d'));
@@ -220,6 +226,7 @@ async function start() {
   initOrder();
   initCompare();
   initViewSwitch();
+  initV3dBar();
   initTextures();
   initHistory();
   initSnapshot();

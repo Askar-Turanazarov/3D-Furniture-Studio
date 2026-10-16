@@ -41,7 +41,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 // The same pages with the language in the address: link previews (Open Graph) and the interface in that language.
 const pages = require('./server/pages');
 const sendPage = page => (req, res) => {
-  res.set('Cache-Control', 'public, max-age=300, s-maxage=3600').type('html')
+  res.set('Cache-Control', 'public, max-age=0, s-maxage=3600').type('html')
     .send(pages.render(page, req.params.lang, `${req.protocol}://${req.get('host')}`));
 };
 app.get('/:lang(ru|uz|en)/?', sendPage('planner'));

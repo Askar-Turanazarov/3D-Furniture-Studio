@@ -266,7 +266,10 @@ function report(m, hit, v) {
 function updateAllBtn() {
   anyOpen = movers.some(m => (open.get(m.key)?.target || 0) > 0);
   if (allBtn) {
-    allBtn.textContent = t(anyOpen ? 'anim.closeAll' : 'anim.openAll');
+    // "🚪 Open all": the icon and the words apart, narrow screens show only the icon (the title keeps the words)
+    const label = t(anyOpen ? 'anim.closeAll' : 'anim.openAll'), [icon, ...words] = label.split(' ');
+    allBtn.replaceChildren(icon + ' ', Object.assign(document.createElement('span'), { textContent: words.join(' ') }));
+    allBtn.title = label;
     allBtn.hidden = !movers.length;
   }
 }

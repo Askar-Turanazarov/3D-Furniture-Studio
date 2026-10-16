@@ -1,6 +1,6 @@
 // Server-side check of POST /api/order. Pure: body → { ok: true, order, files } | { ok: false, error, field }.
 // Only whitelisted fields survive; strings are trimmed and cut, numbers range-checked.
-const LIMITS = { size: [50, 3000], items: 200, openings: 50, obstacles: 50, rooms: 20, picture: 2 * 1024 * 1024 };
+const LIMITS = { size: [50, 3000], items: 200, openings: 50, obstacles: 50, rooms: 20, picture: 1.5 * 1024 * 1024 };   // two pictures + the order stay under Vercel's 4.5 MB
 const PHONE = /^\+?[0-9 ()-]{7,20}$/;
 const LANGS = ['ru', 'uz', 'en'];
 const ROTS = [0, 90, 180, 270];

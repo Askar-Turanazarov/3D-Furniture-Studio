@@ -54,8 +54,8 @@ test('too many items / openings', () => {
   assert.equal(validateOrder(order({ openings: Array(51).fill(order().openings[0]) })).field, 'room.openings');
 });
 
-test('drawing: only a real PNG of at most 2 MB', () => {
-  const big = Buffer.concat([PNG, Buffer.alloc(2 * 1024 * 1024)]);
+test('drawing: only a real PNG of at most 1.5 MB', () => {
+  const big = Buffer.concat([PNG, Buffer.alloc(1.5 * 1024 * 1024)]);
   assert.equal(validateOrder(order({ drawing: png(big) })).field, 'drawing');
   assert.equal(validateOrder(order({ drawing: png(Buffer.from('GIF89a......')) })).field, 'drawing');
   assert.equal(validateOrder(order({ drawing: 'data:image/jpeg;base64,/9j/AAAA' })).field, 'drawing');

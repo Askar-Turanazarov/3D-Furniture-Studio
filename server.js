@@ -14,21 +14,20 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const CATALOG = path.join(__dirname, 'catalog.json');
-const ORDERS = path.join(__dirname, 'order.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
 const APARTMENTS = path.join(__dirname, 'apartments.json');
-const ORDER_FILES = path.join(__dirname, 'orders');
 const { validateOrder } = require('./server/validateOrder');
-const { createStore, createRateLimit } = require('./server/orderStore');
+const { createDb } = require('./server/db');
 const { writeZip } = require('./server/zip');
 const { fetchSet, libraryStatus } = require('./server/textureFetch');
 const { APT_STATUSES, BUILDING_ID, createBuildings } = require('./server/buildings');
 const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
-const store = createStore(ORDERS);
-const buildings = createBuildings(path.join(__dirname, 'buildings'), createStore(path.join(DATA, 'building-status.json'), () => ({})));
-const orderLimit = createRateLimit({ max: 5, windowMs: 10 * 60 * 1000 });
+// Orders and apartment statuses: files locally, Postgres (Neon) with DATABASE_URL (server/db.js).
+const db = createDb({ root: __dirname, dataDir: DATA });
+const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => db.statuses(), set: db.setStatus });
 
-app.use(express.json({ limit: '6mb' }));   // the order carries the drawing PNG (≤ 2 MB) and a 3D picture
+app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
+app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 
@@ -72,7 +71,6 @@ app.post('/api/order', async (req, res) => {
   const body = req.body || {};
   // Honeypot: people never see the "website" field; a filled one means a bot. Answer "ok", save nothing.
   if (body.website) return res.json({ ok: true, id: Date.now() });
-  if (!orderLimit(req.ip)) return res.status(429).json({ error: 'too_many' });
   const v = validateOrder(body);
   if (!v.ok) return res.status(400).json({ error: v.error, field: v.field });
   // A request for a new-building apartment: it must exist; the manager sees its type, area and price.
@@ -84,20 +82,9 @@ app.post('/api/order', async (req, res) => {
     v.order.estimate ??= a.price;
   }
   try {
-    const id = await store.update(async orders => {
-      let id = Date.now();
-      while (orders.some(o => o.id === id)) id++;
-      const order = { id, createdAt: new Date().toISOString(), status: 'new', ...v.order };
-      // Drawing and 3D picture → orders/<id>/plan.png, 3d.jpg; order.json keeps the paths.
-      if (v.files.length) {
-        const dir = path.join(ORDER_FILES, String(id));
-        await fs.mkdir(dir, { recursive: true });
-        for (const [f, buf] of v.files) await fs.writeFile(path.join(dir, f), buf);
-        order.files = v.files.map(([f]) => `orders/${id}/${f}`);
-      }
-      orders.push(order);
-      return id;
-    });
+    if (!(await db.allowOrder(req.ip))) return res.status(429).json({ error: 'too_many' });
+    // Drawing and 3D picture: plan.png, 3d.jpg next to the order (orders/<id>/ or the order_files table).
+    const id = await db.addOrder(v.order, v.files, req.ip);
     res.json({ ok: true, id });
   } catch (e) {
     res.status(500).json({ error: 'save_failed' });
@@ -118,8 +105,12 @@ function admin(req, res, next) {
 }
 
 app.get('/api/orders', admin, async (req, res) => {
-  const orders = await store.read();
-  res.json(orders.map(o => ({ status: 'new', ...o })).reverse());
+  try {
+    const orders = await db.listOrders();
+    res.json(orders.map(o => ({ status: 'new', ...o })).reverse());
+  } catch {
+    res.status(500).json({ error: 'read_failed' });
+  }
 });
 
 app.patch('/api/orders/:id', admin, async (req, res) => {
@@ -127,9 +118,7 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
   if (status !== undefined && !STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
   if (note !== undefined && (typeof note !== 'string' || note.length > 2000)) return res.status(400).json({ error: 'bad_note' });
   try {
-    const order = await store.update(orders => {
-      const o = orders.find(x => x.id === id);
-      if (!o) return null;
+    const order = await db.updateOrder(id, o => {
       const at = new Date().toISOString();
       if (status !== undefined && status !== (o.status || 'new')) {
         o.status = status;
@@ -137,7 +126,6 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
       }
       if (note !== undefined) o.note = note;
       o.updatedAt = at;
-      return o;
     });
     if (!order) return res.status(404).json({ error: 'not_found' });
     res.json(order);
@@ -161,10 +149,16 @@ app.patch('/api/buildings/:id/apartments/:apt', admin, async (req, res) => {
 });
 
 // The drawing and the 3D picture of an order (fetched with the token, shown via a blob URL).
-app.get('/api/orders/:id/:file', admin, (req, res) => {
+app.get('/api/orders/:id/:file', admin, async (req, res) => {
   const { id, file } = req.params;
-  if (!/^\d+$/.test(id) || !['plan.png', '3d.jpg'].includes(file)) return res.status(404).end();
-  res.sendFile(path.join(ORDER_FILES, id, file), err => { if (err && !res.headersSent) res.status(404).end(); });
+  if (!/^\d{1,16}$/.test(id) || !['plan.png', '3d.jpg'].includes(file)) return res.status(404).end();
+  try {
+    const buf = await db.orderFile(Number(id), file);
+    if (!buf) return res.status(404).end();
+    res.type(file.endsWith('.png') ? 'png' : 'jpeg').send(buf);
+  } catch {
+    res.status(500).end();
+  }
 });
 
 // ---------- photo textures: built-in CC0 set + custom uploads ----------

@@ -1,5 +1,5 @@
 // New-building data for the showcase: generated buildings (buildings/<id>.json) with the manager's apartment
-// statuses on top (data/building-status.json: { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
+// statuses on top (server/db.js: { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -17,7 +17,7 @@ function applyStatuses(b, overrides) {
 
 const findApartment = (b, no) => b.floorsData.flatMap(f => f.apartments).find(a => a.no === no) || null;
 
-// dir — the buildings folder, statusStore — createStore(data/building-status.json, {}).
+// dir — the buildings folder, statusStore — { read() → all statuses, set(building, apt, status) } (server/db.js).
 function createBuildings(dir, statusStore) {
   async function raw(id) {
     if (!BUILDING_ID.test(id)) return null;
@@ -38,7 +38,7 @@ function createBuildings(dir, statusStore) {
   async function setStatus(id, no, status) {
     const b = await raw(id);
     if (!b || !findApartment(b, no)) return null;
-    await statusStore.update(all => { (all[id] ||= {})[no] = status; });
+    await statusStore.set(id, no, status);
     return { no, status };
   }
   return { get, list, setStatus, apartment: async (id, no) => { const b = await get(id); return b && findApartment(b, no); } };

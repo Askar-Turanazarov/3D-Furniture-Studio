@@ -42,12 +42,37 @@ function check() {
   return { rooms };
 }
 
+// The server takes pictures of at most 1.5 MB (the whole order stays under 4.5 MB): a dataURL of `type` from the
+// canvas, made smaller step by step until it fits (and for JPEG first a lower quality).
+const MAX_PICTURE = 1.4 * 1024 * 1024;
+const dataBytes = url => Math.ceil((url.length - url.indexOf(',') - 1) * 3 / 4);
+function fitPicture(canvas, type, quality) {
+  let src = canvas;
+  for (let step = 0; step < 10; step++) {
+    for (const q of type === 'image/jpeg' ? [quality, 0.7] : [undefined]) {
+      const url = src.toDataURL(type, q);
+      if (dataBytes(url) <= MAX_PICTURE) return url;
+    }
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(src.width * 0.8));
+    c.height = Math.max(1, Math.round(src.height * 0.8));
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(src, 0, 0, c.width, c.height);
+    src = c;
+  }
+  return null;
+}
+
 // Drawing for the manager (PNG dataURL): the apartment overview, or the room drawing for a single room;
 // with the 3D view open, a 3D picture (JPEG).
 async function pictures() {
   const p = currentProject();
   const sheet = p.rooms.length > 1 ? renderOverview(p) : renderDrawing(p.rooms[0]);
-  const out = { drawing: sheet.canvas.toDataURL('image/png') };
+  const out = {};
+  const drawing = fitPicture(sheet.canvas, 'image/png');
+  if (drawing) out.drawing = drawing;
   if (document.querySelector('.stage.is3d')) {
     try {
       const { snapshotCanvas } = await import('./3d/scene3d.js');
@@ -56,7 +81,8 @@ async function pictures() {
       c.width = Math.round(src.width * k);
       c.height = Math.round(src.height * k);
       c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
-      out.snapshot3d = c.toDataURL('image/jpeg', 0.85);
+      const shot = fitPicture(c, 'image/jpeg', 0.85);
+      if (shot) out.snapshot3d = shot;
     } catch { /* the drawing is enough */ }
   }
   return out;

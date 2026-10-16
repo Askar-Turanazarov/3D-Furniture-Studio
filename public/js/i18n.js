@@ -391,5 +391,6 @@ export function applyStatic() {
 
 export function initLangSwitcher() {
   document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+  syncAddress();   // "/" → "/ru" in the address bar: Telegram previews only the links with the language
   applyStatic();
 }

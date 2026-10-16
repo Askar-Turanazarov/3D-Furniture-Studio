@@ -40,11 +40,14 @@ test('an unknown language is not a page', async () => {
 test('static "/" and "/building.html" are the Russian pages with production URLs', async () => {
   for (const [file, page] of [['index.html', 'planner'], ['building.html', 'building']]) {
     const html = readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8');
-    assert.ok(html.includes(pages.ogBlock(page, 'ru')), `${file}: run the block from server/pages.js again`);
+    assert.ok(html.includes(pages.ogBlock(page, 'ru', pages.SITE, pages.STATIC[page])), `${file}: run the block from server/pages.js again`);
     assert.match(html, /<html lang="ru">/);
   }
-  const res = await fetch(base() + '/');
-  assert.equal(og(await res.text(), 'og:locale'), 'ru_RU');
+  // "/" names itself, not /ru: with a foreign og:url / canonical Telegram showed no preview for the bare address.
+  const html = await (await fetch(base() + '/')).text();
+  assert.equal(og(html, 'og:locale'), 'ru_RU');
+  assert.equal(og(html, 'og:url'), base() + '/');
+  assert.match(html, new RegExp(`<link rel="canonical" href="${base()}/">`));
 });
 
 test('vercel.json ships both pages with the function', () => {

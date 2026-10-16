@@ -35,15 +35,15 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
 // Vercel serves public/ from its CDN but sends "/" to the function: the planner page from here.
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-// The same pages with the language in the address: link previews (Open Graph) and the interface in that language.
+// The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
 const pages = require('./server/pages');
-const sendPage = page => (req, res) => {
+const sendPage = (page, self) => (req, res) => {
   res.set('Cache-Control', 'public, max-age=0, s-maxage=3600').type('html')
-    .send(pages.render(page, req.params.lang, `${req.protocol}://${req.get('host')}`));
+    .send(pages.render(page, req.params.lang ?? 'ru', `${req.protocol}://${req.get('host')}`, self));
 };
+app.get('/', sendPage('planner', pages.STATIC.planner));
 app.get('/:lang(ru|uz|en)/?', sendPage('planner'));
 app.get('/:lang(ru|uz|en)/building/?', sendPage('building'));
 // three.js from the package (on Vercel this runs in the function: let the CDN keep the files, the version is pinned)

@@ -1,10 +1,11 @@
 // Pages with a language in the address (/ru, /uz, /en, /en/building): the same HTML with <html lang>, <title> and the
 // Open Graph block (link previews in Telegram, WhatsApp, Facebook…) in that language. The static files carry the Russian
-// block with production URLs, so "/" and "/building.html" (served by the CDN without the function) are the Russian pages.
+// block with production URLs, so "/" and "/building.html" are the Russian pages; each names itself in og:url.
 const fs = require('fs');
 const path = require('path');
 
 const LANGS = ['ru', 'uz', 'en'];
+const STATIC = { planner: '/', building: '/building.html' };   // the addresses without a language
 const SITE = 'https://3d-furniture-studio-mcp.vercel.app';
 const LOCALE = { ru: 'ru_RU', uz: 'uz_UZ', en: 'en_US' };
 const PAGES = {
@@ -32,17 +33,19 @@ const TEXT = {
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-// The <head> block between <!--og--> and <!--/og-->.
-function ogBlock(page, lang, origin = SITE) {
+// The <head> block between <!--og--> and <!--/og-->. `self` is the page's own address: og:url and canonical must name
+// the very link that was shared, otherwise Telegram shows no preview for "/" (it pointed to /ru).
+function ogBlock(page, lang, origin = SITE, self = `/${lang}${PAGES[page].path}`) {
   const p = PAGES[page];
   const [title, description] = TEXT[page][lang];
-  const url = `${origin}/${lang}${p.path}`;
+  const url = origin + self;
   const meta = (attr, key, value) => `  <meta ${attr}="${key}" content="${esc(value)}">`;
   return [
     '<!--og-->',
     meta('name', 'description', description),
     `  <link rel="canonical" href="${esc(url)}">`,
     ...LANGS.map(l => `  <link rel="alternate" hreflang="${l}" href="${esc(`${origin}/${l}${p.path}`)}">`),
+    `  <link rel="alternate" hreflang="x-default" href="${esc(origin + (p.path ? '/building.html' : '/'))}">`,
     meta('property', 'og:type', 'website'),
     meta('property', 'og:site_name', 'Furniture Super Planner 3D'),
     meta('property', 'og:title', title),
@@ -59,13 +62,13 @@ function ogBlock(page, lang, origin = SITE) {
 }
 
 const cache = new Map();   // on Vercel the files never change; locally an edited page is read again
-function render(page, lang, origin = SITE, publicDir = path.join(__dirname, '..', 'public')) {
+function render(page, lang, origin = SITE, self = undefined, publicDir = path.join(__dirname, '..', 'public')) {
   const file = path.join(publicDir, PAGES[page].file);
   if (!cache.has(file) || !process.env.VERCEL) cache.set(file, fs.readFileSync(file, 'utf8'));
   return cache.get(file)
     .replace(/<html lang="[a-z]+">/, `<html lang="${lang}">`)
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(TEXT[page][lang][0])}</title>`)
-    .replace(/<!--og-->[\s\S]*?<!--\/og-->/, ogBlock(page, lang, origin));
+    .replace(/<!--og-->[\s\S]*?<!--\/og-->/, ogBlock(page, lang, origin, self));
 }
 
-module.exports = { LANGS, SITE, PAGES, TEXT, ogBlock, render };
+module.exports = { LANGS, SITE, STATIC, PAGES, TEXT, ogBlock, render };

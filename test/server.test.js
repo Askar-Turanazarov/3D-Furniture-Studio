@@ -22,3 +22,15 @@ test('PATCH /api/orders/:id: a non-numeric id is 404', async () => {
     assert.deepEqual(await res.json(), { error: 'not_found' });
   }
 });
+
+test('unknown /api routes answer JSON 404; pages still work', async () => {
+  for (const method of ['GET', 'POST']) {
+    const res = await fetch(`${base()}/api/nope`, { method });
+    assert.equal(res.status, 404, method);
+    assert.match(res.headers.get('content-type'), /application\/json/);
+    assert.deepEqual(await res.json(), { error: 'not_found' });
+  }
+  assert.equal((await fetch(`${base()}/api/catalog`)).status, 200);
+  assert.equal((await fetch(`${base()}/`)).status, 200);
+  assert.equal((await fetch(`${base()}/building.html`)).status, 200);
+});

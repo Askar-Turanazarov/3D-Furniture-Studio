@@ -7,12 +7,34 @@ const root = typeof document === 'undefined' ? null : document.documentElement; 
 export const getTheme = () => (root?.dataset.theme === 'light' ? 'light' : 'dark');
 export function onThemeChange(fn) { listeners.add(fn); }
 
-export function setTheme(theme) {
+function applyTheme(theme) {
   root.dataset.theme = theme === 'light' ? 'light' : 'dark';
   try { localStorage.setItem(KEY, root.dataset.theme); } catch { /* storage unavailable */ }
   cache = null;
   syncButtons();
   listeners.forEach(fn => fn(getTheme()));
+}
+
+// from — the element the switch starts at: the new theme opens as a circle growing from it (View Transitions);
+// without them (or with reduced motion) the colours cross-fade.
+export function setTheme(theme, from = null) {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { applyTheme(theme); return; }
+  if (!document.startViewTransition || !from) {
+    root.classList.add('theme-fade');
+    applyTheme(theme);
+    clearTimeout(setTheme.t);
+    setTheme.t = setTimeout(() => root.classList.remove('theme-fade'), 600);
+    return;
+  }
+  const r = from.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const R = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  // the canvases redraw on the next frame: the new picture is taken after it
+  const vt = document.startViewTransition(() => { applyTheme(theme); return new Promise(ok => requestAnimationFrame(() => requestAnimationFrame(ok))); });
+  vt.ready.then(() => root.animate(
+    { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${R}px at ${x}px ${y}px)`] },
+    { duration: 750, easing: 'cubic-bezier(.65, 0, .25, 1)', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
 }
 
 function syncButtons() {
@@ -26,7 +48,7 @@ function syncButtons() {
 export function initTheme() {
   if (!root.dataset.theme) root.dataset.theme = 'dark';
   for (const b of document.querySelectorAll('[data-theme-toggle]')) {
-    b.addEventListener('click', () => setTheme(getTheme() === 'light' ? 'dark' : 'light'));
+    b.addEventListener('click', () => setTheme(getTheme() === 'light' ? 'dark' : 'light', b));
   }
   syncButtons();
 }

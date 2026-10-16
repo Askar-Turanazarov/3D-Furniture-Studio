@@ -161,47 +161,10 @@ app.get('/api/orders/:id/:file', admin, async (req, res) => {
   }
 });
 
-// ---------- photo textures: built-in CC0 set + custom uploads ----------
+// ---------- photo textures: the built-in CC0 set (own photos stay in the visitor's browser) ----------
 const TEXTURES = path.join(__dirname, 'public', 'textures');
-const CUSTOM = path.join(TEXTURES, 'custom');
 const SETS = ['floor', 'wall', 'wood', 'fabric'];
 const MAPS = ['color', 'normal', 'roughness'];
-
-// Custom colour maps that exist, with a cache-busting version.
-app.get('/api/textures', async (req, res) => {
-  const custom = {};
-  for (const s of SETS) {
-    try {
-      const st = await fs.stat(path.join(CUSTOM, `${s}.jpg`));
-      custom[s] = `/textures/custom/${s}.jpg?v=${Math.round(st.mtimeMs)}`;
-    } catch { custom[s] = null; }
-  }
-  res.json({ sets: SETS, custom });
-});
-
-// Upload a JPEG (the client downsizes and re-encodes it).
-app.post('/api/texture/:set', express.raw({ type: 'image/jpeg', limit: '8mb' }), async (req, res) => {
-  const { set } = req.params;
-  const buf = req.body;
-  if (!SETS.includes(set)) return res.status(400).json({ error: 'bad_set' });
-  if (!Buffer.isBuffer(buf) || buf.length < 100 || buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) {
-    return res.status(400).json({ error: 'not_jpeg' });
-  }
-  try {
-    await fs.mkdir(CUSTOM, { recursive: true });
-    await fs.writeFile(path.join(CUSTOM, `${set}.jpg`), buf);
-    res.json({ ok: true });
-  } catch {
-    res.status(500).json({ error: 'save_failed' });
-  }
-});
-
-// Back to the built-in texture.
-app.delete('/api/texture/:set', async (req, res) => {
-  if (!SETS.includes(req.params.set)) return res.status(400).json({ error: 'bad_set' });
-  await fs.rm(path.join(CUSTOM, `${req.params.set}.jpg`), { force: true });
-  res.json({ ok: true });
-});
 
 // The whole built-in set as a ZIP (stored, no compression: JPEGs are already compressed).
 let packCache = null;

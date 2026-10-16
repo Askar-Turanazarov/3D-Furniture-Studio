@@ -3,6 +3,7 @@ import { t, onLangChange, getLang } from './i18n.js';
 import { toast, escapeHtml } from './ui.js';
 import { state, emit } from './state.js';
 import { styleOf } from './style.js';
+import { putCustom, deleteCustom, customUrls } from './customTex.js';
 
 const SETS = ['floor', 'wall', 'wood', 'fabric'];
 const MAX = 1024;          // uploaded photos are downsized to this many px
@@ -97,11 +98,9 @@ function applyLib(id) {
   toast(t('tex.libApplied'));
 }
 
+// The visitor's own photos are kept in this browser (customTex.js).
 async function refresh() {
-  try {
-    const res = await fetch('/api/textures');
-    if (res.ok) custom = (await res.json()).custom || {};
-  } catch { /* offline: built-in only */ }
+  custom = await customUrls(SETS);
   render();
 }
 
@@ -136,7 +135,7 @@ function render() {
   list.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => reset(b.dataset.reset)));
 }
 
-// Downsize to ≤ 1024 px and re-encode as JPEG in the browser, then send the raw bytes.
+// Downsize to ≤ 1024 px and re-encode as JPEG in the browser, then keep it in this browser.
 async function toJpeg(file) {
   const img = await createImageBitmap(file);
   const k = Math.min(1, MAX / Math.max(img.width, img.height));
@@ -150,8 +149,7 @@ async function toJpeg(file) {
 async function upload(set, file) {
   try {
     const blob = await toJpeg(file);
-    const res = await fetch(`/api/texture/${set}`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
-    if (!res.ok) throw new Error(res.status);
+    await putCustom(set, blob);
     await refresh();
     applyPhoto();
     toast(t('tex.uploaded', { name: t('tex.' + set) }));
@@ -162,7 +160,7 @@ async function upload(set, file) {
 
 async function reset(set) {
   try {
-    await fetch(`/api/texture/${set}`, { method: 'DELETE' });
+    await deleteCustom(set);
     await refresh();
     applyPhoto();
     toast(t('tex.resetDone'));

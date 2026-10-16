@@ -21,7 +21,7 @@ A web app for custom furniture: the client plans a whole apartment (or picks one
   - **Overview** — orbit camera, near walls are cut away.
   - **Walk** — first person, collisions with walls and furniture; person height 120–200 cm; the bottom HUD shows the floor distance from the feet to the item or wall you are looking at.
   - **Simple / Photo** textures (procedural or CC0 photo textures). Photo is the default (Simple on obviously weak devices: software rendering, ≤ 2 cores or ≤ 2 GB, old phone GPUs; and at Quality “Low”); the choice is remembered. Library sets a finish needs are downloaded by the server at once.
-- **Photo textures panel:** apply the built-in CC0 set in one click, download it (per surface or the whole set as ZIP), or upload your own photo for the floor, walls, furniture wood or upholstery (reset back to built-in anytime).
+- **Photo textures panel:** apply the built-in CC0 set in one click, download it (per surface or the whole set as ZIP), or upload your own photo for the floor, walls, furniture wood or upholstery (reset back to built-in anytime); your own photos stay in your browser (IndexedDB) — other visitors don't see them.
   - Fullscreen mode, touch joystick on mobile.
 - **Plan editing:** undo / redo (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; a whole drag is one step), duplicate (`Ctrl+D`), multi-select (`Shift`/`Ctrl`+click, `Shift`+drag box, `Ctrl+A`) with group move and an **Align / distribute** panel.
 - **Zoom & pan:** wheel zooms around the cursor (50–800 %), − / 100 % / + buttons (100 % = fit); pan by dragging the empty floor, `Space`+drag or the middle button; pinch on touch screens. The view is not saved.
@@ -112,7 +112,7 @@ public/js/           2D: state, geometry, openings, validate, renderer, interact
                      apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d, facade
 public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d, perf
 public/js/bld3d/     showcase 3D: exterior (building), site (grounds), streetWalk (first person outside)
-public/textures/     CC0 photo textures (ambientCG); custom/ — uploaded photos, lib/ — downloaded library sets (not in git)
+public/textures/     CC0 photo textures (ambientCG); lib/ — downloaded library sets (not in git)
 test/                unit tests (node:test): npm test
 ```
 
@@ -143,7 +143,7 @@ Buyurtma asosida mebel uchun veb-ilova: mijoz xona va mebel o‘lchamlarini kiri
   - **Ko‘rinish** — kamera xona atrofida aylanadi, yaqin devorlar yashiriladi.
   - **Sayr** — birinchi shaxsdan, devor va mebel bilan to‘qnashuvlar; bo‘y 120–200 sm; pastdagi panel oyoqdan qaralayotgan buyum yoki devorgacha pol bo‘ylab masofani ko‘rsatadi.
   - **Oddiy / Foto** teksturalar (protsedural yoki CC0 foto-teksturalar). Sukut bo‘yicha — Foto (aniq kuchsiz qurilmalarda — Oddiy: dasturiy render, ≤ 2 yadro yoki ≤ 2 GB, eski telefon GPU’lari; va «Past» sifatda); tanlov eslab qolinadi. Pardoz uchun kerakli kutubxona to‘plamlarini server darhol yuklab oladi.
-- **Foto-teksturalar paneli:** tayyor CC0 to‘plamni bir bosishda qo‘llash, uni yuklab olish (har bir sirt alohida yoki butun to‘plam ZIP’da) yoki pol, devorlar, mebel yog‘ochi va qoplama uchun o‘z rasmingizni yuklash (istalgan vaqtda tayyoriga qaytarish mumkin).
+- **Foto-teksturalar paneli:** tayyor CC0 to‘plamni bir bosishda qo‘llash, uni yuklab olish (har bir sirt alohida yoki butun to‘plam ZIP’da) yoki pol, devorlar, mebel yog‘ochi va qoplama uchun o‘z rasmingizni yuklash (istalgan vaqtda tayyoriga qaytarish mumkin); o‘z rasmlaringiz brauzeringizda (IndexedDB) qoladi — boshqa tashrif buyuruvchilar ularni ko‘rmaydi.
   - To‘liq ekran rejimi, mobil qurilmalarda joystik.
 - **Rejani tahrirlash:** bekor qilish / qaytarish (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; butun sudrash — bitta qadam), nusxa olish (`Ctrl+D`), bir nechta tanlash (`Shift`/`Ctrl`+bosish, `Shift`+tortish — ramka, `Ctrl+A`), guruhni siljitish va **Tekislash / taqsimlash** paneli.
 - **Masshtab va siljitish:** g‘ildirak kursor atrofida yaqinlashtiradi (50–800 %), − / 100 % / + tugmalari (100 % = sig‘dirish); bo‘sh polni tortish, `Probel`+tortish yoki o‘rta tugma bilan siljitish; sensorli ekranda ikki barmoq. Ko‘rinish saqlanmaydi.
@@ -235,7 +235,7 @@ public/js/           2D: state, geometry, openings, validate, renderer, interact
                      apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d, facade
 public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d, perf
 public/js/bld3d/     showcase 3D: exterior (building), site (grounds), streetWalk (first person outside)
-public/textures/     CC0 foto-teksturalar (ambientCG); custom/ — yuklangan rasmlar, lib/ — yuklab olingan kutubxona to‘plamlari (git’da emas)
+public/textures/     CC0 foto-teksturalar (ambientCG); lib/ — yuklab olingan kutubxona to‘plamlari (git’da emas)
 test/                unit testlar (node:test): npm test
 ```
 
@@ -266,7 +266,7 @@ Foto-teksturalar: [ambientCG](https://ambientcg.com) — CC0. Three.js — MIT.
   - **Обзор** — камера вокруг комнаты, ближние стены скрываются.
   - **Прогулка** — от первого лица, столкновения со стенами и мебелью; рост человека 120–200 см; внизу — расстояние по полу от ног до предмета или стены, куда смотрит пользователь.
   - Текстуры **Простые / Фото** (процедурные или фото-текстуры CC0). По умолчанию — Фото (на очевидно слабых устройствах — Простые: программный рендер, ≤ 2 ядер или ≤ 2 ГБ, старые GPU телефонов; и при качестве «Низкое»); выбор запоминается. Нужные отделке наборы библиотеки сервер скачивает сразу.
-- **Панель «Фото-текстуры»:** готовый набор CC0 применяется в один клик, его можно скачать (по поверхностям или весь набор ZIP) или загрузить своё фото для пола, стен, дерева мебели или обивки (в любой момент можно вернуть готовую).
+- **Панель «Фото-текстуры»:** готовый набор CC0 применяется в один клик, его можно скачать (по поверхностям или весь набор ZIP) или загрузить своё фото для пола, стен, дерева мебели или обивки (в любой момент можно вернуть готовую); свои фото остаются в вашем браузере (IndexedDB) — другие посетители их не видят.
   - Полноэкранный режим, джойстик на мобильных.
 - **Правка плана:** отмена / повтор (↶ ↷, `Ctrl+Z` / `Ctrl+Y`; всё перетаскивание — один шаг), дублирование (`Ctrl+D`), выделение нескольких (`Shift`/`Ctrl`+клик, `Shift`+протяжка — рамка, `Ctrl+A`), перемещение группы и панель **Выровнять / распределить**.
 - **Масштаб и сдвиг:** колесо приближает относительно курсора (50–800 %), кнопки − / 100 % / + (100 % = вписать); сдвиг — протяжкой по пустому полу, `Пробел`+протяжка или средней кнопкой; на тач-экране — щипок. Вид не сохраняется.
@@ -358,7 +358,7 @@ public/js/           2D: state, geometry, openings, validate, renderer, interact
                      apartment, kits, furnish, furnishUi, aptTemplates, lighting, walkMap, building, buildingPage, floor3d, facade
 public/js/3d/        3D: scene3d, room3d, models3d, models3dMore, textures3d, lights3d, controls3d, touch3d, obstacles3d, anim3d, perf
 public/js/bld3d/     showcase 3D: exterior (building), site (grounds), streetWalk (first person outside)
-public/textures/     фото-текстуры CC0 (ambientCG); custom/ — загруженные фото, lib/ — скачанные наборы библиотеки (не в git)
+public/textures/     фото-текстуры CC0 (ambientCG); lib/ — скачанные наборы библиотеки (не в git)
 test/                модульные тесты (node:test): npm test
 ```
 

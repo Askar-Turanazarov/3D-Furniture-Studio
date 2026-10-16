@@ -259,13 +259,8 @@ function extra(name) {
 }
 
 // ---------- photo textures ----------
-// Custom uploads (colour map only) from the server: { floor: url | null, ... }.
-async function customUrls() {
-  try {
-    const res = await fetch('/api/textures');
-    return res.ok ? (await res.json()).custom : {};
-  } catch { return {}; }
-}
+// The visitor's own photos (colour map only, kept in this browser): { floor: url | null, ... }.
+const customUrls = () => import('../customTex.js').then(m => m.customUrls(PHOTO_SETS)).catch(() => ({}));
 
 async function loadSet(name, customUrl, tick = () => {}) {
   const load = async (file, srgb, url = `/textures/${name}/${file}.jpg`) => {

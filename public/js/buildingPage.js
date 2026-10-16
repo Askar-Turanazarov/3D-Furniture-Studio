@@ -170,7 +170,8 @@ const unitBox = a => ({ x: a.at.x, y: a.at.y, w: a.w, h: DEPTH });
 
 function drawFloor() {
   const cv = $('bldPlan'), f = floorOf(floorN);
-  const cw = cv.parentElement.clientWidth || 600, pad = 14;
+  // not narrower than 640 px: on a phone the plan scrolls sideways instead of shrinking to unreadable labels
+  const cw = Math.max(cv.parentElement.clientWidth || 600, 640), pad = 14;
   const s = (cw - 2 * pad) / b.section.L;
   const g = sizeCanvas(cv, cw, Math.round(b.section.W * s + 2 * pad));
   view = { s, ox: pad, oy: pad };
@@ -249,8 +250,8 @@ function showTip(a, e, wrapEl = $('planWrap'), tip = $('bldTip')) {
     el('span', { className: 'bld-st st-' + a.status, textContent: t('bld.st.' + a.status) }));
   tip.hidden = false;
   const wrap = wrapEl.getBoundingClientRect();
-  const x = e.clientX - wrap.left + 14, y = e.clientY - wrap.top + 14;
-  tip.style.left = Math.min(x, wrap.width - tip.offsetWidth - 4) + 'px';
+  const sx = wrapEl.scrollLeft, x = e.clientX - wrap.left + sx + 14, y = e.clientY - wrap.top + 14;
+  tip.style.left = Math.min(x, sx + wrap.width - tip.offsetWidth - 4) + 'px';
   tip.style.top = Math.min(y, wrap.height - tip.offsetHeight - 4) + 'px';
 }
 

@@ -558,8 +558,8 @@ dialog.compare-dlg { width: min(1100px, 96vw); }
 .bld-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .bld-head h2 { margin: 0; min-width: 80px; text-align: center; }
 .bld-spacer { flex: 1; }
-.bld-plan-wrap { position: relative; width: 100%; }
-.bld-plan-wrap canvas { display: block; width: 100%; touch-action: manipulation; }
+.bld-plan-wrap { position: relative; width: 100%; overflow-x: auto; }
+.bld-plan-wrap canvas { display: block; width: 100%; min-width: 640px; touch-action: manipulation; }   /* = drawFloor's 640 */
 .bld-tip { position: absolute; pointer-events: none; background: #1e2235; color: #fff; padding: 7px 10px; border-radius: 8px;
   font-size: 12px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow); z-index: 2; white-space: nowrap; }
 .bld-st { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; width: fit-content; }
@@ -644,6 +644,9 @@ dialog.floor3d-dlg { width: min(1200px, 96vw); }
   /* the bottom belongs to the joystick: distance and hint go to the top of the scene */
   .hud-dist { top: 10px; bottom: auto; font-size: 13px; padding: 5px 10px; white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 20px); }
   .hud-hint { top: 52px; bottom: auto; max-width: calc(100% - 20px); }
+  .hud-room { top: auto; bottom: 54px; left: auto; right: 10px; max-width: calc(100% - 170px); font-size: 13px; }
+  /* the floor 3D inside the showcase: the iframe is the screen */
+  body.embed .stage.is3d .canvas-wrap { height: 100dvh; min-height: 0; border-radius: 0; }
 }
 @media (max-width: 860px) and (orientation: landscape) {
   .stage.is3d .canvas-wrap { height: calc(100dvh - 60px); min-height: 260px; }
@@ -653,4 +656,16 @@ dialog.floor3d-dlg { width: min(1200px, 96vw); }
   .brand { min-width: 0; flex: 1; }
   .brand h1 { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .v3d-bar #snap3dBtn span, .v3d-bar #share3dBtn span, .v3d-bar #openAllBtn span { display: none; }
+}
+
+/* ---------- showcase on a phone: the floor 3D takes the whole screen ---------- */
+@media (max-width: 860px) {
+  dialog.floor3d-dlg {
+    width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 6px 8px 8px; border-radius: 0;
+  }
+  dialog.floor3d-dlg[open] { display: flex; flex-direction: column; }
+  .floor3d-dlg .dlg-head h2 { font-size: 15px; margin: 0; }
+  .floor3d-dlg .floor3d-box { flex: 1; min-height: 0; margin-top: 6px; }
+  .floor3d-dlg .floor3d-frame { height: 100%; border-radius: 8px; }
+  .floor3d-dlg #floor3dClose { min-width: 40px; min-height: 40px; font-size: 18px; }
 }

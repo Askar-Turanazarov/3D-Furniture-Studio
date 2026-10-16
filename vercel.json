@@ -5,13 +5,10 @@
   "functions": {
     "server.js": {
       "maxDuration": 60,
-      "excludeFiles": "{public/vendor/**,public/js/**,public/*.html,public/css/**,public/textures/sets/**,public/textures/lib/**}",
-      "includeFiles": "{catalog.json,templates.json,apartments.json,buildings/**,public/textures/library.json,public/textures/README.md,public/textures/floor/**,public/textures/wall/**,public/textures/wood/**,public/textures/fabric/**}"
+      "excludeFiles": "{public/vendor/**,public/js/**,public/css/**,public/textures/sets/**,public/textures/lib/**}",
+      "includeFiles": "{public/index.html,catalog.json,templates.json,apartments.json,buildings/**,public/textures/library.json,public/textures/README.md,public/textures/floor/**,public/textures/wall/**,public/textures/wood/**,public/textures/fabric/**}"
     }
   },
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" }
-  ],
   "headers": [
     { "source": "/vendor/three/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=86400" }] },
     { "source": "/textures/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=86400" }] }

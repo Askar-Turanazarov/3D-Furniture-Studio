@@ -31,7 +31,10 @@ const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three')));
+// three.js from the package (on Vercel this runs in the function: let the CDN keep the files, the version is pinned)
+app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), {
+  setHeaders: res => res.set('Cache-Control', 'public, max-age=604800, s-maxage=31536000')
+}));
 
 // Files of the deployment: the CDN may keep them (a new deployment starts with an empty cache).
 const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';

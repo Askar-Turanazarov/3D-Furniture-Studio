@@ -11,7 +11,8 @@ import { nearestWall, wallLen } from './openings.js';
 import { toWorld, toPlan, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom,
   syncView, lockFit, liveRooms } from './renderer.js';
 import { history } from './history.js';
-import { duplicate, toast } from './ui.js';
+import { duplicate, toast, describe } from './ui.js';
+import { moveTo, moveGroup } from './placement.js';
 import { ruler, snapLines, snapPoint, lockAxis } from './ruler.js';
 import { t } from './i18n.js';
 import { niche, initNiche, toggleNiche, nicheHover, nicheClick, nicheEscape } from './nicheTool.js';
@@ -158,11 +159,27 @@ export function initInteraction(canvas) {
     const rawY = clamp(wy - drag.offY, b.y - f.h / 2, b.y + b.h - f.h / 2);
     const nx = magnet(rawX, f.w, 'x', skip) ?? snapValue(rawX);
     const ny = magnet(rawY, f.h, 'y', skip) ?? snapValue(rawY);
-    if (nx !== it.x || ny !== it.y) {
-      it.x = nx; it.y = ny;
-      for (const g of drag.group) { g.it.x = nx + g.dx; g.it.y = ny + g.dy; }
-      emit();
+    // Walls, neighbours, structure and doors stop the item (placement.js); over another room it moves freely,
+    // the drop takes it there.
+    let x = nx, y = ny, reason = null;
+    if (!overOtherRoom(nx + f.w / 2, ny + f.h / 2)) {
+      if (drag.group.length) {
+        const m = moveGroup([it, ...drag.group.map(g => g.it)], nx - it.x, ny - it.y, state);
+        x = it.x + m.dx; y = it.y + m.dy;
+        if (x !== nx || y !== ny) reason = m.reason;
+      } else {
+        const m = moveTo(it, nx, ny, state);
+        x = m.x; y = m.y;
+        if (m.blocked) reason = m.reason;
+      }
     }
+    const was = overlay.block;
+    overlay.block = reason ? { x: nx, y: ny, w: f.w, h: f.h, text: describe(reason) } : null;
+    if (x !== it.x || y !== it.y) {
+      it.x = x; it.y = y;
+      for (const g of drag.group) { g.it.x = x + g.dx; g.it.y = y + g.dy; }
+      emit();
+    } else if (was || overlay.block) requestDraw();
   });
 
   const end = e => {
@@ -198,7 +215,7 @@ export function initInteraction(canvas) {
       if (bad.length) toast(overlapText(bad[0]), true);
       return;
     }
-    if (drag.item) dropIntoRoom(drag);
+    if (drag.item) { overlay.block = null; requestDraw(); dropIntoRoom(drag); }
     drag = null;
     canvas.style.cursor = 'grab';
     history.end();   // the whole drag (and the move into another room) is one undo step
@@ -230,13 +247,13 @@ export function initInteraction(canvas) {
     if (mod) return;
     const step = state.settings.snap * (e.shiftKey ? 10 : 1);
     switch (e.key) {
-      case 'r': case 'R': case 'к': case 'К': if (items.length === 1) rotateItem(items[0]); break;
+      case 'r': case 'R': case 'к': case 'К': if (items.length === 1) turn(items[0]); break;
       case 'Delete': case 'Backspace': removeItems(items.map(i => i.id)); break;
       case 'Escape': select(null); break;
-      case 'ArrowLeft': moveItems(items, -step, 0); break;
-      case 'ArrowRight': moveItems(items, step, 0); break;
-      case 'ArrowUp': moveItems(items, 0, -step); break;
-      case 'ArrowDown': moveItems(items, 0, step); break;
+      case 'ArrowLeft': nudge(items, -step, 0); break;
+      case 'ArrowRight': nudge(items, step, 0); break;
+      case 'ArrowUp': nudge(items, 0, -step); break;
+      case 'ArrowDown': nudge(items, 0, step); break;
       default: return;
     }
     e.preventDefault();
@@ -490,6 +507,25 @@ function magnet(raw, size, axis, skip) {
 }
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// Plan point (active room coordinates) inside another room of the apartment.
+function overOtherRoom(x, y) {
+  if (x >= 0 && y >= 0 && x <= state.room.L && y <= state.room.W) return false;
+  const o = activePos(), r = roomAt(liveRooms(), x + o.x, y + o.y);
+  return !!r && r.id !== state.activeRoomId;
+}
+
+// Arrow keys: the same rules as the drag; a refused step says why.
+function nudge(items, dx, dy) {
+  const m = moveGroup(items, dx, dy, state);
+  if (m.dx || m.dy) moveItems(items, m.dx, m.dy);
+  if (m.reason && (m.dx !== dx || m.dy !== dy)) toast(describe(m.reason), true);
+}
+
+function turn(item) {
+  const r = rotateItem(item);
+  if (!r.ok) toast(describe(r.reason), true);
+}
 
 // ---- apartment: items between rooms, room layout mode ----
 // Where an item may be dragged, in the active room's coordinates: the whole apartment.

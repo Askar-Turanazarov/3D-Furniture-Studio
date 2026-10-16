@@ -52,7 +52,7 @@ const ZOOM_MIN = 0.5, ZOOM_MAX = 8;
 let lastW = 0, lastH = 0;
 const zoomListeners = new Set();
 export function onZoom(fn) { zoomListeners.add(fn); }
-export const overlay = { marquee: null, niche: null, layout: false };   // box selection; niche ghost; room layout mode
+export const overlay = { marquee: null, niche: null, layout: false, block: null };   // block: refused drag target + reason   // box selection; niche ghost; room layout mode
 let errors = new Map();
 let roomErrors = new Map();   // roomId → Map(itemId → errors) of the other rooms
 export function setRoomErrors(map) { roomErrors = map; }
@@ -308,6 +308,7 @@ function drawContent(now, sheet, live = true) {
   if (live && !drawOpts.clean) {
     if (overlay.marquee) drawMarquee(overlay.marquee);
     if (overlay.niche) drawNicheGhost(overlay.niche);
+    if (overlay.block) drawBlockGhost(overlay.block);
     drawRuler();
   }
 }
@@ -874,6 +875,33 @@ function drawMeasure(a, b, preview) {
       ctx.fillText(s, mx, my - th / 2 + 10 + i * 15);
     });
   }
+  ctx.restore();
+}
+
+// Where the item was pulled but may not stand: a red dashed ghost and the reason on a dark label above it.
+function drawBlockGhost(b) {
+  const [x0, y0] = toScreen(b.x, b.y), [x1, y1] = toScreen(b.x + b.w, b.y + b.h);
+  ctx.save();
+  ctx.fillStyle = 'rgba(224, 49, 49, .12)';
+  ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  ctx.strokeStyle = COLORS.bad;
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x0 + 0.5, y0 + 0.5, x1 - x0, y1 - y0);
+  ctx.setLineDash([]);
+  ctx.font = '600 12px Manrope, system-ui, sans-serif';
+  const pad = 8, tw = ctx.measureText(b.text).width + 2 * pad, th = 24;
+  const tx = Math.max(4, Math.min(ctx.canvas.width / (window.devicePixelRatio || 1) - tw - 4, (x0 + x1) / 2 - tw / 2));
+  const ty = y0 - th - 6 < 4 ? y1 + 6 : y0 - th - 6;
+  ctx.fillStyle = 'rgba(14, 14, 16, .9)';
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, tw, th, 6);
+  ctx.fill();
+  ctx.fillStyle = '#ff8a8a';
+  ctx.fillRect(tx, ty + 6, 2, th - 12);
+  ctx.fillStyle = '#f3ece2';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(b.text, tx + pad, ty + th / 2 + 0.5);
   ctx.restore();
 }
 

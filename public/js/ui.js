@@ -75,7 +75,7 @@ export function initUI({ autoPlace }) {
   initMatPanel();
   initStylePanel();
   initPricePanel();
-  $('rotateBtn').addEventListener('click', () => { const it = selected(); if (it) rotateItem(it); });
+  $('rotateBtn').addEventListener('click', () => { const it = selected(); const r = it && rotateItem(it); if (r && !r.ok) toast(describe(r.reason), true); });
   $('deleteBtn').addEventListener('click', () => removeItems(selectedItems().map(i => i.id)));
   $('dupBtn').addEventListener('click', () => duplicate());
   $('alignBox').addEventListener('click', e => {

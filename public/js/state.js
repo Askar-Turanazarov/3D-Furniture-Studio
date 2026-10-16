@@ -9,6 +9,7 @@ import { newOpening, clampOpening, defaultOpenings } from './openings.js';
 import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 import { styleOf } from './style.js';
 import { DEFAULT_LIGHTING } from './lighting.js';
+import { rotateLegal } from './placement.js';
 import { roomView as aptRoomView, moveItemBetween, posOf, doorZones } from './apartment.js';
 
 export const state = {
@@ -244,15 +245,14 @@ export function duplicateItems(items) {
 }
 
 // Rotate 90° clockwise around the footprint centre.
+// Turn by 90° about the centre; at a wall or a neighbour the nearest free spot (placement.js), else refused.
+// → { ok, reason }
 export function rotateItem(item) {
-  const before = footprint(item);
-  const cx = item.x + before.w / 2;
-  const cy = item.y + before.h / 2;
-  item.rot = (item.rot + 90) % 360;
-  const after = footprint(item);
-  item.x = snapValue(cx - after.w / 2);
-  item.y = snapValue(cy - after.h / 2);
+  const r = rotateLegal(item, state, { round: snapValue });
+  if (!r.ok) return r;
+  Object.assign(item, { x: r.x, y: r.y, rot: r.rot });
   emit();
+  return r;
 }
 
 export function select(id) {

@@ -251,6 +251,6 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
 // Any other /api path: JSON, not the HTML "Cannot GET" page.
 app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
 
-if (require.main === module) app.listen(PORT, () => console.log(`Furniture Super Planner 3D: http://localhost:${PORT}`));
+if (require.main === module) app.listen(PORT, () => console.log(`Domus: http://localhost:${PORT}`));
 
 module.exports = app;

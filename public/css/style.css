@@ -1,5 +1,5 @@
 /* =====================================================================================================
-   Furniture Super Planner 3D — design system.
+   Domus — design system.
    Dark (onyx + champagne) is the default; [data-theme="light"] is ivory + bronze. Every colour of the UI,
    the 2D plan (--plan-*) and the showcase (--st-*) comes from these tokens.
    ===================================================================================================== */
@@ -1200,3 +1200,5 @@ body.embed .site-foot { display: none; }
 .adm .site-foot.in-main { margin: 28px -24px -22px; }
 @media (max-width: 860px) { .site-foot.in-main { margin: 6px -10px -10px; } }
 @media (max-width: 600px) { .adm .site-foot.in-main { margin: 20px -10px -10px; } }
+.site-foot .sf-tag { font-weight: 600; color: var(--faint); }
+.brand h1 { letter-spacing: .06em; }

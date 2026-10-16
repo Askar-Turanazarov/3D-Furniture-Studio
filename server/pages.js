@@ -14,11 +14,11 @@ const PAGES = {
 };
 const TEXT = {
   planner: {
-    ru: ['Furniture Super Planner 3D — планировщик квартиры и мебели на заказ',
+    ru: ['Domus — квартиры и мебель в 3D',
       'Задайте размеры комнат и мебели, проверьте, что поместится, пройдитесь по квартире в 3D и оставьте заявку.'],
-    uz: ['Furniture Super Planner 3D — kvartira va buyurtma mebel rejalashtiruvchisi',
+    uz: ['Domus — kvartiralar va mebel 3D’da',
       'Xona va mebel o‘lchamlarini kiriting, nima sig‘ishini tekshiring, kvartirani 3D’da aylanib chiqing va ariza qoldiring.'],
-    en: ['Furniture Super Planner 3D — apartment and custom furniture planner',
+    en: ['Domus — apartments and furniture in 3D',
       'Set room and furniture sizes, check what fits, walk through the apartment in 3D and send a request.']
   },
   building: {
@@ -47,7 +47,7 @@ function ogBlock(page, lang, origin = SITE, self = `/${lang}${PAGES[page].path}`
     ...LANGS.map(l => `  <link rel="alternate" hreflang="${l}" href="${esc(`${origin}/${l}${p.path}`)}">`),
     `  <link rel="alternate" hreflang="x-default" href="${esc(origin + (p.path ? '/building.html' : '/'))}">`,
     meta('property', 'og:type', 'website'),
-    meta('property', 'og:site_name', 'Furniture Super Planner 3D'),
+    meta('property', 'og:site_name', 'Domus'),
     meta('property', 'og:title', title),
     meta('property', 'og:description', description),
     meta('property', 'og:url', url),

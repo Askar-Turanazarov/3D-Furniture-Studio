@@ -1,4 +1,4 @@
-# Furniture Super Planner 3D
+# Domus — квартиры и мебель в 3D
 
 **[English](#english) · [O‘zbekcha](#ozbekcha) · [Русский](#русский)**
 

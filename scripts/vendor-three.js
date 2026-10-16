@@ -9,4 +9,6 @@ const to = path.join(root, 'public', 'vendor', 'three');
 fs.rmSync(to, { recursive: true, force: true });
 for (const dir of ['build', 'examples/jsm']) fs.cpSync(path.join(from, dir), path.join(to, dir), { recursive: true });
 fs.copyFileSync(path.join(from, 'LICENSE'), path.join(to, 'LICENSE'));
+// ES modules, as in the three package itself: Vercel's function bundler would otherwise try to compile them to CommonJS.
+fs.writeFileSync(path.join(to, 'package.json'), JSON.stringify({ type: 'module', private: true }) + '\n');
 console.log('three.js', require(path.join(from, 'package.json')).version, '→ public/vendor/three');

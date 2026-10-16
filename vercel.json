@@ -5,6 +5,7 @@
   "functions": {
     "server.js": {
       "maxDuration": 60,
+      "excludeFiles": "{public/vendor/**,public/js/**,public/*.html,public/css/**,public/textures/sets/**,public/textures/lib/**}",
       "includeFiles": "{catalog.json,templates.json,apartments.json,buildings/**,public/textures/library.json,public/textures/README.md,public/textures/floor/**,public/textures/wall/**,public/textures/wood/**,public/textures/fabric/**}"
     }
   },

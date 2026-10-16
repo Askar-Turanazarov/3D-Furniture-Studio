@@ -27,7 +27,7 @@ export function roomView(apt, id) {
   if (!r) return null;
   return {
     id: r.id, name: r.name, purpose: r.purpose, pos: posOf(r.pos),
-    room: r.room, items: r.items || [], openings: r.openings || [], obstacles: r.obstacles || [], style: r.style,
+    room: r.room, items: r.items || [], openings: r.openings || [], obstacles: r.obstacles || [], style: r.style, fixtures: r.fixtures ?? null,
     doorways: incomingDoorways(liveRoomsOf(apt), id),
     twins: [...twinIds(liveRoomsOf(apt), id)],
     settings: apt.settings, lighting: apt.lighting,

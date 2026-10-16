@@ -1,4 +1,5 @@
 // Sidebar forms, item list, selection panel, notes column and toasts.
+import { addFixture } from './state.js';
 import { keysToPlan } from './pane.js';
 import { t, getLang } from './i18n.js';
 import { state, emit, addItem, removeItems, rotateItem, duplicateItems, select, selected, selectedItems, getItem, itemName,
@@ -232,6 +233,12 @@ function initOpenings() {
 
 // ---- structure: columns, ducts, ledges, radiators, niches ----
 function initObstacles() {
+  $('fxAdd').addEventListener('click', e => {
+    const b = e.target.closest('[data-fx]');
+    if (!b) return;
+    addFixture(b.dataset.fx);
+    toast(t('fx.hint'));
+  });
   $('obAdd').addEventListener('click', e => {
     const b = e.target.closest('[data-ob]');
     if (b) addObstacle(b.dataset.ob);

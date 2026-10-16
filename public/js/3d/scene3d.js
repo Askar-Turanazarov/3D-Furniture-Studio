@@ -2,7 +2,7 @@
 import { keysTo3d } from '../pane.js';
 import * as THREE from 'three';
 import { t, getLang, onLangChange } from '../i18n.js';
-import { state, onChange, emit, roomView, isSelected, select } from '../state.js';
+import { state, onChange, emit, roomView, isSelected, select, setCeiling } from '../state.js';
 import { rectOf } from '../geometry.js';
 import { buildRoom, disposeGroup, revealParts } from './room3d.js';
 import { liveRooms } from '../renderer.js';
@@ -10,7 +10,7 @@ import { doorLinks, adjacent, wallLine, posOf, roomRect, twinIds } from '../apar
 import { switchRoom } from '../projects.js';
 import { buildObstacles } from './obstacles3d.js';
 import { buildLights, setupEnvironment, applyFixtures, lightingOf, CEILINGS, setLightTargets, tweenLights, setShadowQuality, lampCount } from './lights3d.js';
-import { lampsOn } from '../lighting.js';
+import { lampsOn, fixturesOf } from '../lighting.js';
 import { buildItem, placeItem } from './models3d.js';
 import { initDrag } from './drag3d.js';
 import { validateAll } from '../validate.js';
@@ -136,10 +136,8 @@ function init(el) {
       hideNote();
     }
   });
-  el.querySelector('#ceilSel').addEventListener('change', e => {
-    state.lighting = { ...lightingOf(state.lighting), ceiling: e.target.value };
-    emit();
-  });
+  // A new ceiling type: every room gets its default layout of it (lights placed by hand are replaced).
+  el.querySelector('#ceilSel').addEventListener('change', e => setCeiling(e.target.value));
   fillCeilSel();
   onLangChange(fillCeilSel);
   // A click on the floor: another room becomes active, in the active room it clears the selection.
@@ -420,20 +418,30 @@ const SEL_MAT = new THREE.LineBasicMaterial({ color: 0xc9a96e, transparent: true
 const SEL_RING = new THREE.RingGeometry(0.985, 1, 72).rotateX(-Math.PI / 2);
 const RING_MAT = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
 let selFrames = null, selRing = null;
+// Frame of a selected ceiling light, cm: width and drop under the ceiling.
+const FX_BOX = { chandelier: { w: 80, h: 62 }, pendant: { w: 40, h: 82 }, spot: { w: 16, h: 4 }, panel: { w: 60, h: 4 } };
 function syncSelection() {
   if (!selFrames) { selFrames = new THREE.Group(); selFrames.name = 'selection'; scene.add(selFrames); }
   const e = rooms3d.get(state.activeRoomId) || (rooms3d.size === 1 ? [...rooms3d.values()][0] : null);
   const items = e ? (e.doc.items || []).filter(it => isSelected(it.id)) : [];
-  while (selFrames.children.length > items.length) selFrames.remove(selFrames.children.at(-1));
-  while (selFrames.children.length < items.length) {
+  // Boxes in cm of the room: { x, y (centre), w, d, h, elev }; a selected ceiling light gets one too.
+  const boxes = items.map(it => { const r = rectOf(it); return { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, d: r.h, h: it.h, elev: it.elev || 0 }; });
+  const fx = e && state.selectedFixture !== null ? fixturesOf(e.doc, state.lighting).find(f => f.id === state.selectedFixture) : null;
+  if (fx) {
+    const H = e.doc.room.H, s = FX_BOX[fx.kind] || FX_BOX.spot;
+    const w = fx.kind === 'panel' ? Math.min(120, e.doc.room.L * 0.4) + 6 : s.w, d = fx.kind === 'panel' ? Math.min(60, e.doc.room.W * 0.3) + 6 : s.w;
+    boxes.push({ x: fx.x, y: fx.y, w, d, h: s.h, elev: H - s.h });
+  }
+  while (selFrames.children.length > boxes.length) selFrames.remove(selFrames.children.at(-1));
+  while (selFrames.children.length < boxes.length) {
     const l = new THREE.LineSegments(SEL_BOX, SEL_MAT);
     l.renderOrder = 10;
     selFrames.add(l);
   }
-  items.forEach((it, i) => {
-    const r = rectOf(it), l = selFrames.children[i], pad = 0.015;
-    l.scale.set(r.w / 100 + 2 * pad, it.h / 100 + pad, r.h / 100 + 2 * pad);
-    l.position.set(e.group.position.x + (r.x + r.w / 2) / 100, (it.elev || 0) / 100, e.group.position.z + (r.y + r.h / 2) / 100);
+  boxes.forEach((b, i) => {
+    const l = selFrames.children[i], pad = 0.015;
+    l.scale.set(b.w / 100 + 2 * pad, b.h / 100 + pad, b.d / 100 + 2 * pad);
+    l.position.set(e.group.position.x + b.x / 100, b.elev / 100, e.group.position.z + b.y / 100);
   });
   if (!selRing) { selRing = new THREE.Mesh(SEL_RING, RING_MAT); selRing.renderOrder = 9; selFrames.parent.add(selRing); }
   const main = items.find(it => it.id === state.selectedId);
@@ -451,19 +459,24 @@ function syncSelection() {
 // the spots of the other rooms become one down-light each. Rebuilt only for a new shell, fixture type or main
 // room; scene and lamp changes are tweened.
 function buildAllLights() {
-  const ceiling = lightingOf(state.lighting).ceiling;
   const prev = mainLights?.userData.cur;
+  const fx = new Map([...rooms3d].map(([id, e]) => [id, fixturesOf(e.doc, state.lighting)]));
   let total = 0;
-  for (const e of rooms3d.values()) total += lampCount(ceiling, e.shell.size);
+  for (const [id, e] of rooms3d) total += lampCount(fx.get(id), e.shell.size);
   const merged = total > SETTINGS[tier].maxLamps;
   for (const [id, e] of rooms3d) {
     const main = id === state.activeRoomId || rooms3d.size === 1;
     const look = styleOf(e.style).furniture;
-    const lk = [ceiling, main, merged && !main, tier, e.key, look].join('|');
+    const base = [main, merged && !main, tier, e.key, look].join('|');
+    const lk = base + JSON.stringify(fx.get(id));
     if (lk !== e.lkey) {
+      // Only the fixtures moved or changed: the lamps keep their level (no fade-in flash).
+      const fade = base !== e.lbase;
       e.lkey = lk;
+      e.lbase = base;
       if (e.lights) disposeGroup(e.lights);
-      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main, merged && !main, look);
+      e.lights = buildLights(e.shell.size, e.shell.windows[0] || null, state.lighting, prev, main, merged && !main, look,
+        { fixtures: fx.get(id), fade });
       e.group.add(e.lights);
     } else {
       setLightTargets(e.lights, state.lighting);

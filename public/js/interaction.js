@@ -1,5 +1,6 @@
 // Pointer (mouse + touch) drag with snap, multi-select, keyboard rotate / delete / nudge.
 import { keysToPlan } from './pane.js';
+import { getFixture, ownFixture, selectFixture, moveFixture, removeFixture, cycleFixture } from './state.js';
 import { state, emit, select, selected, rotateItem, removeItems, moveItems, snapValue,
   selectOpening, selectedOpening, removeOpening, updateOpening,
   isSelected, selectedItems, toggleSelect, selectMany,
@@ -10,7 +11,7 @@ import { obRect } from './obstacles.js';
 import { rectOf, footprint, overlaps, isDecor } from './geometry.js';
 import { nearestWall, wallLen } from './openings.js';
 import { toWorld, toPlan, view, overlay, requestDraw, zoomAt, zoomStep, panBy, resetView, onZoom,
-  syncView, lockFit, liveRooms } from './renderer.js';
+  syncView, lockFit, liveRooms, fixtureAt } from './renderer.js';
 import { history } from './history.js';
 import { duplicate, toast, describe } from './ui.js';
 import { moveTo, moveGroup } from './placement.js';
@@ -69,6 +70,16 @@ export function initInteraction(canvas) {
       hit = hitTest(wx, wy);
     }
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    // A ceiling light: grabbed by its centre (it hangs over the furniture, which is picked everywhere else).
+    const fx = additive ? null : fixtureAt(wx, wy, 10 / view.scale);
+    if (fx) {
+      const f = ownFixture(fx.id);
+      drag = { fixture: f, offX: wx - f.x, offY: wy - f.y, pointerId: e.pointerId };
+      capture(canvas, e);
+      history.begin();
+      if (state.selectedFixture !== f.id) selectFixture(f.id);
+      return;
+    }
     if (hit?.opening) {
       const o = hit.opening;
       drag = { opening: o, grab: nearestWall(wx, wy, state.room).along - o.offset, pointerId: e.pointerId };
@@ -151,6 +162,14 @@ export function initInteraction(canvas) {
     canvas.style.cursor = 'grabbing';
     if (drag.opening) return dragOpening(wx, wy);
     if (drag.obstacle) return dragObstacle(wx, wy);
+    if (drag.fixture) {
+      // Free over the ceiling, off the walls; a hanging light does not go over a door swing.
+      const m = moveFixture(drag.fixture, wx - drag.offX, wy - drag.offY);
+      const was = overlay.block;
+      overlay.block = m.ok ? null : { x: m.x - 25, y: m.y - 25, w: 50, h: 50, text: describe(m.reason) };
+      if (was || overlay.block) requestDraw();
+      return;
+    }
     const it = drag.item;
     const f = footprint(it);
     const b = dragArea();
@@ -195,6 +214,7 @@ export function initInteraction(canvas) {
         if (state.selectedId !== null || state.selectedIds.size) select(null);
         else if (state.selectedOpening !== null) selectOpening(null);
         else if (state.selectedObstacle !== null) selectObstacle(null);
+        else if (state.selectedFixture !== null) selectFixture(null);
       }
       return;
     }
@@ -217,6 +237,7 @@ export function initInteraction(canvas) {
       return;
     }
     if (drag.item) { overlay.block = null; requestDraw(); dropIntoRoom(drag); }
+    if (drag.fixture) { overlay.block = null; requestDraw(); }
     drag = null;
     canvas.style.cursor = 'grab';
     history.end();   // the whole drag (and the move into another room) is one undo step
@@ -240,6 +261,7 @@ export function initInteraction(canvas) {
       selectMany(state.items.map(i => i.id));
       return e.preventDefault();
     }
+    if (state.selectedFixture !== null && getFixture(state.selectedFixture)) return fixtureKey(e);
     if (selectedOpening()) return openingKey(e);
     if (selectedOb()) return obstacleKey(e);
     const items = selectedItems();
@@ -434,6 +456,24 @@ function obMagnet(raw, size, axis, self) {
     if (d < bestD) { best = c; bestD = d; }
   }
   return best;
+}
+
+function fixtureKey(e) {
+  const f = ownFixture(state.selectedFixture);
+  const step = state.settings.snap * (e.shiftKey ? 10 : 1);
+  const to = (x, y) => { const m = moveFixture(f, x, y); if (!m.ok) toast(describe(m.reason), true); };
+  if (e.ctrlKey || e.metaKey) return;
+  switch (e.key) {
+    case 'Delete': case 'Backspace': removeFixture(f.id); break;
+    case 'Escape': selectFixture(null); break;
+    case 'r': case 'R': case 'к': case 'К': cycleFixture(f); break;
+    case 'ArrowLeft': to(f.x - step, f.y); break;
+    case 'ArrowRight': to(f.x + step, f.y); break;
+    case 'ArrowUp': to(f.x, f.y - step); break;
+    case 'ArrowDown': to(f.x, f.y + step); break;
+    default: return;
+  }
+  e.preventDefault();
 }
 
 function obstacleKey(e) {

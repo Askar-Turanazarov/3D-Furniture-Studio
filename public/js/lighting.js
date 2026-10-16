@@ -58,42 +58,80 @@ const SPOT_WALL = 0.6;          // housings this far from the walls (less in a s
 const CLIP = 0.09;              // the room rectangle of a spot reaches this far into the walls (half a partition)
 const PANEL_MAX = { w: 1.2, d: 0.6 };
 
-/**
- * The light sources of a room's ceiling fixture, sizes in metres, the room from (0, 0) to (L, W), ceiling at H.
- * spot / point: { type, x, y, z, power (cd), distance (m, 0 = no cut-off) [, angle, penumbra] };
- * area: { type: 'area', x, y, z, w, d, power (nits) }. discs: where the spot housings are.
- * merged: the grid of spots as one wide down-light with the same light output (the lamp budget is spent).
- */
-export function fixtureSpec(ceiling, L, W, H, { merged = false } = {}) {
-  const c = lightingOf({ ceiling }).ceiling;
-  const reach = Math.hypot(L, W) / 2 + H;               // the light fades out just past the far corner
-  if (c === 'chandelier') {
-    const y = H - 0.5, h = y;
-    return { lights: [{ type: 'point', x: L / 2, y, z: W / 2, power: FLOOR_LUX * h * h, distance: reach * 1.2 }], discs: [] };
-  }
-  if (c === 'spots') {
-    const nx = L > 4.2 ? 3 : 2, nz = W > 3.6 ? 3 : 2, y = H - 0.02, h = y;
-    // Evenly from SPOT_WALL off one wall to SPOT_WALL off the other.
-    const at = (len, n) => { const m = Math.min(SPOT_WALL, len / 4); return Array.from({ length: n }, (_, i) => m + (len - 2 * m) * i / (n - 1)); };
-    const discs = [];
-    for (const x of at(L, nx)) for (const z of at(W, nz)) discs.push({ x, z });
-    const one = FLOOR_LUX * h * h * 0.55;                // the wide spills overlap: less each
-    const distance = h / Math.cos(SPOT.angle) * 1.3;    // fades out past the far floor corner
-    const clip = { x0: -CLIP, z0: -CLIP, x1: L + CLIP, z1: W + CLIP };
-    if (merged) {
-      // Same light output: n · I · 2π(1 − cos a) = I₁ · 2π(1 − cos A).
-      const A = 1.1, power = discs.length * one * (1 - Math.cos(SPOT.angle)) / (1 - Math.cos(A));
-      return { lights: [{ type: 'spot', x: L / 2, y, z: W / 2, power, angle: A, penumbra: 1, distance: h / Math.cos(A) * 1.1, clip }], discs };
-    }
-    return { lights: discs.map(d => ({ type: 'spot', x: d.x, y, z: d.z, power: one, ...SPOT, distance, clip })), discs };
-  }
-  if (c === 'panel') {
-    const w = Math.min(PANEL_MAX.w, L * 0.4), d = Math.min(PANEL_MAX.d, W * 0.3), y = H - 0.025, h = y;
-    // A small panel straight above: E ≈ L·A / h².
-    return { lights: [{ type: 'area', x: L / 2, y, z: W / 2, w, d, power: FLOOR_LUX * h * h / (w * d) }], discs: [] };
-  }
-  return { lights: [], discs: [] };
+// ---------- movable fixtures ----------
+// A room's ceiling lights: room.fixtures = [{ id, kind, x, y }] in cm of the room (the centre of the fixture).
+// A room without its own list uses the default layout of the apartment's ceiling type (lighting.ceiling), so old
+// projects look as before; moving or adding a fixture gives the room its own list.
+export const FIXTURE_KINDS = ['chandelier', 'pendant', 'spot', 'panel'];
+export const FIXTURE_WALL = 20;      // cm: a fixture keeps this far from the walls
+
+// Evenly from SPOT_WALL off one wall to SPOT_WALL off the other (metres).
+function spotGrid(L, W) {
+  const nx = L > 4.2 ? 3 : 2, nz = W > 3.6 ? 3 : 2;
+  const at = (len, n) => { const m = Math.min(SPOT_WALL, len / 4); return Array.from({ length: n }, (_, i) => m + (len - 2 * m) * i / (n - 1)); };
+  const out = [];
+  for (const x of at(L, nx)) for (const z of at(W, nz)) out.push({ x, z });
+  return out;
 }
+
+/** The default layout of a ceiling type in a room of L × W cm. */
+export function defaultFixtures(ceiling, L, W) {
+  const c = lightingOf({ ceiling }).ceiling;
+  if (c === 'chandelier' || c === 'panel') return [{ id: 1, kind: c, x: L / 2, y: W / 2 }];
+  if (c === 'spots') return spotGrid(L / 100, W / 100).map((d, i) => ({ id: i + 1, kind: 'spot', x: d.x * 100, y: d.z * 100 }));
+  return [];
+}
+
+/** The fixtures of a room doc (its own list or the default layout). */
+export const fixturesOf = (doc, lighting) => Array.isArray(doc?.fixtures) ? doc.fixtures
+  : defaultFixtures(lightingOf(lighting).ceiling, doc?.room?.L || 0, doc?.room?.W || 0);
+
+/** Keep a fixture on the ceiling of the room, FIXTURE_WALL off the walls. */
+export function clampFixture(x, y, L, W) {
+  const m = Math.min(FIXTURE_WALL, L / 2, W / 2);
+  return { x: Math.min(L - m, Math.max(m, x)), y: Math.min(W - m, Math.max(m, y)) };
+}
+
+/**
+ * The light sources of a room's ceiling fixtures, sizes in metres, the room from (0, 0) to (L, W), ceiling at H;
+ * fixtures in cm of the room.
+ * spot / point: { type, x, y, z, power (cd), distance (m, 0 = no cut-off) [, angle, penumbra], fixture };
+ * area: { type: 'area', x, y, z, w, d, power (nits), fixture }. discs: where the spot housings are.
+ * merged: the spots as one wide down-light with the same light output (the lamp budget is spent).
+ */
+export function fixturesSpec(fixtures, L, W, H, { merged = false } = {}) {
+  const reach = Math.hypot(L, W) / 2 + H;               // the light fades out just past the far corner
+  const lights = [], discs = [], spotsAt = [];
+  const clip = { x0: -CLIP, z0: -CLIP, x1: L + CLIP, z1: W + CLIP };
+  const yS = H - 0.02, one = FLOOR_LUX * yS * yS * 0.55;   // the wide spills of a grid overlap: less each
+  for (const f of fixtures || []) {
+    const x = f.x / 100, z = f.y / 100;
+    if (f.kind === 'chandelier' || f.kind === 'pendant') {
+      const y = H - (f.kind === 'pendant' ? 0.7 : 0.5), k = f.kind === 'pendant' ? 0.6 : 1;
+      lights.push({ type: 'point', x, y, z, power: FLOOR_LUX * y * y * k, distance: reach * 1.2, fixture: f.id });
+    } else if (f.kind === 'spot') {
+      discs.push({ x, z, fixture: f.id });
+      spotsAt.push({ x, z, fixture: f.id });
+    } else if (f.kind === 'panel') {
+      const w = Math.min(PANEL_MAX.w, L * 0.4), d = Math.min(PANEL_MAX.d, W * 0.3), y = H - 0.025;
+      // A small panel straight above: E ≈ L·A / h².
+      lights.push({ type: 'area', x, y, z, w, d, power: FLOOR_LUX * y * y / (w * d), fixture: f.id });
+    }
+  }
+  const distance = yS / Math.cos(SPOT.angle) * 1.3;     // fades out past the far floor corner
+  if (merged && spotsAt.length > 1) {
+    // Same light output: n · I · 2π(1 − cos a) = I₁ · 2π(1 − cos A), from the middle of the housings.
+    const A = 1.1, power = spotsAt.length * one * (1 - Math.cos(SPOT.angle)) / (1 - Math.cos(A));
+    const cx = spotsAt.reduce((s, p) => s + p.x, 0) / spotsAt.length, cz = spotsAt.reduce((s, p) => s + p.z, 0) / spotsAt.length;
+    lights.push({ type: 'spot', x: cx, y: yS, z: cz, power, angle: A, penumbra: 1, distance: yS / Math.cos(A) * 1.1, clip });
+  } else {
+    for (const p of spotsAt) lights.push({ type: 'spot', x: p.x, y: yS, z: p.z, power: one, ...SPOT, distance, clip, fixture: p.fixture });
+  }
+  return { lights, discs };
+}
+
+/** The default fixtures of a ceiling type (see fixturesSpec). */
+export const fixtureSpec = (ceiling, L, W, H, opts) => fixturesSpec(defaultFixtures(ceiling, L * 100, W * 100), L, W, H, opts);
 
 /** Floor illuminance at (x, z) from a fixture spec (inverse square, cosine, spot cone, distance cut-off, room clip). */
 export function floorLux(spec, x, z) {

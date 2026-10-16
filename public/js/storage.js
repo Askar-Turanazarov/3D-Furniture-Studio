@@ -8,7 +8,7 @@
 // A variant is a separate project (a copy of the whole apartment) with variantOf = the original project id.
 // Old v2 projects (rooms as tabs, each with its own lighting / settings, room versions) are migrated on load.
 import { styleOf } from './style.js';
-import { DEFAULT_LIGHTING } from './lighting.js';
+import { DEFAULT_LIGHTING, FIXTURE_KINDS } from './lighting.js';
 import { posOf, layoutRow } from './apartment.js';
 
 const V1 = 'fsp3d.plan.v1';
@@ -52,7 +52,10 @@ export function normalizeDoc(d = {}) {
     obstacles,
     obSeq: Math.max(d.obSeq || 1, ...obstacles.map(o => o.id + 1)),
     lighting: { ...DEFAULT_LIGHTING, ...d.lighting },
-    style: styleOf(d.style)
+    style: styleOf(d.style),
+    // Ceiling lights placed by hand; absent = the default layout of the ceiling type (lighting.js).
+    ...(Array.isArray(d.fixtures) ? { fixtures: d.fixtures.filter(f => f && Number.isFinite(f.x) && Number.isFinite(f.y))
+      .map((f, i) => ({ id: Number(f.id) || i + 1, kind: FIXTURE_KINDS.includes(f.kind) ? f.kind : 'chandelier', x: f.x, y: f.y })) } : {})
   };
 }
 

@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { getMats, furnitureMat } from './textures3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { lightingOf, targetsFor, easeInOut, TWEEN_SEC, fixtureSpec } from '../lighting.js';
+import { lightingOf, targetsFor, easeInOut, TWEEN_SEC, fixturesSpec, defaultFixtures } from '../lighting.js';
 import { patchSpotClip } from './spotClip.js';
 
 patchSpotClip();   // spots light only their own room (before any shader is compiled)
@@ -151,14 +151,10 @@ const LUXE_FIXTURE = {
   }
 };
 
-// Chandelier: stem, hub, five arms with glowing shades; one point light.
-function chandelier(g, L, W, H, main, merged, look) {
-  if (LUXE_FIXTURE[look]) {
-    LUXE_FIXTURE[look](g, L / 2, W / 2, H);
-    addSpec(g, fixtureSpec('chandelier', L, W, H), main);
-    return;
-  }
-  const M = getMats(), cx = L / 2, cz = W / 2, y = H - 0.45;
+// Chandelier at (cx, cz): stem, hub, five arms with glowing shades (luxe collections: their own fixture).
+function chandelier(g, cx, cz, H, look) {
+  if (LUXE_FIXTURE[look]) return LUXE_FIXTURE[look](g, cx, cz, H);
+  const M = getMats(), y = H - 0.45;
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.4), M.metal);
   stem.position.set(cx, H - 0.2, cz);
   const hub = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), M.metal);
@@ -174,35 +170,56 @@ function chandelier(g, L, W, H, main, merged, look) {
     shade.position.set(cx + Math.cos(a) * r, y + 0.05, cz + Math.sin(a) * r);
     g.add(arm, shade);
   }
-  addSpec(g, fixtureSpec('chandelier', L, W, H), main);
 }
 
-// Recessed spots: 2×2 … 3×3 housings, a narrow down-light under each. merged: one wide down-light with the same
-// output instead (the lamp budget of the device tier is spent by the other rooms).
-function spots(g, L, W, H, main, merged) {
-  const spec = fixtureSpec('spots', L, W, H, { merged });
-  const disc = new THREE.CylinderGeometry(0.05, 0.05, 0.01, 20);
-  for (const d of spec.discs) {
-    const m = new THREE.Mesh(disc, getMats().lampShade);
-    m.position.set(d.x, H - 0.005, d.z);
-    g.add(m);
+// Pendant: one shade on a long cord, a little lower than a chandelier (over a table, a counter).
+function pendant(g, cx, cz, H, look) {
+  const luxe = look === 'couture' || look === 'deco';
+  const metal = luxe ? furnitureMat('brushedBrass', '', 'ok') : look === 'milano' || look === 'organic' ? furnitureMat('bronze', '', 'ok') : getMats().metal;
+  stem(g, cx, cz, H, 0.6, metal, 0.003);
+  const y = H - 0.7;
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), metal);
+  dome.position.set(cx, y, cz);
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(0.165, 32), getMats().lampShade);
+  inner.rotation.x = Math.PI / 2;
+  inner.position.set(cx, y + 0.002, cz);
+  g.add(dome, inner);
+}
+
+// A recessed spot: a flush housing in the ceiling.
+const SPOT_DISC = new THREE.CylinderGeometry(0.05, 0.05, 0.01, 20);
+function spot(g, cx, cz, H) {
+  const m = new THREE.Mesh(SPOT_DISC, getMats().lampShade);
+  m.position.set(cx, H - 0.005, cz);
+  g.add(m);
+}
+
+// LED panel: an area light (no shadows) + a glowing flat box of the light's size.
+function panel(g, cx, cz, H, l) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(l?.w || 0.6, 0.02, l?.d || 0.6), getMats().lampShade);
+  m.position.set(cx, H - 0.01, cz);
+  g.add(m);
+}
+
+// The fixtures of a room at their places (cm of the room): one group per fixture (userData.fixtureId, picked in 3D),
+// then the light sources of all of them. merged: the spots as one wide down-light (the lamp budget is spent).
+function buildFixtures(g, fixtures, L, W, H, main, merged, look) {
+  const spec = fixturesSpec(fixtures, L, W, H, { merged });
+  for (const f of fixtures) {
+    const fg = new THREE.Group(), x = f.x / 100, z = f.y / 100;
+    fg.name = 'fixture';
+    fg.userData.fixtureId = f.id;
+    if (f.kind === 'chandelier') chandelier(fg, x, z, H, look);
+    else if (f.kind === 'pendant') pendant(fg, x, z, H, look);
+    else if (f.kind === 'spot') spot(fg, x, z, H);
+    else if (f.kind === 'panel') panel(fg, x, z, H, spec.lights.find(l => l.fixture === f.id));
+    g.add(fg);
   }
   addSpec(g, spec, main);
 }
 
-// LED panel: an area light (no shadows) + a glowing flat box.
-function panel(g, L, W, H, main) {
-  const spec = fixtureSpec('panel', L, W, H), l = spec.lights[0];
-  const m = new THREE.Mesh(new THREE.BoxGeometry(l.w, 0.02, l.d), getMats().lampShade);
-  m.position.set(L / 2, H - 0.01, W / 2);
-  g.add(m);
-  addSpec(g, spec, main);
-}
-
-const FIXTURES = { chandelier, spots, panel };
-
-/** Real light sources of a fixture in a room (the lamp budget counts them). */
-export const lampCount = (ceiling, { L, W, H }) => fixtureSpec(ceiling, L, W, H).lights.length;
+/** Real light sources of a room's fixtures (the lamp budget counts them). */
+export const lampCount = (fixtures, { L, W, H }) => fixturesSpec(fixtures, L, W, H).lights.length;
 
 /**
  * Lights of a room: built when the room, its window or the fixture type change; levels are tweened.
@@ -212,16 +229,18 @@ export const lampCount = (ceiling, { L, W, H }) => fixtureSpec(ceiling, L, W, H)
  * main — the room with the camera: sky light, sun and full-size shadows; the other rooms get the same fixture.
  * merged — spots as one wide down-light (the lamp budget is spent).
  * look — the room's furniture collection: luxe ones get their own chandelier.
+ * fixtures — the room's ceiling lights (cm, lighting.js); default: the layout of the ceiling type.
+ * fade — the new fixture fades in (a new type); a moved or added light keeps the level.
  */
-export function buildLights({ L, W, H }, win, lighting, prev = null, main = true, merged = false, look = 'modern') {
-  const { ceiling } = lightingOf(lighting);
+export function buildLights({ L, W, H }, win, lighting, prev = null, main = true, merged = false, look = 'modern',
+  { fixtures = defaultFixtures(lightingOf(lighting).ceiling, L * 100, W * 100), fade = true } = {}) {
   const group = new THREE.Group();
   group.name = 'lights';
 
   // Ambient: warm floor bounce + cool sky.
   const hemi = main ? new THREE.HemisphereLight('#f4f6ff', '#8a7660', 0) : null;
   if (hemi) group.add(hemi);
-  if (FIXTURES[ceiling]) FIXTURES[ceiling](group, L, W, H, main, merged, look);
+  buildFixtures(group, fixtures, L, W, H, main, merged, look);
 
   // Sun from outside through the first window (north by default); it sinks and turns warm towards the evening.
   const sun = new THREE.DirectionalLight('#ffffff', 0);
@@ -244,7 +263,7 @@ export function buildLights({ L, W, H }, win, lighting, prev = null, main = true
   };
   const to = targetsFor(lighting);
   group.userData = { hemi, sun, ceil, place, sunScale: win ? 1 : 0.55, to, from: null, t: 1,
-    cur: prev ? { ...prev, ceil: 0 } : { ...to } };
+    cur: prev ? { ...prev, ceil: fade ? 0 : prev.ceil } : { ...to } };
   applyLevels(group);
   if (prev) setLightTargets(group, lighting, true);
   return group;

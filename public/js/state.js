@@ -8,9 +8,10 @@ import { getLang } from './i18n.js';
 import { newOpening, clampOpening, defaultOpenings } from './openings.js';
 import { newObstacle, nicheLedges, clampObstacle } from './obstacles.js';
 import { styleOf } from './style.js';
-import { DEFAULT_LIGHTING } from './lighting.js';
+import { DEFAULT_LIGHTING, fixturesOf, clampFixture, FIXTURE_KINDS } from './lighting.js';
 import { rotateLegal } from './placement.js';
-import { roomView as aptRoomView, moveItemBetween, posOf, doorZones } from './apartment.js';
+import { roomView as aptRoomView, moveItemBetween, posOf, doorZones, leafDoors } from './apartment.js';
+import { doorSwingRect } from './openings.js';
 
 export const state = {
   rooms: [],          // the apartment: room docs with pos (see storage.js); the active one is mirrored below
@@ -28,6 +29,8 @@ export const state = {
   obstacles: [],      // columns, ducts, ledges, radiators — see obstacles.js
   obSeq: 1,
   selectedObstacle: null,
+  fixtures: null,     // ceiling lights of the room [{ id, kind, x, y }]; null = the default layout (lighting.js)
+  selectedFixture: null,
   lighting: { scene: 'day', ceiling: 'chandelier' },   // 3D light: see 3d/lights3d.js
   style: styleOf(),   // walls, floor, furniture style: see style.js
   catalog: [],        // furniture types (catalog.json → items)
@@ -42,7 +45,7 @@ export function onChange(fn) { listeners.add(fn); }
 export function emit() { listeners.forEach(fn => fn(state)); }
 
 // Fields of the active room that live directly on the state.
-const ROOM_KEYS = ['room', 'items', 'seq', 'openings', 'openingsLocked', 'opSeq', 'obstacles', 'obSeq', 'style'];
+const ROOM_KEYS = ['room', 'items', 'seq', 'openings', 'openingsLocked', 'opSeq', 'obstacles', 'obSeq', 'style', 'fixtures'];
 
 export const activeRoomDoc = () => state.rooms.find(r => r.id === state.activeRoomId) || null;
 
@@ -58,6 +61,7 @@ function loadActive() {
   const r = activeRoomDoc();
   if (!r) return;
   for (const k of ROOM_KEYS) state[k] = r[k];
+  state.fixtures ??= null;
   state.openings ??= r.openings = defaultOpenings(state.room);
   state.obstacles ??= r.obstacles = [];
   state.style = r.style = styleOf(r.style);
@@ -85,6 +89,7 @@ function clearStaleSelection() {
   if (!getItem(state.selectedId)) state.selectedId = null;
   state.selectedIds = new Set([...state.selectedIds].filter(id => getItem(id)));
   if (!getOpening(state.selectedOpening)) state.selectedOpening = null;
+  if (!getFixture(state.selectedFixture)) state.selectedFixture = null;
 }
 
 // Any room in the old single-room shape (the active one is the live state itself).
@@ -95,7 +100,7 @@ export function setActiveRoom(id) {
   if (id === state.activeRoomId || !state.rooms.some(r => r.id === id)) return false;
   syncActive();
   state.activeRoomId = id;
-  Object.assign(state, { selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null });
+  Object.assign(state, { selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, selectedFixture: null, found: null });
   loadActive();
   emit();
   return true;
@@ -258,7 +263,7 @@ export function rotateItem(item) {
 export function select(id) {
   state.selectedId = id;
   state.selectedIds = new Set();
-  if (id !== null) { state.selectedOpening = null; state.selectedObstacle = null; }
+  if (id !== null) { state.selectedOpening = null; state.selectedObstacle = null; state.selectedFixture = null; }
   emit();
 }
 
@@ -268,7 +273,7 @@ export const selectedOpening = () => getOpening(state.selectedOpening);
 
 export function selectOpening(id) {
   state.selectedOpening = id;
-  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedObstacle = null; }
+  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedObstacle = null; state.selectedFixture = null; }
   emit();
 }
 
@@ -300,7 +305,7 @@ export const selectedOb = () => getObstacle(state.selectedObstacle);
 
 export function selectObstacle(id) {
   state.selectedObstacle = id;
-  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedOpening = null; }
+  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedOpening = null; state.selectedFixture = null; }
   emit();
 }
 
@@ -336,5 +341,75 @@ export function updateObstacle(o, patch) {
 
 export function setOpeningsLocked(v) {
   state.openingsLocked = v;
+  emit();
+}
+
+// ---- ceiling lights (lighting.js: kinds, default layout, light sources) ----
+/** The room's fixtures; editing one first gives the room its own copy of the default layout. */
+export const roomFixtures = () => fixturesOf(state, state.lighting);
+export const getFixture = id => id === null ? null : roomFixtures().find(f => f.id === id) || null;
+function ownFixtures() {
+  if (!Array.isArray(state.fixtures)) state.fixtures = roomFixtures().map(f => ({ ...f }));
+  return state.fixtures;
+}
+/** The fixture as an editable object of the room's own list. */
+export const ownFixture = id => ownFixtures().find(f => f.id === id) || null;
+
+export function selectFixture(id) {
+  state.selectedFixture = id;
+  if (id !== null) { state.selectedId = null; state.selectedIds = new Set(); state.selectedOpening = null; state.selectedObstacle = null; }
+  emit();
+}
+
+export function addFixture(kind) {
+  const list = ownFixtures(), { L, W } = state.room;
+  const id = Math.max(0, ...list.map(f => f.id)) + 1;
+  // In the middle, or a step aside from a fixture already there.
+  let { x, y } = clampFixture(L / 2, W / 2, L, W);
+  for (let k = 1; list.some(f => Math.hypot(f.x - x, f.y - y) < 30) && k < 12; k++) ({ x, y } = clampFixture(L / 2 + 40 * k, W / 2, L, W));
+  const f = { id, kind: FIXTURE_KINDS.includes(kind) ? kind : 'chandelier', x, y };
+  list.push(f);
+  selectFixture(id);
+  return f;
+}
+
+/** Hanging lights (chandelier, pendant) stay off the swing of a door leaf. → the reason or null */
+export function fixtureConflict(f, x, y) {
+  if (f.kind !== 'chandelier' && f.kind !== 'pendant') return null;
+  const inside = r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  return leafDoors(state).some(d => inside(doorSwingRect(d, state.room))) ? { key: 'err.fxDoor', params: {} } : null;
+}
+
+/** Move a fixture (snapped, off the walls); → { ok, reason } — over a door swing it stays where it was. */
+export function moveFixture(f, x, y) {
+  // The snap step from the wall (the plinth is on the floor, not on the ceiling).
+  const g = Math.max(1, state.settings.snap || 1), snap = v => Math.round(v / g) * g;
+  const p = clampFixture(snap(x), snap(y), state.room.L, state.room.W);
+  const reason = fixtureConflict(f, p.x, p.y);
+  if (reason) return { ok: false, reason, x: p.x, y: p.y };
+  if (p.x === f.x && p.y === f.y) return { ok: true };
+  f.x = p.x; f.y = p.y;
+  emit();
+  return { ok: true };
+}
+
+export function removeFixture(id) {
+  state.fixtures = ownFixtures().filter(f => f.id !== id);
+  if (state.selectedFixture === id) state.selectedFixture = null;
+  emit();
+}
+
+/** The next kind of fixture at the same place (R). */
+export function cycleFixture(f) {
+  f.kind = FIXTURE_KINDS[(FIXTURE_KINDS.indexOf(f.kind) + 1) % FIXTURE_KINDS.length];
+  emit();
+}
+
+/** A new ceiling type for the whole apartment: every room gets its default layout again. */
+export function setCeiling(ceiling) {
+  state.lighting = { ...state.lighting, ceiling };
+  state.fixtures = null;
+  for (const r of state.rooms) delete r.fixtures;
+  state.selectedFixture = null;
   emit();
 }

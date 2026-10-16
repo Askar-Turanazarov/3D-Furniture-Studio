@@ -2,6 +2,7 @@
 // The live plan shows the whole apartment: every room at its pos, the active one is the editable live state.
 // Screen ↔ world (toScreen / toWorld) stay in the active room's local cm, so the per-room code is unchanged;
 // toPlan / planToScreen work in apartment cm.
+import { fixturesOf } from './lighting.js';
 import { state, itemName, isSelected, syncActive } from './state.js';
 import { roomRect, overlapsRooms, doorLinks, posOf, roomArea, twinDoors } from './apartment.js';
 import { drawGlyph, isLight } from './glyphs.js';
@@ -88,7 +89,7 @@ export function drawNow(opts = {}) {
 //         errors — Map of a doc, or roomId → Map for an apartment; dpr, scale — px per cm (default: fit),
 //         drawing — white sheet, no grid/zones; walls — every item's distances to the walls; numbers — Map id → №; pad }
 // Nothing of the live plan (selection, zoom, errors) is changed. → { scale, ox, oy } of the drawn plan.
-const DOC_KEYS = ['room', 'items', 'openings', 'obstacles', 'settings', 'style', 'rooms', 'activeRoomId',
+const DOC_KEYS = ['room', 'items', 'openings', 'obstacles', 'fixtures', 'selectedFixture', 'settings', 'style', 'rooms', 'activeRoomId',
   'selectedId', 'selectedIds', 'selectedOpening', 'selectedObstacle', 'found'];
 export function drawPlanTo(target, w, h, opts = {}) {
   const saved = { canvas, ctx, lastW, lastH, view: { ...view }, errors, obWarnings, passages, roomErrors, fitLock };
@@ -130,7 +131,7 @@ const aptMode = () => !drawOpts.single && state.rooms.length > 0;
 // Room docs with the live fields for the active one (its doc is synced only on save).
 export function liveRooms() {
   return state.rooms.map(r => r.id !== state.activeRoomId ? r
-    : { ...r, room: state.room, items: state.items, openings: state.openings, obstacles: state.obstacles, style: state.style });
+    : { ...r, room: state.room, items: state.items, openings: state.openings, obstacles: state.obstacles, style: state.style, fixtures: state.fixtures });
 }
 
 // Apartment bounds in cm (a single room: the room itself).
@@ -169,7 +170,7 @@ function inRoom(r, fn) {
   try {
     Object.assign(state, {
       room: r.room, items: r.items || [], openings: r.openings || [], obstacles: r.obstacles || [], style: r.style,
-      selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null
+      fixtures: r.fixtures ?? null, selectedFixture: null, selectedId: null, selectedIds: new Set(), selectedOpening: null, selectedObstacle: null, found: null
     });
     [view.ox, view.oy] = planToScreen(p.x, p.y);
     errors = roomErrors.get(r.id) || new Map();
@@ -305,6 +306,7 @@ function drawContent(now, sheet, live = true) {
   drawObstacles(true);    // ceiling ducts and other high structure over the furniture
   if (!sheet) { drawZones(sel); if (live) drawPassages(); }
   drawOpenings();   // over the furniture: a blocked door swing stays visible
+  if (!sheet && !drawOpts.clean) drawFixtures(live);   // ceiling lights on top: a layer of their own
   if (sel && state.selectedIds.size === 0) drawClearances(sel);
   if (drawOpts.walls) for (const it of state.items) drawClearances(it, true);
   if (live && !drawOpts.clean) {
@@ -881,6 +883,66 @@ function drawMeasure(a, b, preview) {
 }
 
 // Where the item was pulled but may not stand: a red dashed ghost and the reason on a dark label above it.
+// Ceiling lights: dashed outlines of what hangs from the ceiling (lighting.js fixtures), gold when selected.
+/** Size of a fixture's symbol on the plan, cm: { r } for round ones, { w, h } for a panel. */
+export function fixtureShape(f, room) {
+  if (f.kind === 'panel') return { w: Math.min(120, room.L * 0.4), h: Math.min(60, room.W * 0.3) };
+  return { r: f.kind === 'chandelier' ? 32 : f.kind === 'pendant' ? 18 : 6 };
+}
+
+function drawFixtures(live) {
+  const list = fixturesOf(state, state.lighting);
+  if (!list.length) return;
+  ctx.save();
+  for (const f of list) {
+    const sel = live && f.id === state.selectedFixture;
+    const [cx, cy] = toScreen(f.x, f.y), sh = fixtureShape(f, state.room);
+    ctx.strokeStyle = sel ? COLORS.selected : 'rgba(201, 169, 110, .75)';
+    ctx.fillStyle = sel ? 'rgba(201, 169, 110, .22)' : 'rgba(201, 169, 110, .08)';
+    ctx.lineWidth = sel ? 2 : 1.2;
+    ctx.setLineDash(f.kind === 'spot' ? [] : [4, 3]);
+    ctx.beginPath();
+    if (sh.w) {
+      const w = sh.w * view.scale, h = sh.h * view.scale;
+      ctx.rect(cx - w / 2, cy - h / 2, w, h);
+    } else ctx.arc(cx, cy, Math.max(f.kind === 'spot' ? 4 : 7, sh.r * view.scale), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // The centre: a cross for hanging lights, a dot for spots.
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    if (f.kind === 'spot') ctx.arc(cx, cy, 1.6, 0, Math.PI * 2);
+    else { ctx.moveTo(cx - 4, cy); ctx.lineTo(cx + 4, cy); ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + 4); }
+    ctx.stroke();
+    if (sel) {
+      ctx.font = '600 11px Manrope, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      const name = t('fx.' + f.kind), r = sh.r ? Math.max(7, sh.r * view.scale) : sh.h * view.scale / 2;
+      const tw = ctx.measureText(name).width + 10;
+      ctx.fillStyle = 'rgba(14, 14, 16, .85)';
+      ctx.beginPath();
+      ctx.roundRect(cx - tw / 2, cy - r - 22, tw, 18, 5);
+      ctx.fill();
+      ctx.fillStyle = '#f3ece2';
+      ctx.fillText(name, cx, cy - r - 7);
+    }
+  }
+  ctx.restore();
+}
+
+/** The fixture under a point of the active room (cm), or null; tol — cm around small symbols. */
+export function fixtureAt(x, y, tol) {
+  const list = fixturesOf(state, state.lighting);
+  for (let i = list.length - 1; i >= 0; i--) {
+    const f = list[i], sh = fixtureShape(f, state.room);
+    const hit = sh.w ? Math.abs(x - f.x) <= sh.w / 2 && Math.abs(y - f.y) <= sh.h / 2 && Math.hypot(x - f.x, y - f.y) <= Math.max(tol * 2, 25)
+      : Math.hypot(x - f.x, y - f.y) <= Math.max(tol, Math.min(sh.r, 14));
+    if (hit) return f;
+  }
+  return null;
+}
+
 function drawBlockGhost(b) {
   const [x0, y0] = toScreen(b.x, b.y), [x1, y1] = toScreen(b.x + b.w, b.y + b.h);
   ctx.save();

@@ -3,6 +3,8 @@
 // (a copy in this browser's projects) and a request for the apartment (POST /api/order with apartmentRef).
 // The main view is the building in 3D (bld3d/exterior.js); the floor grid stays as a scheme and without WebGL.
 import { t, getLang, langPath, initLangSwitcher, onLangChange } from './i18n.js';
+import { initTheme } from './theme.js';
+import { initIcons } from './icons.js';
 import { roomRect, roomArea } from './apartment.js';
 import { rectOf } from './geometry.js';
 import { DEPTH, TYPES, localRoomName } from './building.js';
@@ -603,6 +605,8 @@ function bind() {
 
 async function start() {
   initLangSwitcher();
+  initTheme();
+  initIcons();
   try {
     const res = await fetch('/api/buildings/' + encodeURIComponent(BUILDING));
     if (!res.ok) throw new Error(res.status);

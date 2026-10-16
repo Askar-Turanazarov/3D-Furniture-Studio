@@ -1,6 +1,8 @@
 // Manager page: orders from order.json, statuses, notes. Every request carries Authorization: Bearer <ADMIN_TOKEN>;
 // the token lives only in this tab (sessionStorage). User data is put into the page as text, never as HTML.
 import { t, getLang, applyStatic, initLangSwitcher, onLangChange } from './i18n.js';
+import { initTheme } from './theme.js';
+import { initIcons } from './icons.js';
 
 const $ = id => document.getElementById(id);
 const STATUSES = ['new', 'inWork', 'measure', 'done', 'cancelled'];
@@ -216,6 +218,8 @@ function fillFilter() {
 function init() {
   applyStatic();
   initLangSwitcher();
+  initTheme();
+  initIcons();
   fillFilter();
   onLangChange(() => {
     fillFilter();

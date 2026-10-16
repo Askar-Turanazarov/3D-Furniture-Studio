@@ -1,4 +1,6 @@
 import { t, initLangSwitcher, onLangChange } from './i18n.js';
+import { initTheme } from './theme.js';
+import { initIcons } from './icons.js';
 import { state, onChange, emit, itemName, docFromState, applyDoc } from './state.js';
 import { history } from './history.js';
 import { findSpot } from './autoplace.js';
@@ -220,6 +222,8 @@ async function startEmbed() {
 async function start() {
   if (embed) document.body.classList.add('embed');
   initLangSwitcher();
+  initTheme();
+  initIcons();
   initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
   initInteraction(document.getElementById('plan'));
   initUI({ autoPlace });

@@ -3,13 +3,15 @@ const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
-// .env (KEY=value lines) without extra dependencies; real environment variables win.
-try {
-  for (const line of require('fs').readFileSync(path.join(__dirname, '.env'), 'utf8').split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
-  }
-} catch { /* no .env */ }
+// .env.local (`vercel env pull`) and .env (KEY=value lines) without extra dependencies; real environment variables win.
+for (const file of ['.env.local', '.env']) {
+  try {
+    for (const line of require('fs').readFileSync(path.join(__dirname, file), 'utf8').split(/\r?\n/)) {
+      const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+    }
+  } catch { /* no file */ }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,9 +33,12 @@ app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 
+// Files of the deployment: the CDN may keep them (a new deployment starts with an empty cache).
+const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
+
 app.get('/api/catalog', async (req, res) => {
   try {
-    res.type('json').send(await fs.readFile(CATALOG, 'utf8'));
+    res.set('Cache-Control', SHARED_JSON).type('json').send(await fs.readFile(CATALOG, 'utf8'));
   } catch (e) {
     res.status(500).json({ error: 'catalog_unavailable' });
   }
@@ -41,7 +46,7 @@ app.get('/api/catalog', async (req, res) => {
 
 app.get('/api/templates', async (req, res) => {
   try {
-    res.type('json').send(await fs.readFile(TEMPLATES, 'utf8'));
+    res.set('Cache-Control', SHARED_JSON).type('json').send(await fs.readFile(TEMPLATES, 'utf8'));
   } catch (e) {
     res.status(500).json({ error: 'templates_unavailable' });
   }
@@ -49,7 +54,7 @@ app.get('/api/templates', async (req, res) => {
 
 app.get('/api/apartments', async (req, res) => {
   try {
-    res.type('json').send(await fs.readFile(APARTMENTS, 'utf8'));
+    res.set('Cache-Control', SHARED_JSON).type('json').send(await fs.readFile(APARTMENTS, 'utf8'));
   } catch (e) {
     res.status(500).json({ error: 'apartments_unavailable' });
   }

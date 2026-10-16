@@ -12,3 +12,6 @@ CLAUDE.md
 public/textures/lib/
 data/
 .mcp.json
+public/vendor/
+.env.local
+.vercel/

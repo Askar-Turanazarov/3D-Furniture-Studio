@@ -67,6 +67,16 @@ Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/
 2. Restart `npm start`, open http://localhost:3000/admin.html and enter the token (kept only in this browser tab). Requests go with `Authorization: Bearer <token>`.
 3. Without `ADMIN_TOKEN` the API answers 503 and the page says it is disabled.
 
+### Deploy to Vercel
+
+1. Import the GitHub repository in Vercel (the Express app in `server.js` is detected by itself; `vercel.json` copies three.js into `public/vendor/three/` at build time and puts the functions in Frankfurt, `fra1`).
+2. Storage → **Neon** (region Frankfurt, `eu-central-1`) — gives `DATABASE_URL`: orders, their pictures and apartment statuses go to Postgres, the tables are created on the first request.
+3. Storage → **Blob** (public) — gives `BLOB_READ_WRITE_TOKEN`: room texture sets downloaded on demand are kept there and served at the same `/textures/lib/` address (the CDN caches them). The facade and site sets are in the project.
+4. Settings → Environment Variables → `ADMIN_TOKEN` (a long random string) for `/admin.html`.
+5. Redeploy. Locally `vercel env pull` writes the variables to `.env.local` (not committed), `npm start` then uses the same database; `npm run textures -- --blob` fills Blob in advance.
+
+Limits: an order is at most ≈ 4 MB (pictures are shrunk in the browser); own texture photos stay in the visitor's browser (IndexedDB). Without `DATABASE_URL` everything is kept in files, as in local work — on Vercel those files do not last.
+
 ### Controls
 | Where | Action | How |
 |---|---|---|
@@ -188,6 +198,16 @@ http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localho
 1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
 2. `npm start` ni qayta ishga tushiring, http://localhost:3000/admin.html ni oching va tokenni kiriting (faqat shu brauzer yorlig‘ida saqlanadi). So‘rovlar `Authorization: Bearer <token>` bilan yuboriladi.
 3. `ADMIN_TOKEN` bo‘lmasa API 503 qaytaradi, sahifa o‘chirilganini aytadi.
+
+### Vercel’ga joylash
+
+1. GitHub repozitoriyasini Vercel’ga import qiling (`server.js`dagi Express ilovasi o‘zi aniqlanadi; `vercel.json` qurishda three.js’ni `public/vendor/three/`ga ko‘chiradi va funksiyalarni Frankfurtga, `fra1`, qo‘yadi).
+2. Storage → **Neon** (Frankfurt mintaqasi, `eu-central-1`) — `DATABASE_URL` beradi: arizalar, ularning rasmlari va kvartira holatlari Postgres’da, jadvallar birinchi so‘rovda yaratiladi.
+3. Storage → **Blob** (public) — `BLOB_READ_WRITE_TOKEN` beradi: kerak bo‘lganda yuklanadigan xona teksturalari shu yerda saqlanadi va o‘sha `/textures/lib/` manzilida beriladi (CDN keshlaydi). Fasad va hovli to‘plamlari loyihada.
+4. Settings → Environment Variables → `/admin.html` uchun `ADMIN_TOKEN` (uzun tasodifiy satr).
+5. Qayta deploy qiling. Lokal ravishda `vercel env pull` o‘zgaruvchilarni `.env.local`ga yozadi (commit qilinmaydi), shunda `npm start` o‘sha bazadan foydalanadi; `npm run textures -- --blob` Blob’ni oldindan to‘ldiradi.
+
+Cheklovlar: ariza ≈ 4 MB gacha (rasmlar brauzerda kichraytiriladi); o‘z tekstura fotolaringiz tashrif buyuruvchining brauzerida qoladi (IndexedDB). `DATABASE_URL` bo‘lmasa hammasi lokal ishdagidek fayllarda saqlanadi — Vercel’da bu fayllar saqlanib qolmaydi.
 
 ### Boshqaruv
 | Qayerda | Amal | Qanday |
@@ -311,6 +331,16 @@ npm start
 1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.
 2. Перезапустите `npm start`, откройте http://localhost:3000/admin.html и введите токен (хранится только в этой вкладке браузера). Запросы идут с `Authorization: Bearer <токен>`.
 3. Без `ADMIN_TOKEN` API отвечает 503, а страница пишет, что отключена.
+
+### Деплой на Vercel
+
+1. Импортируйте GitHub-репозиторий в Vercel (Express-приложение из `server.js` определяется само; `vercel.json` при сборке копирует three.js в `public/vendor/three/` и ставит функции во Франкфурт, `fra1`).
+2. Storage → **Neon** (регион Франкфурт, `eu-central-1`) — даёт `DATABASE_URL`: заявки, их картинки и статусы квартир хранятся в Postgres, таблицы создаются при первом запросе.
+3. Storage → **Blob** (public) — даёт `BLOB_READ_WRITE_TOKEN`: наборы текстур комнат, скачанные по требованию, хранятся там и отдаются по тому же адресу `/textures/lib/` (их кэширует CDN). Наборы фасада и участка — в проекте.
+4. Settings → Environment Variables → `ADMIN_TOKEN` (длинная случайная строка) для `/admin.html`.
+5. Сделайте Redeploy. Локально `vercel env pull` записывает переменные в `.env.local` (не в git), тогда `npm start` работает с той же базой; `npm run textures -- --blob` заранее заполняет Blob.
+
+Ограничения: заявка — до ≈ 4 МБ (картинки уменьшаются в браузере); свои фото-текстуры остаются в браузере посетителя (IndexedDB). Без `DATABASE_URL` всё хранится в файлах, как при локальной работе, — на Vercel эти файлы не сохраняются.
 
 ### Управление
 | Где | Действие | Как |

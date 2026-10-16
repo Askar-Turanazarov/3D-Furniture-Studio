@@ -10,7 +10,7 @@ const { listZip, readEntry } = require('./zip');
 const ROOT = path.join(__dirname, '..', 'public', 'textures');
 const LIB_DIR = path.join(ROOT, 'lib');
 const MAX_ZIP = 40 * 1024 * 1024;
-const TIMEOUT = 90 * 1000;
+const TIMEOUT = 50 * 1000;   // below the 60 s function limit on Vercel
 const MAPS = { color: /_Color\.jpg$/i, normal: /_NormalGL\.jpg$/i, roughness: /_Roughness\.jpg$/i, opacity: /_Opacity\.jpg$/i };
 const DEFAULT_MAPS = ['color', 'normal', 'roughness'];
 const mapsOf = e => (Array.isArray(e.maps) ? e.maps.filter(k => MAPS[k]) : DEFAULT_MAPS);
@@ -131,24 +131,29 @@ async function download(url) {
   }
 }
 
-let busy = false;
+// One download at a time (per function instance): the others wait in a short queue; the same set asked
+// again shares its download. A longer queue answers 'busy' (429) — the page retries.
+const MAX_QUEUE = 2;
+let tail = Promise.resolve(), queued = 0;
+const inFlight = new Map();
 
-// Download and unpack one set; one download at a time (per function instance).
 async function fetchSet(id, { log = () => {} } = {}) {
   const e = await downloadable(id);
   if (!e) throw Object.assign(new Error('unknown set'), { status: 404 });
-  if (busy) throw Object.assign(new Error('busy'), { status: 429 });
-  busy = true;
-  try {
+  if (inFlight.has(id)) return inFlight.get(id);
+  if (queued > MAX_QUEUE) throw Object.assign(new Error('busy'), { status: 429 });
+  queued++;
+  const run = tail.then(async () => {
     const asset = e.source.ambientcg;
     log(`${id}: downloading ${asset}_1K-JPG.zip`);
     const buf = await download(`https://ambientcg.com/get?file=${asset}_1K-JPG.zip`);
     const maps = mapsFromZip(buf, mapsOf(e));
     for (const [k, data] of Object.entries(maps)) await libStore().write(id, k, data);
     log(`${id}: ${(buf.length / 1048576).toFixed(1)} MB zip → ${libStore().kind}`);
-  } finally {
-    busy = false;
-  }
+  }).finally(() => { queued--; inFlight.delete(id); });
+  tail = run.catch(() => {});
+  inFlight.set(id, run);
+  return run;
 }
 
 module.exports = { fetchSet, libraryStatus, readLibMap, mapsFromZip, downloadable, blobStore, LIB_DIR };

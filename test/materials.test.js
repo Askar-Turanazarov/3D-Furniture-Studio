@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { itemLook, hasFacade, setItemMaterial, setItemColor } from '../public/js/materials.js';
+import { itemLook, hasFacade, setItemMaterial, setItemColor, MAT_KINDS } from '../public/js/materials.js';
 import { item } from './helpers.js';
 
 const cat = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url), 'utf8'));
@@ -10,7 +10,7 @@ const M = cat.materials;
 test('catalog materials: ids unique, kinds known, names in 3 languages', () => {
   assert.equal(new Set(M.map(m => m.id)).size, M.length);
   for (const m of M) {
-    assert.ok(['wood', 'solid', 'gloss', 'fabric'].includes(m.kind), m.id);
+    assert.ok(MAT_KINDS.includes(m.kind), m.id);
     assert.match(m.color, /^#[0-9a-f]{6}$/i);
     assert.ok(m.priceRate > 0);
     for (const l of ['ru', 'uz', 'en']) assert.ok(m.name[l], `${m.id} ${l}`);

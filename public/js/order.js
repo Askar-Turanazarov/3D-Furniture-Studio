@@ -26,9 +26,9 @@ function roomPayload(r) {
       type: i.type, name: itemName(i), w: i.w, d: i.d, h: i.h, x: i.x, y: i.y, rot: i.rot,
       elev: i.elev, open: i.open, materials: i.materials, color: i.color,
       ...(configurable(i) ? { sections: sectionCount(i), drawers: drawerCount(i) } : {}),
-      price: estimate(i, cat)?.total ?? null
+      price: estimate(i, { ...cat, style: r.style })?.total ?? null
     })),
-    estimate: roomEstimate(r.items, cat).total
+    estimate: roomEstimate(r.items, { ...cat, style: r.style }).total
   };
 }
 

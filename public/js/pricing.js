@@ -5,7 +5,9 @@
 //   drawers: carcass + facade m² + drawers × drawerRate
 //   kitchen: base + upper (if tall) + countertop per running metre + facade m²
 //   price:   ready-made item, fixed price; no entry — not part of the order (appliances, lamps).
+//   styleK:  { <furniture style>: k } — luxe collections cost k times more (catalog.style — the room style).
 import { matById } from './materials.js';
+import { itemStyle } from './style.js';
 import { openSpec } from './zones.js';
 import { sectionCount, drawerCount, slideDoors } from './config.js';
 
@@ -14,7 +16,11 @@ const ROUND = 10000;
 export function estimate(item, catalog = {}) {
   const pricing = catalog.pricing || {}, p = pricing.types?.[item.type];
   if (!p) return null;
-  if (p.price) return { total: p.price, lines: [{ key: 'fixed', sum: p.price }] };
+  const k = Number(pricing.styleK?.[itemStyle(item, catalog.style)]) || 1;
+  if (p.price) {
+    const total = Math.round(p.price * k / ROUND) * ROUND;
+    return { total, lines: [{ key: 'fixed', sum: p.price }, ...(k !== 1 ? [{ key: 'style', sum: total - p.price }] : [])] };
+  }
 
   const def = pricing.defaultRate || 170000, mats = catalog.materials || [];
   const bodyRate = matById(mats, item.materials?.body)?.priceRate || def;
@@ -40,7 +46,9 @@ export function estimate(item, catalog = {}) {
     }
     add('drawers', drawerCount(item) * (p.drawerRate || 0));
   }
-  const total = Math.round(lines.reduce((s, l) => s + l.sum, 0) / ROUND) * ROUND;
+  const base = lines.reduce((s, l) => s + l.sum, 0);
+  if (k !== 1) add('style', base * (k - 1));
+  const total = Math.round(base * k / ROUND) * ROUND;
   return { total, lines: lines.map(l => ({ ...l, sum: Math.round(l.sum) })) };
 }
 

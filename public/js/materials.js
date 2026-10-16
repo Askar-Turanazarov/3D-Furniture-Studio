@@ -1,6 +1,12 @@
 // Catalog materials (catalog.json → materials) on furniture. Pure helpers.
-// material = { id, name{ru,uz,en}, kind: 'wood'|'solid'|'gloss'|'fabric', color, priceRate (sum / m²) }
+// material = { id, name{ru,uz,en}, kind: one of MAT_KINDS, color, priceRate (sum / m²) }
 // item.materials = { body?, facade? } — material ids; the facade falls back to the body.
+
+// Luxe kinds are the collection materials (textures3d furnitureMat: photo set or procedural look).
+export const UPHOLSTERY = ['fabric', 'boucle', 'velvet', 'linen', 'leatherQuilt', 'leatherCream', 'leatherBlack'];
+export const MAT_KINDS = ['wood', 'solid', 'gloss', 'veneer', 'burl', 'oak', 'lacquer', 'marble', 'marbleNero', 'travertine', ...UPHOLSTERY];
+// Boards (carcass, fronts, tops) or upholstery: a chosen material replaces only the parts of its family.
+export const familyOf = kind => UPHOLSTERY.includes(kind) ? 'fabric' : 'board';
 
 export const matById = (materials, id) => (id && materials.find(m => m.id === id)) || null;
 

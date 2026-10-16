@@ -58,3 +58,13 @@ test('configuration counts follow the 3D defaults and are clamped', () => {
   assert.equal(drawerCount({ type: 'dresser', w: 100, d: 45, h: 90, drawers: 0 }), 1);
   assert.equal(slideDoors(wardrobe({ open: { kind: 'slide', doors: 5 } })), 3);
 });
+
+test('luxe collections cost more: styleK by the item or room style', () => {
+  const base = estimate(wardrobe(), catalog).total;
+  const room = estimate(wardrobe(), { ...catalog, style: { furniture: 'couture' } });
+  assert.ok(room.total > base * 3 - 20000 && room.lines.some(l => l.key === 'style'));
+  assert.equal(estimate(wardrobe({ style: 'modern' }), { ...catalog, style: { furniture: 'couture' } }).total, base);
+  const sofa = { type: 'sofa', w: 200, d: 90, h: 85, style: 'milano' };
+  assert.ok(estimate(sofa, catalog).total > catalog.pricing.types.sofa.price * 2);
+  assert.equal(estimate(wardrobe(), { ...catalog, pricing: { ...catalog.pricing, styleK: undefined }, style: { furniture: 'deco' } }).total, base);
+});

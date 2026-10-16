@@ -3,6 +3,7 @@ import { state, emit, selected } from './state.js';
 import { t, getLang } from './i18n.js';
 import { hasFacade, setItemMaterial, setItemColor } from './materials.js';
 import { FURN_STYLES, styleOf } from './style.js';
+import { furnStyleOptions } from './stylePanel.js';
 
 const $ = id => document.getElementById(id);
 const matName = m => m.name[getLang()] || m.name.ru;
@@ -62,7 +63,7 @@ export function renderMatPanel(it) {
   if (sel.dataset.key !== key) {
     sel.dataset.key = key;
     sel.replaceChildren(new Option(t('style.asRoom', { s: t('style.f.' + styleOf(state.style).furniture) }), ''),
-      ...FURN_STYLES.map(v => new Option(t('style.f.' + v), v)));
+      ...furnStyleOptions());
   }
   sel.value = FURN_STYLES.includes(it.style) ? it.style : '';
   const inp = $('itemColor');

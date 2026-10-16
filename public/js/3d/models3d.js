@@ -3,10 +3,10 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { MORE_BUILDERS } from './models3dMore.js';
-import { furnitureMat } from './textures3d.js';
+import { furnitureMat, preloadSets } from './textures3d.js';
 import { rectOf } from '../geometry.js';
-import { itemLook } from '../materials.js';
-import { itemStyle } from '../style.js';
+import { itemLook, familyOf } from '../materials.js';
+import { itemStyle, packsOf } from '../style.js';
 import { openSpec } from '../zones.js';
 import { sectionCount, drawerCount, slideDoors } from '../config.js';
 
@@ -97,7 +97,7 @@ const FAMILY = { wood: 'board', dark: 'board', plain: 'board', fabric: 'fabric' 
 // A chosen material replaces the parts of the same family (boards or upholstery); metal, glass etc. stay.
 function fm(kind, c, s, role = 'body') {
   const m = look[role];
-  if (m && FAMILY[kind] === (m.kind === 'fabric' ? 'fabric' : 'board')) return furnitureMat(m.kind, m.color, s);
+  if (m && FAMILY[kind] === familyOf(m.kind)) return furnitureMat(m.kind, m.color, s);
   return furnitureMat(kind, c, s);
 }
 
@@ -647,6 +647,7 @@ export function buildItem(item, status, materials = [], roomStyle, catalog = [])
   const make = BUILDERS[item.type] || generic;
   look = itemLook(item, materials);
   sty = itemStyle(item, roomStyle);
+  preloadSets(packsOf(sty));      // luxe collections: their photo sets (downloaded on first use)
   movers = [];
   openKind = item.open?.kind || null;
   const spec = openSpec(item, catalog);

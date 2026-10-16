@@ -670,6 +670,10 @@ dialog h2 { margin: 0 0 18px; font: 500 28px/1.1 var(--f-display); letter-spacin
 .swatch:hover { transform: scale(1.08); }
 .swatch.k-wood { background-image: repeating-linear-gradient(100deg, rgba(0,0,0,.1) 0 2px, transparent 2px 6px); }
 .swatch.k-gloss { background-image: linear-gradient(135deg, rgba(255,255,255,.75) 0 22%, transparent 45%); }
+.swatch.k-veneer, .swatch.k-burl, .swatch.k-oak { background-image: repeating-linear-gradient(100deg, rgba(0,0,0,.12) 0 1px, transparent 1px 4px), radial-gradient(ellipse at 30% 40%, rgba(0,0,0,.14), transparent 60%); }
+.swatch.k-lacquer { background-image: linear-gradient(135deg, rgba(255,255,255,.55) 0 18%, transparent 40%); }
+.swatch.k-marble, .swatch.k-marbleNero, .swatch.k-travertine { background-image: linear-gradient(120deg, transparent 40%, rgba(128,128,128,.45) 42%, transparent 46%), linear-gradient(60deg, transparent 62%, rgba(128,128,128,.3) 63%, transparent 66%); }
+.swatch.k-boucle, .swatch.k-velvet, .swatch.k-linen, .swatch.k-leatherQuilt, .swatch.k-leatherCream, .swatch.k-leatherBlack,
 .swatch.k-fabric { background-image: radial-gradient(rgba(0,0,0,.16) 1px, transparent 1.2px); background-size: 4px 4px; }
 .swatch.none { background: var(--surface-2); }
 .swatch.active { outline: 1px solid var(--gold); outline-offset: 3px; }

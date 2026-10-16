@@ -1,16 +1,24 @@
 // Room finish panel: wall material and colour, accent wall, floor (roomDoc.style, saved and undoable).
 import { state, emit, onChange } from './state.js';
 import { t, onLangChange } from './i18n.js';
-import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR, FURN_STYLES, FINISHES } from './style.js';
+import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR, COLLECTIONS, FINISHES } from './style.js';
 
 const $ = id => document.getElementById(id);
+
+// Furniture styles grouped by collection (the base ones and the luxe ones).
+export const furnStyleOptions = () => COLLECTIONS.map(c => {
+  const g = document.createElement('optgroup');
+  g.label = t('style.col.' + c.id);
+  g.append(...c.styles.map(v => new Option(t('style.f.' + v), v)));
+  return g;
+});
 
 function fillSelects() {
   const f = $('styleForm').elements;
   const opts = (sel, list, prefix) => sel.replaceChildren(...list.map(v => new Option(t(prefix + v), v)));
   opts(f.wallMat, WALL_MATS, 'style.wall.');
   opts(f.floor, FLOORS, 'style.floor.');
-  opts(f.furniture, FURN_STYLES, 'style.f.');
+  f.furniture.replaceChildren(...furnStyleOptions());
   opts(f.finish, FINISHES, 'style.finish.');
   f.accentWall.replaceChildren(new Option(t('style.noAccent'), ''), ...WALLS.map(w => new Option(t('style.w.' + w), w)));
   syncStylePanel();

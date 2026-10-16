@@ -8,7 +8,7 @@ import { plateExtras } from './snapshot.js';
 
 const $ = id => document.getElementById(id);
 
-export const priceCatalog = () => ({ items: state.catalog, materials: state.materials, pricing: state.pricing });
+export const priceCatalog = () => ({ items: state.catalog, materials: state.materials, pricing: state.pricing, style: state.style });
 // 4 850 000 сум — groups by a no-break space (toLocaleString('uz-UZ') gives commas in some browsers).
 export const fmtSum = v => `${String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0')} ${t('unit.sum')}`;
 

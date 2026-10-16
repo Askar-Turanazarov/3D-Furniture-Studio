@@ -2,7 +2,7 @@
 // Quality 'simple': procedural Canvas textures; 'photo': CC0 photo textures from /textures (fallback to simple).
 // 1 texture tile = 1 m.
 import * as THREE from 'three';
-import { surfacesOf } from '../style.js';
+import { surfacesOf, MAT_SETS } from '../style.js';
 
 const SIZE = 512;
 let mats = null;
@@ -411,9 +411,12 @@ async function loadLib(id) {
     t.repeat.set(rep, rep * w / h);
     return t;
   };
+  // A set may have only some of the maps (library.json "maps", e.g. quilted leather: normal / roughness).
+  const KEYS = { color: 'map', normal: 'normalMap', roughness: 'roughnessMap', opacity: 'alphaMap' };
+  const want = Array.isArray(entry.maps) ? entry.maps.filter(k => KEYS[k]) : ['color', 'normal', 'roughness'];
   try {
-    const [map, normalMap, roughnessMap] = await Promise.all([load('color', true), load('normal', false), load('roughness', false)]);
-    return { map, normalMap, roughnessMap };
+    const got = await Promise.all(want.map(k => load(k, k === 'color')));
+    return Object.fromEntries(want.map((k, i) => [KEYS[k], got[i]]));
   } catch { return null; }
 }
 
@@ -438,6 +441,9 @@ function libSet(id) {
   return v === 'loading' ? null : v;
 }
 
+/** Start loading library sets (e.g. a luxe collection's packs): missing ones go to onLibMissing → download. */
+export function preloadSets(ids) { for (const id of ids) libSet(id); }
+
 // Texture set for a surface in the current quality (falls back to procedural).
 function surface(name) {
   const p = quality === 'photo' && photo && photo[name];
@@ -455,7 +461,8 @@ function tint(color, isPhoto, isCustom = false, white = 0.45) {
 }
 
 const maps = ({ map, normalMap, roughnessMap }) => {
-  const m = { map };
+  const m = {};
+  if (map) m.map = map;
   if (normalMap) m.normalMap = normalMap;
   if (roughnessMap) m.roughnessMap = roughnessMap;
   return m;
@@ -523,6 +530,51 @@ export function finishMats(style) {
   return res;
 }
 
+// Luxe collection materials (style.js STYLE_MATS): the photo set (MAT_SETS) once it is loaded, a procedural look
+// until then. base — own colour when the item has none; photo — how the set is used.
+const LUXE = {
+  veneer: { base: '#6e4a32', wood: true, coat: 0.6 },
+  burl: { base: '#5b3a25', wood: true, coat: 0.85 },
+  oak: { base: '#cfb38c', wood: true, coat: 0.1 },
+  boucle: { base: '#ece6da', fabric: true, sheen: 0.5, sheenR: 0.9 },
+  velvet: { base: '#33405a', fabric: true, sheen: 1, sheenR: 0.35 },
+  linen: { base: '#d9cfbf', fabric: true, sheen: 0.25, sheenR: 0.8 },
+  leatherQuilt: { base: '#3a2a22', leather: true },
+  leatherCream: { base: '#e7d9c2', leather: true },
+  leatherBlack: { base: '#1d1c1e', leather: true },
+  lacquer: { base: '#1b1b1d' },
+  brushedBrass: { base: '#c9a45c', metal: true, rough: 0.32 },
+  bronze: { base: '#7c5b3c', metal: true, rough: 0.4 },
+  marble: { base: '#efece6', stone: true, coat: 0.7 },
+  marbleNero: { base: '#1e1d1f', stone: true, coat: 0.8 },
+  travertine: { base: '#d8c7aa', stone: true, coat: 0.15 },
+  smokedGlass: { base: '#2c2a27' }
+};
+export const LUXE_KINDS = Object.keys(LUXE);
+
+function luxeMat(kind, color) {
+  const L = LUXE[kind], set = libSet(MAT_SETS[kind]);
+  const own = color || L.base;
+  // Photo maps are already coloured: the item colour only tints them (the quilt set has no colour map).
+  const col = set?.map ? tint(own, true, false, 0.6) : own;
+  const P = o => new THREE.MeshPhysicalMaterial(o);
+  if (kind === 'lacquer') return P({ color: own, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.04 });
+  if (kind === 'smokedGlass') return P({ color: L.base, roughness: 0.04, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
+  if (L.wood) {
+    const src = set || surface('wood');
+    return P({ ...maps(src), color: set ? col : tint(own, src.photo), roughness: set ? 1 : 0.5, clearcoat: L.coat, clearcoatRoughness: 0.22 });
+  }
+  if (L.fabric) {
+    const src = set || surface('fabric');
+    return P({ ...maps(src), color: set ? col : own, roughness: 1, sheen: L.sheen, sheenRoughness: L.sheenR,
+      sheenColor: new THREE.Color(own).lerp(new THREE.Color('#ffffff'), 0.5) });
+  }
+  if (L.leather) return P({ ...(set ? maps(set) : {}), color: col, roughness: set ? 1 : 0.5, clearcoat: 0.3, clearcoatRoughness: 0.45 });
+  if (L.metal) return P({ ...(set ? maps(set) : {}), color: set ? '#ffffff' : L.base, metalness: 1, roughness: set ? 1 : L.rough });
+  // stone
+  return P({ ...(set ? maps(set) : {}), color: set ? '#ffffff' : own, roughness: set ? 1 : 0.22, clearcoat: L.coat, clearcoatRoughness: 0.08 });
+}
+
 const HIGHLIGHT = {
   ok: null,
   bad: { color: '#ff1a1a', intensity: 0.45 },
@@ -562,7 +614,7 @@ export function furnitureMat(kind, color, status = 'ok') {
     case 'screen': m = new THREE.MeshPhysicalMaterial({ color: '#0b0c0f', roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.02 }); break;
     case 'leaf': m = new THREE.MeshStandardMaterial({ color: color || '#4f7d45', roughness: 0.7, side: THREE.DoubleSide }); break;
     case 'rug': m = new THREE.MeshStandardMaterial({ ...maps(fab), color, roughness: 1 }); break;
-    default: m = new THREE.MeshStandardMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 0.9 });
+    default: m = LUXE[kind] ? luxeMat(kind, color) : new THREE.MeshStandardMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 0.9 });
   }
   const hl = HIGHLIGHT[status];
   if (hl) { m.emissive.set(hl.color); m.emissiveIntensity = hl.intensity; }

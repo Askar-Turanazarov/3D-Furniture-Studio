@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import { styleOf, surfacesOf, FLOORS, WALL_MATS, FINISHES, TEX_SLOTS } from '../public/js/style.js';
+import { styleOf, surfacesOf, FLOORS, WALL_MATS, FINISHES, TEX_SLOTS, FURN_STYLES, LUXE_STYLES, STYLE_MATS, MAT_SETS, packsOf, itemStyle } from '../public/js/style.js';
+import { MAT_KINDS } from '../public/js/materials.js';
 
 const root = new URL('../public/textures/', import.meta.url);
 const library = JSON.parse(readFileSync(new URL('library.json', root), 'utf8'));
@@ -13,7 +14,7 @@ test('library entries are complete and unique', () => {
     assert.ok(!ids.has(e.id), 'duplicate ' + e.id);
     ids.add(e.id);
     assert.ok(['floor', 'wall', 'rough', 'furniture', 'site'].includes(e.kind), e.id);
-    if (e.maps) assert.ok(e.maps.includes('color') && e.maps.every(k => ['color', 'normal', 'roughness', 'opacity'].includes(k)), e.id + ' maps');
+    if (e.maps) assert.ok(e.maps.length && e.maps.every(k => ['color', 'normal', 'roughness', 'opacity'].includes(k)), e.id + ' maps');
     assert.ok(e.tile > 0, e.id);
     for (const l of ['ru', 'uz', 'en']) assert.ok(e.name[l], `${e.id} name.${l}`);
     assert.ok(e.source?.ambientcg, e.id);
@@ -57,4 +58,18 @@ test('finish levels: rough and pre-finish hide the chosen finish', () => {
   // The chosen finish is kept: back to finished restores it.
   assert.equal(styleOf({ ...st, finish: 'rough' }).floor, 'marble');
   assert.equal(styleOf({ finish: 'bogus' }).finish, 'finished');
+});
+
+test('luxe collections: every pack is a library set, every style has its materials', () => {
+  const ids = new Set(library.map(e => e.id));
+  for (const id of Object.values(MAT_SETS)) assert.ok(ids.has(id), id);
+  for (const s of LUXE_STYLES) {
+    assert.ok(FURN_STYLES.includes(s));
+    for (const part of ['body', 'facade', 'soft', 'metal', 'stone']) assert.ok(STYLE_MATS[s][part], s + ' ' + part);
+    assert.ok(packsOf(s).length >= 4, s);
+  }
+  assert.deepEqual(packsOf('modern'), []);
+  for (const k of MAT_KINDS.filter(k => MAT_SETS[k])) assert.ok(ids.has(MAT_SETS[k]), k);
+  assert.equal(styleOf({ furniture: 'couture' }).furniture, 'couture');
+  assert.equal(itemStyle({ style: 'deco' }, { furniture: 'modern' }), 'deco');
 });

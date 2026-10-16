@@ -68,12 +68,27 @@
     { "id": "gloss-beige", "name": { "ru": "Глянец бежевый", "uz": "Bej yaltiroq", "en": "Gloss beige" }, "kind": "gloss", "color": "#e8d9c2", "priceRate": 260000 },
     { "id": "fabric-grey", "name": { "ru": "Ткань серая", "uz": "Kulrang mato", "en": "Grey fabric" }, "kind": "fabric", "color": "#8b8f96", "priceRate": 150000 },
     { "id": "fabric-beige", "name": { "ru": "Ткань бежевая", "uz": "Bej mato", "en": "Beige fabric" }, "kind": "fabric", "color": "#cdb99c", "priceRate": 150000 },
-    { "id": "velour-blue", "name": { "ru": "Велюр синий", "uz": "Ko‘k velyur", "en": "Blue velour" }, "kind": "fabric", "color": "#3f5a8a", "priceRate": 190000 }
+    { "id": "velour-blue", "name": { "ru": "Велюр синий", "uz": "Ko‘k velyur", "en": "Blue velour" }, "kind": "fabric", "color": "#3f5a8a", "priceRate": 190000 },
+    { "id": "walnut-veneer", "name": { "ru": "Шпон американского ореха", "uz": "Amerika yong‘og‘i shponi", "en": "American walnut veneer" }, "kind": "veneer", "color": "#6e4a32", "priceRate": 420000 },
+    { "id": "walnut-burl", "name": { "ru": "Корень ореха", "uz": "Yong‘oq ildizi", "en": "Walnut burl" }, "kind": "burl", "color": "#5b3a25", "priceRate": 620000 },
+    { "id": "oak-natural", "name": { "ru": "Дуб натуральный", "uz": "Tabiiy eman", "en": "Natural oak" }, "kind": "oak", "color": "#cfb38c", "priceRate": 380000 },
+    { "id": "lacquer-black", "name": { "ru": "Лак чёрный рояльный", "uz": "Qora royal lak", "en": "Piano black lacquer" }, "kind": "lacquer", "color": "#141416", "priceRate": 520000 },
+    { "id": "lacquer-ivory", "name": { "ru": "Лак слоновая кость", "uz": "Fil suyagi lak", "en": "Ivory lacquer" }, "kind": "lacquer", "color": "#ece4d4", "priceRate": 520000 },
+    { "id": "marble-calacatta", "name": { "ru": "Мрамор калакатта", "uz": "Kalakatta marmar", "en": "Calacatta marble" }, "kind": "marble", "color": "#efece6", "priceRate": 1200000 },
+    { "id": "marble-nero", "name": { "ru": "Мрамор неро маркина", "uz": "Nero Marquina marmar", "en": "Nero Marquina marble" }, "kind": "marbleNero", "color": "#1e1d1f", "priceRate": 1250000 },
+    { "id": "travertine", "name": { "ru": "Травертин", "uz": "Travertin", "en": "Travertine" }, "kind": "travertine", "color": "#d8c7aa", "priceRate": 950000 },
+    { "id": "boucle-ivory", "name": { "ru": "Букле молочное", "uz": "Sutrang bukle", "en": "Ivory bouclé" }, "kind": "boucle", "color": "#ece6da", "priceRate": 420000 },
+    { "id": "velvet-emerald", "name": { "ru": "Бархат изумрудный", "uz": "Zumrad baxmal", "en": "Emerald velvet" }, "kind": "velvet", "color": "#1f4a3d", "priceRate": 460000 },
+    { "id": "velvet-navy", "name": { "ru": "Бархат тёмно-синий", "uz": "To‘q ko‘k baxmal", "en": "Navy velvet" }, "kind": "velvet", "color": "#25314a", "priceRate": 460000 },
+    { "id": "linen-natural", "name": { "ru": "Лён натуральный", "uz": "Tabiiy zig‘ir", "en": "Natural linen" }, "kind": "linen", "color": "#d9cfbf", "priceRate": 300000 },
+    { "id": "leather-cream", "name": { "ru": "Кожа кремовая", "uz": "Krem charm", "en": "Cream leather" }, "kind": "leatherCream", "color": "#e7d9c2", "priceRate": 780000 },
+    { "id": "leather-quilt", "name": { "ru": "Кожа стёганая", "uz": "Tikilgan charm", "en": "Quilted leather" }, "kind": "leatherQuilt", "color": "#3a2a22", "priceRate": 950000 }
   ],
   "pricing": {
     "note": "TEST prices in sum (UZS) — replace with real ones before use",
     "currency": "sum",
     "defaultRate": 170000,
+    "styleK": { "modern": 1, "classic": 1.1, "loft": 1, "milano": 2.4, "couture": 3.2, "deco": 2.8, "organic": 2.2 },
     "types": {
       "wardrobe": { "formula": "cabinet", "carcassPerM": 1400000, "refH": 220, "doorRate": 90000, "hinge": 30000, "hingesPerDoor": 4, "slideKit": 900000, "drawerRate": 200000, "sectionRate": 120000 },
       "mezzanine": { "formula": "cabinet", "carcassPerM": 600000, "refH": 50, "doorRate": 60000, "hinge": 30000, "hingesPerDoor": 2 },

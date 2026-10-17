@@ -353,10 +353,11 @@ function cull() {
   for (const [id, e] of rooms3d) {
     const v = !seen || seen.has(id);
     if (e.furniture && e.furniture.visible !== v) { e.furniture.visible = v; changed = true; }
-    // A hidden room still shows the leaves of its closed doors into a room in sight: the leaf belongs to the
-    // room that owns the door, and without it the doorway would show the empty background.
+    // A hidden room still shows its closed doors into a room in sight (leaf, frame, casing): the door belongs to
+    // the room that owns it, and without it the doorway would show the empty background.
     const keep = v || !e.shell ? [] : portals.filter(l => l.room === id && seen.has(l.to))
-      .map(l => e.shell.doors.find(d => d.userData.door.id === l.door)).filter(Boolean);
+      .flatMap(l => [e.shell.doors.find(d => d.userData.door.id === l.door)?.parent,
+        e.shell.group.children.find(c => c.userData.revealDoor === l.door)]).filter(Boolean);
     if (e.shell && showShell(e.shell, v, keep)) changed = true;
   }
   if (changed) shadowsDirty = true;
@@ -364,7 +365,7 @@ function cull() {
 
 // Shows a shell, or hides all of it but the `keep` objects (and the groups they sit in). True when it changed.
 function showShell(shell, v, keep) {
-  const key = v ? 'all' : keep.map(o => o.userData.door.id).join(',') || 'none';
+  const key = v ? 'all' : keep.map(o => o.uuid).join(',') || 'none';
   if (shell.cullKey === key) return false;
   shell.cullKey = key;
   const g = shell.group;
@@ -406,7 +407,7 @@ function rebuild() {
     const holes = links.filter(l => l.to === r.id).map(l => ({ wall: l.wall, offset: l.offset, width: l.width, height: l.height }));
     const own = links.filter(l => l.room === r.id && l.to !== 'outside').map(l => {
       const o = r.openings.find(d => d.id === l.door), b = rooms.find(q => q.id === l.to);
-      return { wall: o.wall, offset: o.offset, width: o.width, height: o.height,
+      return { door: l.door, wall: o.wall, offset: o.offset, width: o.width, height: o.height,
         gap: Math.abs(wallLine(b, l.wall).at - wallLine(r, o.wall).at) };
     });
     const thick = {};
@@ -432,7 +433,11 @@ function rebuild() {
       e.shell = buildRoom(r.room, openings, r.style, { holes, thick });
       e.style = r.style;
       e.shell.group.add(buildObstacles(r.obstacles));
-      for (const d of own) e.shell.group.add(revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style));
+      for (const d of own) {
+        const rv = revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style);
+        rv.userData.revealDoor = d.door;
+        e.shell.group.add(rv);
+      }
       const shade = cornerShade(r.room.L / 100, r.room.W / 100, r.room.H / 100, [...openings, ...holes]);
       shade.visible = softOn;
       e.shell.group.add(shade);

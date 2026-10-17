@@ -1,14 +1,17 @@
 // "🎲 Furnish" menu: the active room or the whole apartment from a random kit of each room's purpose.
 // An empty target is furnished in place (one undo step); otherwise a new apartment variant is made
 // and its rooms are refurnished, so the original stays as it was.
-import { state, emit, syncActive, itemName } from './state.js';
+import { state, emit, onChange, syncActive, itemName } from './state.js';
 import { roomView as aptRoomView } from './apartment.js';
 import { furnish, kitsFor } from './furnish.js';
-import { createVariant } from './projects.js';
-import { t } from './i18n.js';
+import { createVariant, PURPOSES } from './projects.js';
+import { t, onLangChange } from './i18n.js';
 import { toast } from './ui.js';
 
 const $ = id => document.getElementById(id);
+
+// Purposes that have furniture kits (the others — "other" — cannot be furnished).
+const FURNISHABLE = PURPOSES.filter(p => kitsFor(p).length);
 
 export function initFurnish() {
   $('furnishBtn').addEventListener('click', e => openMenu(e.currentTarget));
@@ -16,8 +19,11 @@ export function initFurnish() {
     const b = e.target.closest('button');
     if (!b) return;
     closeMenu();
+    // A room without a purpose: the chosen one is set and the room furnished at once.
+    if (b.dataset.purpose) { setPurpose(state.activeRoomId, b.dataset.purpose); return furnishRooms([state.activeRoomId]); }
     furnishRooms(b.dataset.act === 'apt' ? state.rooms.map(r => r.id) : [state.activeRoomId]);
   });
+  initPurposeSelect();
   document.addEventListener('pointerdown', e => {
     if (!$('furnishMenu').hidden && !e.target.closest('#furnishMenu, #furnishBtn')) closeMenu();
   });
@@ -28,8 +34,18 @@ function openMenu(anchor) {
   const m = $('furnishMenu');
   if (!m.hidden) return closeMenu();
   const r = syncActive();
+  const noKits = !r || !kitsFor(r.purpose, r.room).length;
   m.querySelector('[data-act="room"]').textContent = t('furn.room', { name: r?.name || '' });
+  m.querySelector('[data-act="room"]').hidden = noKits;
   m.querySelector('[data-act="apt"]').hidden = state.rooms.length < 2;
+  $('furnPurpose').hidden = !noKits;
+  if (noKits) $('furnPurposeList').replaceChildren(...FURNISHABLE.map(p => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.purpose = p;
+    b.textContent = t('purpose.' + p);
+    return b;
+  }));
   m.hidden = false;
   const a = anchor.getBoundingClientRect();
   m.style.left = Math.max(8, Math.min(a.left, window.innerWidth - m.offsetWidth - 8)) + 'px';
@@ -37,6 +53,25 @@ function openMenu(anchor) {
 }
 
 function closeMenu() { $('furnishMenu').hidden = true; }
+
+function setPurpose(id, purpose) {
+  const r = state.rooms.find(x => x.id === id);
+  if (!r || r.purpose === purpose) return;
+  r.purpose = purpose;
+  emit();
+}
+
+// "Purpose" in the room panel: what the room is for (the kits of "Furnish", the room names on the plan).
+function initPurposeSelect() {
+  const sel = $('roomPurpose');
+  const fill = () => sel.replaceChildren(...['', ...PURPOSES].map(p => new Option(p ? t('purpose.' + p) : '—', p)));
+  const sync = () => { sel.value = syncActive()?.purpose || ''; };
+  fill();
+  sync();
+  onLangChange(() => { fill(); sync(); });
+  onChange(sync);
+  sel.addEventListener('change', () => setPurpose(state.activeRoomId, sel.value));
+}
 
 /** Furnish the given rooms (ids); rooms without kits for their purpose are left as they are. */
 export function furnishRooms(ids) {

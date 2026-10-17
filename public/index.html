@@ -73,6 +73,7 @@
             <input type="number" name="H" min="150" max="600" step="1" value="270"></label>
         </form>
         <p class="hint" data-i18n="units">Все размеры в сантиметрах</p>
+        <label class="purpose-row"><span data-i18n="room.purpose">Назначение</span><select id="roomPurpose"></select></label>
         <details class="style-box" id="styleBox">
           <summary data-i18n="style.title">Отделка и стиль (3D)</summary>
           <form id="styleForm" class="style-form">
@@ -431,6 +432,10 @@
   <div class="menu" id="furnishMenu" hidden>
     <button type="button" data-act="room"></button>
     <button type="button" data-act="apt" data-i18n="furn.apt">Всю квартиру</button>
+    <div class="furn-purpose" id="furnPurpose" hidden>
+      <p data-i18n="furn.pickPurpose">Для какой комнаты подобрать мебель?</p>
+      <div id="furnPurposeList"></div>
+    </div>
   </div>
 
   <div class="menu" id="variantsMenu" hidden>

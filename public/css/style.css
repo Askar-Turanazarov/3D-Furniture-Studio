@@ -1261,3 +1261,10 @@ body.embed .site-foot { display: none; }
   .stage.isSplit .split-handle { height: 22px; top: calc(var(--split) - 11px); background: linear-gradient(transparent 10px, var(--hairline) 10px, var(--hairline) 12px, transparent 12px); }
 }
 @media (max-width: 860px) and (orientation: landscape) { #viewSplitBtn { display: none; } }
+
+/* room purpose (panel) and the purpose list of "Furnish" for a room without one */
+.purpose-row { display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; }
+.purpose-row > span { font: 600 10.5px/1 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); flex: none; }
+.purpose-row select { flex: 1; min-width: 0; }
+.furn-purpose p { margin: 4px 8px 6px; color: var(--muted); font-size: 12px; }
+.furn-purpose #furnPurposeList { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }

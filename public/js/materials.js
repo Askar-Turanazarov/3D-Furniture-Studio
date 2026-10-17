@@ -3,7 +3,7 @@
 // item.materials = { body?, facade? } — material ids; the facade falls back to the body.
 
 // Luxe kinds are the collection materials (textures3d furnitureMat: photo set or procedural look).
-export const UPHOLSTERY = ['fabric', 'boucle', 'velvet', 'linen', 'leatherQuilt', 'leatherCream', 'leatherBlack'];
+export const UPHOLSTERY = ['fabric', 'boucle', 'velvet', 'linen', 'leatherQuilt', 'leatherCream', 'leatherBlack', 'leatherTan'];
 export const MAT_KINDS = ['wood', 'solid', 'gloss', 'veneer', 'burl', 'oak', 'lacquer', 'marble', 'marbleNero', 'travertine', ...UPHOLSTERY];
 // Boards (carcass, fronts, tops) or upholstery: a chosen material replaces only the parts of its family.
 export const familyOf = kind => UPHOLSTERY.includes(kind) ? 'fabric' : 'board';
@@ -26,8 +26,20 @@ export function setItemMaterial(item, role, mat) {
   if (role === 'body' && mat) item.color = mat.color;
 }
 
-// Own colour: the body material is dropped (the facade one stays).
+// Own colour: the body material is dropped (the facade one stays); the style's materials take this colour.
 export function setItemColor(item, color) {
   item.color = color;
+  item.ownColor = true;
   if (item.materials?.body) setItemMaterial(item, 'body', null);
+}
+
+/** A new furniture style for the room: the items lose their materials and own colours, the style gives the look. */
+export function resetToStyle(items) {
+  let n = 0;
+  for (const it of items) {
+    if (it.materials || it.ownColor) n++;
+    delete it.materials;
+    delete it.ownColor;
+  }
+  return n;
 }

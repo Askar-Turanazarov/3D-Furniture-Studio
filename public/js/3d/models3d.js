@@ -100,7 +100,7 @@ function panel(g, fw, fh, x, y, zFront, mat) {
 // ---- luxe collections on the base models (cabinets, kitchens, shelves …): hardware, legs, facades ----
 // milano — slim bronze edge pulls, no mouldings; couture — brass knob on a rosette, brass moulding frame;
 // deco — long brass bars, fluted fronts; organic — flat oak knobs, plain fronts.
-const metalOf = (c, s) => isLuxe(sty) ? luxePart('metal', s) : furnitureMat('metal', c, s);
+const metalOf = (c, s) => sty === 'modern' ? furnitureMat('metal', c, s) : luxePart('metal', s);
 
 function luxeHandle(x, y, z, len, vertical, s) {
   const metal = luxePart('metal', s), g = new THREE.Group();
@@ -169,14 +169,15 @@ function luxePanel(g, fw, fh, x, y, zFront, mat) {
 
 // Look of the item being built: catalog materials for the body and the facade (doors, drawer fronts).
 let look = { body: null, facade: null };
+let ownColor = null;      // the viewer's colour of the item (setItemColor), else the style's tones
 const FAMILY = { wood: 'board', dark: 'board', plain: 'board', fabric: 'fabric' };
 // A chosen material replaces the parts of the same family (boards or upholstery); metal, glass etc. stay.
 function fm(kind, c, s, role = 'body') {
   const m = look[role];
   if (m && FAMILY[kind] === familyOf(m.kind)) return furnitureMat(m.kind, m.color, s);
-  // Luxe collections: boards in the collection woods / lacquer, upholstery in its fabric (the colour stays).
-  if (isLuxe(sty) && FAMILY[kind] === 'board') return luxePart(role === 'facade' ? 'facade' : 'body', s, role);
-  if (isLuxe(sty) && FAMILY[kind] === 'fabric') return furnitureMat(STYLE_MATS[sty].soft, c, s);
+  // The style: boards in its woods / fronts, upholstery in its fabric (modelsLuxe.js luxePart).
+  if (FAMILY[kind] === 'board') return luxePart(role === 'facade' ? 'facade' : 'body', s, role);
+  if (FAMILY[kind] === 'fabric') return luxePart('soft', s, role);
   return furnitureMat(kind, c, s);
 }
 
@@ -709,6 +710,7 @@ function hob(w, d, x, y, z, s) {
 export const conf = () => cfg;
 export const style3d = () => sty;
 export const look3d = () => look;
+export const own3d = () => ownColor;
 export { metalOf, box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
   wardrobe, drawers, wallcabinet, bed, sofa, table };
 
@@ -725,6 +727,7 @@ const BUILDERS = {
  */
 export function buildItem(item, status, materials = [], roomStyle, catalog = []) {
   look = itemLook(item, materials);
+  ownColor = item.ownColor ? item.color : null;
   sty = itemStyle(item, roomStyle);
   // Luxe collections have their own silhouettes; the other types keep the base model in collection materials.
   const make = (isLuxe(sty) && LUXE_BUILDERS[item.type]) || BUILDERS[item.type] || generic;
@@ -738,6 +741,7 @@ export function buildItem(item, status, materials = [], roomStyle, catalog = [])
   };
   const obj = make(item.w / 100, item.d / 100, item.h / 100, item.color, status);
   look = { body: null, facade: null };
+  ownColor = null;
   sty = 'modern';
   obj.userData.movers = movers;
   placeItem(obj, item);

@@ -1,4 +1,6 @@
 // Room finish panel: wall material and colour, accent wall, floor (roomDoc.style, saved and undoable).
+import { resetToStyle } from './materials.js';
+import { toast } from './ui.js';
 import { state, emit, onChange } from './state.js';
 import { t, onLangChange } from './i18n.js';
 import { styleOf, WALL_MATS, FLOORS, WALLS, BRICK_COLOR, COLLECTIONS, FINISHES } from './style.js';
@@ -48,6 +50,8 @@ export function initStylePanel() {
     if (e.target === f.floor) delete tex.floor;
     if (e.target === f.wallMat) delete tex.wall;
     if (s.tex) state.style.tex = tex;
+    // A new furniture style: the materials and colours of the room's furniture come from it (one undo step).
+    if (e.target === f.furniture && resetToStyle(state.items)) toast(t('style.reset'));
     syncStylePanel();
     emit();
   });

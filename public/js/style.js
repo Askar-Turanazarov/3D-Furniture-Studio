@@ -13,8 +13,12 @@ export const FURN_STYLES = [...BASE_STYLES, ...LUXE_STYLES];
 export const COLLECTIONS = [{ id: 'base', styles: BASE_STYLES }, { id: 'luxe', styles: LUXE_STYLES }];
 export const isLuxe = s => LUXE_STYLES.includes(s);
 
-// Material kinds (textures3d furnitureMat) of each part in a luxe collection.
+// Material kinds (textures3d furnitureMat) of each part in a style: the style gives the room its look, a material
+// chosen for an item replaces the parts of its family.
 export const STYLE_MATS = {
+  modern: { body: 'oak', facade: 'solid', soft: 'fabric', leather: 'leatherCream', metal: 'black', stone: 'marble', glass: 'glass' },
+  classic: { body: 'veneer', facade: 'veneer', soft: 'fabric', leather: 'leatherQuilt', metal: 'brushedBrass', stone: 'marble', glass: 'glass' },
+  loft: { body: 'espresso', facade: 'solid', soft: 'fabric', leather: 'leatherTan', metal: 'black', stone: 'solid', glass: 'glass' },
   milano: { body: 'veneer', facade: 'lacquer', soft: 'boucle', leather: 'leatherCream', metal: 'bronze', stone: 'travertine', glass: 'smokedGlass' },
   couture: { body: 'burl', facade: 'lacquer', soft: 'velvet', leather: 'leatherQuilt', metal: 'brushedBrass', stone: 'marble', glass: 'smokedGlass' },
   deco: { body: 'lacquer', facade: 'burl', soft: 'velvet', leather: 'leatherBlack', metal: 'brushedBrass', stone: 'marbleNero', glass: 'smokedGlass' },
@@ -22,12 +26,12 @@ export const STYLE_MATS = {
 };
 // Photo-library set (library.json) behind a material kind; without it the kind has a procedural look.
 export const MAT_SETS = {
-  veneer: 'walnut', burl: 'woodDark', oak: 'oakLight', boucle: 'boucle', velvet: 'velvet', linen: 'linen',
+  veneer: 'walnut', burl: 'woodDark', oak: 'oakLight', espresso: 'woodEspresso', leatherTan: 'leatherTan', boucle: 'boucle', velvet: 'velvet', linen: 'linen',
   leatherQuilt: 'leatherQuilt', leatherCream: 'leatherCream', leatherBlack: 'leatherBlack',
   brushedBrass: 'brass', bronze: 'bronze', marble: 'marbleWhite', marbleNero: 'marbleBlack', travertine: 'travertine'
 };
 /** Library sets a furniture style needs (downloaded on demand when the style is chosen). */
-export const packsOf = s => isLuxe(s) ? [...new Set(Object.values(STYLE_MATS[s]).map(k => MAT_SETS[k]).filter(Boolean))] : [];
+export const packsOf = s => STYLE_MATS[s] ? [...new Set(Object.values(STYLE_MATS[s]).map(k => MAT_SETS[k]).filter(Boolean))] : [];
 // Finish level: rough (screed, bare blocks), pre-finish ("white box": screed, putty), finished (the chosen style).
 export const FINISHES = ['finished', 'prefinish', 'rough'];
 export const BRICK_COLOR = '#b5654a';

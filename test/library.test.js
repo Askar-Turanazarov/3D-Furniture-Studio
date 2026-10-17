@@ -68,7 +68,8 @@ test('luxe collections: every pack is a library set, every style has its materia
     for (const part of ['body', 'facade', 'soft', 'metal', 'stone']) assert.ok(STYLE_MATS[s][part], s + ' ' + part);
     assert.ok(packsOf(s).length >= 4, s);
   }
-  assert.deepEqual(packsOf('modern'), []);
+  for (const s of FURN_STYLES) assert.ok(packsOf(s).length >= 2, s);   // the base styles have their woods too
+  assert.ok(packsOf('loft').includes('woodEspresso'));
   for (const k of MAT_KINDS.filter(k => MAT_SETS[k])) assert.ok(ids.has(MAT_SETS[k]), k);
   assert.equal(styleOf({ furniture: 'couture' }).furniture, 'couture');
   assert.equal(itemStyle({ style: 'deco' }, { furniture: 'modern' }), 'deco');

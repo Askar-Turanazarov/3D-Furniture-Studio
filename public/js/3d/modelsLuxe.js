@@ -6,12 +6,15 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { furnitureMat } from './textures3d.js';
-import { box, rbox, slider, conf, style3d, look3d } from './models3d.js';
+import { box, rbox, slider, conf, style3d, look3d, own3d } from './models3d.js';
 import { STYLE_MATS } from '../style.js';
 import { familyOf } from '../materials.js';
 
 // Colours of the collection parts (null — the material's own base colour).
 const TONE = {
+  modern: { facade: '#ecebe6', soft: '#8e908d', stone: '#f1efec' },
+  classic: { soft: '#c9b596', leather: '#4a2f24' },
+  loft: { facade: '#3a3c3f', soft: '#6f5a48', stone: '#8e8b86' },
   milano: { soft: '#e8e1d5', facade: '#cfc6b8', leather: '#d9c6a8' },
   couture: { soft: '#2c4a40', facade: '#161618', leather: '#3a2a22' },
   deco: { soft: '#6b2a33', body: '#121214', leather: '#1d1c1e' },
@@ -23,6 +26,9 @@ const FAMILY = { soft: 'fabric', leather: 'fabric', body: 'board', facade: 'boar
 function M(part, s, role = part === 'facade' ? 'facade' : 'body') {
   const st = style3d(), m = look3d()[role];
   if (m && FAMILY[part] && familyOf(m.kind) === FAMILY[part]) return furnitureMat(m.kind, m.color, s);
+  // The viewer's own colour of the item: the style's material in that colour (boards and upholstery).
+  const own = own3d();
+  if (own && FAMILY[part] && part !== 'stone') return furnitureMat(STYLE_MATS[st][part], own, s);
   return furnitureMat(STYLE_MATS[st][part], TONE[st][part] || null, s);
 }
 export const luxePart = M;

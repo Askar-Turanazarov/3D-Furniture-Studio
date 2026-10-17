@@ -235,7 +235,8 @@ app.get('/api/textures/library', async (req, res) => {
 app.get('/textures/lib/:id/:file', async (req, res) => {
   const m = /^(\w+)\.jpg$/.exec(req.params.file);
   const buf = m && await readLibMap(String(req.params.id), m[1]).catch(() => null);
-  if (!buf) return res.status(404).end();
+  // Missing: the CDN keeps the answer for a few minutes, so the pages do not ask the store each time.
+  if (!buf) return res.set('Cache-Control', 'public, s-maxage=300').status(404).end();
   res.set('Cache-Control', 'public, max-age=86400, s-maxage=31536000, immutable').type('jpg').send(buf);
 });
 
@@ -244,7 +245,9 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
     await fetchSet(String(req.params.id));
     res.json({ ok: true });
   } catch (e) {
-    res.status(e.status || 502).json({ error: e.status === 404 ? 'unknown_set' : e.status === 429 ? 'busy' : 'download_failed' });
+    if (!e.status) console.error('texture set', req.params.id, 'failed:', e.message, e.cause?.message || '');
+    const error = { 404: 'unknown_set', 429: 'busy', 503: 'store_unavailable' }[e.status] || 'download_failed';
+    res.status(e.status || 502).json({ error });
   }
 });
 

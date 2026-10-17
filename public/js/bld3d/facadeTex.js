@@ -8,7 +8,15 @@
 import * as THREE from 'three';
 
 const SETS = '/textures/sets/';
-const bitmap = url => fetch(url).then(r => {
+// While a dialog over the facade is open (the floor in 3D above all) the photos wait: their downloads would take
+// the bandwidth the dialog needs, and cutting the slab textures would take the main thread it runs on.
+let hold = null, release = null;
+export function holdPhotos(on) {
+  if (on && !hold) hold = new Promise(r => { release = r; });
+  else if (!on && hold) { release(); hold = null; }
+}
+const idle = () => hold || Promise.resolve();
+const bitmap = url => idle().then(() => fetch(url, { priority: 'low' })).then(r => {
   if (!r.ok) throw new Error(url);
   return r.blob();
 }).then(b => createImageBitmap(b));
@@ -201,6 +209,7 @@ export async function applyPhotoFacade({ mats, site = {}, trees = null, anisotro
     .then(([color, opacity]) => ({ color, opacity }), () => null) : null;
   const siteSets = Object.fromEntries(await Promise.all(Object.entries(SITE_SETS).filter(([k]) => k !== 'leaves')
     .map(async ([k, id]) => [k, await libSet(list.find(e => e.id === id))])));
+  await idle();
   const opt = { anisotropy };
   const swap = (m, maps, extra = {}, repeat = null) => {
     for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.dispose();

@@ -8,6 +8,7 @@ import { rectOf } from '../geometry.js';
 import { itemLook, familyOf } from '../materials.js';
 import { itemStyle, packsOf, isLuxe } from '../style.js';
 import { LUXE_BUILDERS, luxePart } from './modelsLuxe.js';
+import { dressed } from './modelsDress.js';
 import { STYLE_MATS } from '../style.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { openSpec } from '../zones.js';
@@ -21,8 +22,9 @@ let sty = 'modern';
 // { obj, type: 'hinge' | 'flap' | 'slide', axis, max (rad or m), part: 'door' | 'drawer' }
 let movers = [];
 let openKind = null;      // item.open.kind: 'slide' turns wardrobe doors into sliding ones
-// Configuration of the item being built (config.js): sections, drawers, doors.
-let cfg = { sections: 1, drawers: 0, doors: 1 };
+// Configuration of the item being built (config.js): sections, drawers, doors; bare — a carcass without its own
+// base and legs (the style's plinth or frame stands around it, modelsDress.js).
+let cfg = { sections: 1, drawers: 0, doors: 1, bare: false };
 
 // Door leaf turning on a vertical hinge line at (hx, hz); sign −1 = hinge on the left, +1 = on the right.
 function hinged(leaf, hx, hz, sign) {
@@ -100,7 +102,7 @@ function panel(g, fw, fh, x, y, zFront, mat) {
 // ---- luxe collections on the base models (cabinets, kitchens, shelves …): hardware, legs, facades ----
 // milano — slim bronze edge pulls, no mouldings; couture — brass knob on a rosette, brass moulding frame;
 // deco — long brass bars, fluted fronts; organic — flat oak knobs, plain fronts.
-const metalOf = (c, s) => isLuxe(sty) ? luxePart('metal', s) : metalOf(c, s);
+const metalOf = (c, s) => sty === 'modern' ? furnitureMat('metal', c, s) : luxePart('metal', s);
 
 function luxeHandle(x, y, z, len, vertical, s) {
   const metal = luxePart('metal', s), g = new THREE.Group();
@@ -169,27 +171,30 @@ function luxePanel(g, fw, fh, x, y, zFront, mat) {
 
 // Look of the item being built: catalog materials for the body and the facade (doors, drawer fronts).
 let look = { body: null, facade: null };
+let ownColor = null;      // the viewer's colour of the item (setItemColor), else the style's tones
 const FAMILY = { wood: 'board', dark: 'board', plain: 'board', fabric: 'fabric' };
 // A chosen material replaces the parts of the same family (boards or upholstery); metal, glass etc. stay.
 function fm(kind, c, s, role = 'body') {
   const m = look[role];
   if (m && FAMILY[kind] === familyOf(m.kind)) return furnitureMat(m.kind, m.color, s);
-  // Luxe collections: boards in the collection woods / lacquer, upholstery in its fabric (the colour stays).
-  if (isLuxe(sty) && FAMILY[kind] === 'board') return luxePart(role === 'facade' ? 'facade' : 'body', s, role);
-  if (isLuxe(sty) && FAMILY[kind] === 'fabric') return furnitureMat(STYLE_MATS[sty].soft, c, s);
+  // The style: boards in its woods / fronts, upholstery in its fabric (modelsLuxe.js luxePart).
+  if (FAMILY[kind] === 'board') return luxePart(role === 'facade' ? 'facade' : 'body', s, role);
+  if (FAMILY[kind] === 'fabric') return luxePart('soft', s, role);
   return furnitureMat(kind, c, s);
 }
 
-// Box with UVs scaled to metres (1 texture tile = 1 m) on every face.
+// Box with UVs scaled to metres (1 texture tile = 1 m) on every face; the grain of the photo (along u) runs along
+// the long side of each face, as on real boards: up a door or a side, along a shelf.
 function box(w, h, d, mat, x = 0, y = 0, z = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
   const uv = g.attributes.uv;
   // Face order: +x, -x, +y, -y, +z, -z (4 vertices each).
   const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
   for (let f = 0; f < 6; f++) {
+    const [a, b] = dims[f], turn = b > a;
     for (let v = 0; v < 4; v++) {
-      const i = f * 4 + v;
-      uv.setXY(i, uv.getX(i) * dims[f][0], uv.getY(i) * dims[f][1]);
+      const i = f * 4 + v, u0 = uv.getX(i), v0 = uv.getY(i);
+      if (turn) uv.setXY(i, v0 * b, u0 * a); else uv.setXY(i, u0 * a, v0 * b);
     }
   }
   const m = new THREE.Mesh(g, mat);
@@ -233,8 +238,8 @@ function cushion(w, h, d, mat, x, y, z) {
 function wardrobe(w, d, h, c, s) {
   const g = new THREE.Group();
   const wood = fm('wood', c, s), metal = metalOf(c, s), dark = fm('dark', c, s);
-  const base = Math.min(0.08, h * 0.05), doorT = 0.018, t = 0.018, cd = d - doorT;
-  g.add(box(w - 0.02, base, d - 0.04, dark, 0, 0, -0.01));                 // recessed base
+  const base = cfg.bare ? 0 : Math.min(0.08, h * 0.05), doorT = 0.018, t = 0.018, cd = d - doorT;
+  if (base) g.add(box(w - 0.02, base, d - 0.04, dark, 0, 0, -0.01));       // recessed base
   // Hollow carcass: back, sides, top, bottom; inside — partitions between sections, shelves, a rail.
   const zc = -doorT / 2, top = h - t;
   g.add(box(w - 2 * t, h - base, 0.006, wood, 0, base, zc - cd / 2 + 0.003));        // back
@@ -409,8 +414,8 @@ const armchair = (w, d, h, c, s) => sofa(w, d, h, c, s, 1);
 function drawers(w, d, h, c, s, rows) {
   const g = new THREE.Group();
   const wood = fm('wood', c, s), metal = metalOf(c, s), dark = fm('dark', c, s);
-  const legH = Math.min(0.08, h * 0.1), front = 0.018, gap = 0.008;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+  const legH = cfg.bare ? 0 : Math.min(0.08, h * 0.1), front = 0.018, gap = 0.008;
+  if (legH) for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const x = sx * (w / 2 - 0.04), z = sz * (d / 2 - 0.04);
     g.add(leg(box(0.035, legH, 0.035, dark, x, 0, z), x, z, legH, 0.035, c, s));
   }
@@ -440,7 +445,7 @@ function tvstand(w, d, h, c, s) {
   const side = Math.min(0.45, w * 0.3);
   g.add(drawers(side, d, h, c, s, 2).translateX(-w / 2 + side / 2));
   g.add(drawers(side, d, h, c, s, 2).translateX(w / 2 - side / 2));
-  const mid = w - 2 * side, legH = Math.min(0.08, h * 0.1), t = 0.02;
+  const mid = w - 2 * side, legH = cfg.bare ? 0 : Math.min(0.08, h * 0.1), t = 0.02;
   g.add(box(mid, t, d, wood, 0, legH, 0));                                    // bottom
   g.add(box(mid, t, d, wood, 0, h - t, 0));                                   // top
   g.add(box(mid, h - legH - 2 * t, 0.01, dark, 0, legH + t, -d / 2 + 0.005)); // back
@@ -618,6 +623,7 @@ function lampHead(rTop, rBottom, hh, c, s, power) {
   shadeMat.side = THREE.DoubleSide;
   shadeMat.emissive = new THREE.Color('#ffd9a0');
   shadeMat.emissiveIntensity = 0.35;
+  shadeMat.userData.glow = 0.35;
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, hh, 24, 1, true), shadeMat);
   shade.position.y = hh / 2;
   const light = new THREE.PointLight('#ffd9a8', power, 0, 2);
@@ -709,6 +715,7 @@ function hob(w, d, x, y, z, s) {
 export const conf = () => cfg;
 export const style3d = () => sty;
 export const look3d = () => look;
+export const own3d = () => ownColor;
 export { metalOf, box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
   wardrobe, drawers, wallcabinet, bed, sofa, table };
 
@@ -725,6 +732,7 @@ const BUILDERS = {
  */
 export function buildItem(item, status, materials = [], roomStyle, catalog = []) {
   look = itemLook(item, materials);
+  ownColor = item.ownColor ? item.color : null;
   sty = itemStyle(item, roomStyle);
   // Luxe collections have their own silhouettes; the other types keep the base model in collection materials.
   const make = (isLuxe(sty) && LUXE_BUILDERS[item.type]) || BUILDERS[item.type] || generic;
@@ -733,11 +741,12 @@ export function buildItem(item, status, materials = [], roomStyle, catalog = [])
   openKind = item.open?.kind || null;
   const spec = openSpec(item, catalog);
   cfg = {
-    sections: sectionCount(item), drawers: drawerCount(item),
+    sections: sectionCount(item), drawers: drawerCount(item), bare: false,
     doors: openKind === 'slide' ? slideDoors(item) : spec.kind === 'swing' ? spec.doors : item.w > 160 ? 3 : item.w > 70 ? 2 : 1
   };
-  const obj = make(item.w / 100, item.d / 100, item.h / 100, item.color, status);
+  const obj = dressed(make, item.type, item.w / 100, item.d / 100, item.h / 100, item.color, status);
   look = { body: null, facade: null };
+  ownColor = null;
   sty = 'modern';
   obj.userData.movers = movers;
   placeItem(obj, item);

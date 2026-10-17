@@ -270,7 +270,7 @@ function cutaway() {
     vis(r.shell.ceiling, showAll || camera.position.y < H);
     if (r.shell.skies === undefined) {
       r.shell.skies = [];
-      r.shell.group.traverse(o => { if (o.userData.sky) r.shell.skies.push(o); });
+      r.shell.group.traverse(o => { if (o.userData.sky || o.name === 'cornerShadeUpper') r.shell.skies.push(o); });
     }
     for (const sky of r.shell.skies) vis(sky, showAll);
   }

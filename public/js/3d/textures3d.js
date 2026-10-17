@@ -310,7 +310,7 @@ function greyscale(t) {
   return toTexture(c);
 }
 
-export const PHOTO_MB = 13;   // the four base photo sets on disk, about
+export const PHOTO_MB = 2;    // the four base photo sets on disk, about
 
 // The base photo sets are loaded (Photo quality is then applied at once).
 export const photoReady = () => !!photo;
@@ -376,7 +376,26 @@ export const canFetchLib = () => libServer;
 
 // Download a library set through the server, then load it into the scene. The server downloads one set at a
 // time ('busy', e.g. the facade sets for another visitor): wait and retry.
+// Sets the server could not download in this session: not asked for again (the simple texture stays).
+const failedSets = new Set((() => {
+  try { return JSON.parse(sessionStorage.getItem('fsp3d.libFail') || '[]'); } catch { return []; }
+})());
+function setFailed(id) {
+  failedSets.add(id);
+  try { sessionStorage.setItem('fsp3d.libFail', JSON.stringify([...failedSets])); } catch { /* ignore */ }
+}
+
 export async function fetchLibSet(id) {
+  if (failedSets.has(id)) throw new Error('download_failed');
+  try {
+    await askServer(id);
+  } catch (e) {
+    if (e.message !== 'busy') setFailed(id);
+    throw e;
+  }
+}
+
+async function askServer(id) {
   for (let tries = 0; ; tries++) {
     // A request never hangs: the server answers within its own limit, this is the backstop.
     const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 120 * 1000);
@@ -405,7 +424,7 @@ async function loadLib(id) {
   const entry = (await libraryIndex()).find(e => e.id === id);
   if (!entry) return null;
   if (!entry.available) {
-    missingListeners.forEach(fn => fn(entry));
+    if (!failedSets.has(id)) missingListeners.forEach(fn => fn(entry));
     return null;
   }
   const rep = 1 / (entry.tile || 1);
@@ -545,12 +564,14 @@ const LUXE = {
   veneer: { base: '#6e4a32', wood: true, coat: 0.6 },
   burl: { base: '#5b3a25', wood: true, coat: 0.85 },
   oak: { base: '#cfb38c', wood: true, coat: 0.1 },
+  espresso: { base: '#4b3527', wood: true, coat: 0.15 },
   boucle: { base: '#ece6da', fabric: true, sheen: 0.5, sheenR: 0.9 },
   velvet: { base: '#33405a', fabric: true, sheen: 1, sheenR: 0.35 },
   linen: { base: '#d9cfbf', fabric: true, sheen: 0.25, sheenR: 0.8 },
   leatherQuilt: { base: '#3a2a22', leather: true },
   leatherCream: { base: '#e7d9c2', leather: true },
   leatherBlack: { base: '#1d1c1e', leather: true },
+  leatherTan: { base: '#9a6a43', leather: true },
   lacquer: { base: '#1b1b1d' },
   brushedBrass: { base: '#c9a45c', metal: true, rough: 0.32 },
   bronze: { base: '#7c5b3c', metal: true, rough: 0.4 },

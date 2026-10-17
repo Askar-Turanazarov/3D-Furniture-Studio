@@ -39,12 +39,13 @@ const diskStore = {
   read: (id, map) => fs.readFile(path.join(LIB_DIR, id, map + '.jpg')).catch(() => null)
 };
 
-// Vercel Blob: one list of textures/lib/ (cached for a minute) tells which maps are there.
+// Vercel Blob: one list of textures/lib/ (cached for 15 minutes: a list is an "advanced operation" of the plan's
+// quota; the sets written here are added to it at once) tells which maps are there.
 function blobStore(token, sdk = require('@vercel/blob')) {
   const PREFIX = 'textures/lib/';
   let names = null, at = 0;
   async function list() {
-    if (!names || Date.now() - at > 60 * 1000) {
+    if (!names || Date.now() - at > 15 * 60 * 1000) {
       const all = new Set();
       let cursor;
       do {
@@ -75,6 +76,14 @@ function blobStore(token, sdk = require('@vercel/blob')) {
 }
 
 let store = null;
+// The store refused (suspended, over its quota, no access): for 10 minutes the sets count as missing and a
+// download is refused at once (503), instead of fetching the zip from ambientCG for nothing on every request.
+let storeDownUntil = 0;
+const storeDown = () => Date.now() < storeDownUntil;
+function storeFailed(err) {
+  if (/suspended|quota|forbidden|access|token/i.test(String(err?.message))) storeDownUntil = Date.now() + 10 * 60 * 1000;
+  throw err;
+}
 // Blob when the project has a store: BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID (newer stores — the SDK signs in with
 // the function's Vercel OIDC token itself, no token is passed).
 const useBlob = () => !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
@@ -86,6 +95,7 @@ async function libraryStatus() {
   const lib = await readLibrary();
   return Promise.all(lib.map(async e => {
     if (e.bundled) return { ...e, available: true };
+    if (storeDown()) return { ...e, available: false };
     const ok = await Promise.all(mapsOf(e).map(f => libStore().has(e.id, f).catch(() => false)));
     return { ...e, available: ok.every(Boolean) };
   }));
@@ -141,6 +151,7 @@ async function fetchSet(id, { log = () => {} } = {}) {
   const e = await downloadable(id);
   if (!e) throw Object.assign(new Error('unknown set'), { status: 404 });
   if (inFlight.has(id)) return inFlight.get(id);
+  if (storeDown()) throw Object.assign(new Error('store unavailable'), { status: 503 });
   if (queued > MAX_QUEUE) throw Object.assign(new Error('busy'), { status: 429 });
   queued++;
   const job = async () => {
@@ -148,7 +159,7 @@ async function fetchSet(id, { log = () => {} } = {}) {
     log(`${id}: downloading ${asset}_1K-JPG.zip`);
     const buf = await download(`https://ambientcg.com/get?file=${asset}_1K-JPG.zip`);
     const maps = mapsFromZip(buf, mapsOf(e));
-    for (const [k, data] of Object.entries(maps)) await libStore().write(id, k, data);
+    for (const [k, data] of Object.entries(maps)) await libStore().write(id, k, data).catch(storeFailed);
     log(`${id}: ${(buf.length / 1048576).toFixed(1)} MB zip → ${libStore().kind}`);
   };
   // Each job has a hard limit, so one stuck download (or storage write) never stalls the queue.

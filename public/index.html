@@ -38,6 +38,55 @@
       }
     }
   </script>
+  <!--preload-->
+  <link rel="modulepreload" href="/js/align.js">
+  <link rel="modulepreload" href="/js/apartment.js">
+  <link rel="modulepreload" href="/js/aptTemplates.js">
+  <link rel="modulepreload" href="/js/autoplace.js">
+  <link rel="modulepreload" href="/js/catalog.js">
+  <link rel="modulepreload" href="/js/compare.js">
+  <link rel="modulepreload" href="/js/config.js">
+  <link rel="modulepreload" href="/js/customTex.js">
+  <link rel="modulepreload" href="/js/drawing.js">
+  <link rel="modulepreload" href="/js/furnish.js">
+  <link rel="modulepreload" href="/js/furnishUi.js">
+  <link rel="modulepreload" href="/js/geometry.js">
+  <link rel="modulepreload" href="/js/glyphs.js">
+  <link rel="modulepreload" href="/js/history.js">
+  <link rel="modulepreload" href="/js/i18n.js">
+  <link rel="modulepreload" href="/js/icons.js">
+  <link rel="modulepreload" href="/js/interaction.js">
+  <link rel="modulepreload" href="/js/kits.js">
+  <link rel="modulepreload" href="/js/lighting.js">
+  <link rel="modulepreload" href="/js/matPanel.js">
+  <link rel="modulepreload" href="/js/materials.js">
+  <link rel="modulepreload" href="/js/nicheTool.js">
+  <link rel="modulepreload" href="/js/obstacles.js">
+  <link rel="modulepreload" href="/js/openings.js">
+  <link rel="modulepreload" href="/js/order.js">
+  <link rel="modulepreload" href="/js/pane.js">
+  <link rel="modulepreload" href="/js/passages.js">
+  <link rel="modulepreload" href="/js/placement.js">
+  <link rel="modulepreload" href="/js/pricePanel.js">
+  <link rel="modulepreload" href="/js/pricing.js">
+  <link rel="modulepreload" href="/js/projects.js">
+  <link rel="modulepreload" href="/js/projectsDialog.js">
+  <link rel="modulepreload" href="/js/renderer.js">
+  <link rel="modulepreload" href="/js/ruler.js">
+  <link rel="modulepreload" href="/js/snapshot.js">
+  <link rel="modulepreload" href="/js/state.js">
+  <link rel="modulepreload" href="/js/storage.js">
+  <link rel="modulepreload" href="/js/style.js">
+  <link rel="modulepreload" href="/js/stylePanel.js">
+  <link rel="modulepreload" href="/js/templates.js">
+  <link rel="modulepreload" href="/js/textures.js">
+  <link rel="modulepreload" href="/js/theme.js">
+  <link rel="modulepreload" href="/js/ui.js">
+  <link rel="modulepreload" href="/js/v3dBar.js">
+  <link rel="modulepreload" href="/js/validate.js">
+  <link rel="modulepreload" href="/js/zones.js">
+  <script>window.preload3d=function(){if(window.preload3d.done)return;window.preload3d.done=1;["/js/3d/anim3d.js","/js/3d/controls3d.js","/js/3d/drag3d.js","/js/3d/lights3d.js","/js/3d/models3d.js","/js/3d/models3dMore.js","/js/3d/modelsDress.js","/js/3d/modelsLuxe.js","/js/3d/obstacles3d.js","/js/3d/perf.js","/js/3d/room3d.js","/js/3d/scene3d.js","/js/3d/softShadows.js","/js/3d/spotClip.js","/js/3d/textures3d.js","/js/3d/touch3d.js","/js/building.js","/js/floor3d.js","/js/walkMap.js","/vendor/three/build/three.module.js","/vendor/three/examples/jsm/controls/OrbitControls.js","/vendor/three/examples/jsm/controls/PointerLockControls.js","/vendor/three/examples/jsm/environments/RoomEnvironment.js","/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js","/vendor/three/examples/jsm/lights/RectAreaLightTexturesLib.js","/vendor/three/examples/jsm/lights/RectAreaLightUniformsLib.js","/vendor/three/examples/jsm/utils/BufferGeometryUtils.js"].forEach(function(u){var l=document.createElement('link');l.rel='modulepreload';l.href=u;document.head.appendChild(l)})};if(/[?&]embed=/.test(location.search))window.preload3d()</script>
+  <!--/preload-->
 </head>
 <body>
   <header class="topbar">
@@ -73,6 +122,7 @@
             <input type="number" name="H" min="150" max="600" step="1" value="270"></label>
         </form>
         <p class="hint" data-i18n="units">Все размеры в сантиметрах</p>
+        <label class="purpose-row"><span data-i18n="room.purpose">Назначение</span><select id="roomPurpose"></select></label>
         <details class="style-box" id="styleBox">
           <summary data-i18n="style.title">Отделка и стиль (3D)</summary>
           <form id="styleForm" class="style-form">
@@ -431,6 +481,10 @@
   <div class="menu" id="furnishMenu" hidden>
     <button type="button" data-act="room"></button>
     <button type="button" data-act="apt" data-i18n="furn.apt">Всю квартиру</button>
+    <div class="furn-purpose" id="furnPurpose" hidden>
+      <p data-i18n="furn.pickPurpose">Для какой комнаты подобрать мебель?</p>
+      <div id="furnPurposeList"></div>
+    </div>
   </div>
 
   <div class="menu" id="variantsMenu" hidden>

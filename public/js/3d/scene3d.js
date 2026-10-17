@@ -37,10 +37,14 @@ let context = null;        // static surroundings (the floor around an embedded 
 let quality = 'simple', softOn = true;
 // Drawing on demand: a frame is drawn only when something changed (camera, doors, light tweens, the scene).
 let dirty = true, shadowsDirty = true, visible = true, onScreen = true;
+let compiling = false;   // the first shaders are compiled in parallel (compileAsync): no frame until then
+const drawnWaiters = [];
+/** Resolves once the next frame is on screen. */
+export const nextFrame = () => new Promise(r => drawnWaiters.push(r));
 const lastView = new THREE.Matrix4(), lastProj = new THREE.Matrix4();
 // Device tier (perf.js): pixel ratio, shadows, anisotropy; in Auto the governor lowers it when frames are slow.
 let tier = 'mid', gov = null, prevDrawn = false;
-const EXPOSURE = 1.45;
+const EXPOSURE = 1.15;
 // Glow of lit shades on the "high" tier: render → bloom → tone mapping (loaded only when needed).
 let composer = null, bloom = null, bloomLoading = false;
 
@@ -120,8 +124,13 @@ function init(el) {
     emit();
   }));
   // A photo-library set has arrived: rebuild the shell and furniture with it.
+  // Sets arriving one after another make one rebuild, not one each.
+  let libTimer = 0;
   onLibLoaded((id, ok) => {
-    if (ok) { forget(); if (running) rebuild(); }
+    if (ok) {
+      clearTimeout(libTimer);
+      libTimer = setTimeout(() => { forget(); if (running) rebuild(); }, libPending() ? 400 : 60);
+    }
     if (!libPending() && note.mode === 'lib') hideNote();
   });
   // A set the finish needs is not on disk: the server downloads it at once (photo textures are the default), on
@@ -211,7 +220,7 @@ async function setBloom(on) {
     const c = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
     c.addPass(new RenderPass(scene, camera));
     // Only what is brighter than white glows: lit shades, the sun on glass; walls and furniture stay crisp.
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 1.1);
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.18, 0.4, 1.3);
     c.addPass(bloom);
     c.addPass(new OutputPass());
     composer = c;
@@ -292,9 +301,12 @@ async function downloadMissing() {
   }
   note.fetching = false;
   if (!failed && note.missing.size && autoFetch()) return downloadMissing();   // more sets asked for meanwhile
-  if (failed) {
+  if (failed && !note.failShown) {
+    note.failShown = true;      // once a session: the simple textures stay, the scene works as it is
     showNote(t('tex.fetchFail'), 'error');
     hideNote(4000);
+  } else if (failed) {
+    hideNote();
   } else if (libPending()) {
     showNote(t('tex3d.libLoading'), 'lib');
     hideNote(30000);            // backstop: the note never stays for good
@@ -304,7 +316,7 @@ async function downloadMissing() {
 }
 
 // Simple (procedural) / Photo (CC0) textures; the whole scene is rebuilt with new materials.
-// The first switch to Photo loads ~13 MB: the HUD says so and counts the files.
+// The first switch to Photo loads ~2 MB: the HUD says so and counts the files.
 async function applyQuality(q, save = false) {
   const loading = q === 'photo' && !photoReady();
   const btn = container.querySelector('[data-quality="photo"]');
@@ -352,9 +364,32 @@ function cull() {
   let changed = false;
   for (const [id, e] of rooms3d) {
     const v = !seen || seen.has(id);
-    for (const o of [e.shell?.group, e.furniture]) if (o && o.visible !== v) { o.visible = v; changed = true; }
+    if (e.furniture && e.furniture.visible !== v) { e.furniture.visible = v; changed = true; }
+    // A hidden room still shows its closed doors into a room in sight (leaf, frame, casing): the door belongs to
+    // the room that owns it, and without it the doorway would show the empty background.
+    const keep = v || !e.shell ? [] : portals.filter(l => l.room === id && seen.has(l.to))
+      .flatMap(l => [e.shell.doors.find(d => d.userData.door.id === l.door)?.parent,
+        e.shell.group.children.find(c => c.userData.revealDoor === l.door)]).filter(Boolean);
+    if (e.shell && showShell(e.shell, v, keep)) changed = true;
   }
   if (changed) shadowsDirty = true;
+}
+
+// Shows a shell, or hides all of it but the `keep` objects (and the groups they sit in). True when it changed.
+function showShell(shell, v, keep) {
+  const key = v ? 'all' : keep.map(o => o.uuid).join(',') || 'none';
+  if (shell.cullKey === key) return false;
+  shell.cullKey = key;
+  const g = shell.group;
+  g.traverse(o => { if (o.userData.culled) { o.visible = true; delete o.userData.culled; } });
+  const hide = o => { if (o.visible) { o.visible = false; o.userData.culled = true; } };
+  if (v) return true;
+  if (!keep.length) { hide(g); return true; }
+  const path = new Set();
+  for (const k of keep) for (let o = k; o && o !== g; o = o.parent) path.add(o);
+  const walk = o => { for (const c of o.children) if (!path.has(c)) hide(c); else if (!keep.includes(c)) walk(c); };
+  walk(g);
+  return true;
 }
 
 // Rebuild only what changed: a room shell when its size, openings, structure, style or doorways change,
@@ -384,7 +419,7 @@ function rebuild() {
     const holes = links.filter(l => l.to === r.id).map(l => ({ wall: l.wall, offset: l.offset, width: l.width, height: l.height }));
     const own = links.filter(l => l.room === r.id && l.to !== 'outside').map(l => {
       const o = r.openings.find(d => d.id === l.door), b = rooms.find(q => q.id === l.to);
-      return { wall: o.wall, offset: o.offset, width: o.width, height: o.height,
+      return { door: l.door, wall: o.wall, offset: o.offset, width: o.width, height: o.height,
         gap: Math.abs(wallLine(b, l.wall).at - wallLine(r, o.wall).at) };
     });
     const thick = {};
@@ -410,7 +445,11 @@ function rebuild() {
       e.shell = buildRoom(r.room, openings, r.style, { holes, thick });
       e.style = r.style;
       e.shell.group.add(buildObstacles(r.obstacles));
-      for (const d of own) e.shell.group.add(revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style));
+      for (const d of own) {
+        const rv = revealParts(d.wall, d.offset, d.width, d.height, d.gap, r.room.L, r.room.W, r.style);
+        rv.userData.revealDoor = d.door;
+        e.shell.group.add(rv);
+      }
       const shade = cornerShade(r.room.L / 100, r.room.W / 100, r.room.H / 100, [...openings, ...holes]);
       shade.visible = softOn;
       e.shell.group.add(shade);
@@ -637,7 +676,7 @@ function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.25);
-  if (!visible || !onScreen) { prevDrawn = false; return; }
+  if (!visible || !onScreen || compiling) { prevDrawn = false; return; }
   if (controls.update(dt)) shadowsDirty = true;
   if (anim.update(dt)) shadowsDirty = true;
   cull();
@@ -656,6 +695,7 @@ function loop() {
   if (shadowsDirty) renderer.shadowMap.needsUpdate = true;
   dirty = shadowsDirty = false;
   draw();
+  for (const r of drawnWaiters.splice(0)) r();
   // Frame rate counts only frames drawn one after another (idle time is not slowness).
   if (prevDrawn) gov?.frame(dt);
   prevDrawn = true;
@@ -670,6 +710,10 @@ export function show(el) {
   redrawShadows();
   controls.updateHint();
   if (was) return;   // one loop only
+  // The shaders of the first frame are compiled off the main thread where the GPU allows it
+  // (KHR_parallel_shader_compile), so opening the 3D does not freeze the page.
+  compiling = true;
+  renderer.compileAsync(scene, camera).catch(() => {}).finally(() => { compiling = false; dirty = true; });
   clock.start();
   loop();
 }

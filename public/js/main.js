@@ -155,6 +155,7 @@ async function setView(mode) {
   document.getElementById('splitHandle').hidden = !split;
   document.querySelector('.stage').classList.toggle('is3d', is3d);
   document.querySelector('.stage').classList.toggle('isSplit', split);
+  splitSide();
   requestDraw();
   // On a phone the scene is about a screen tall: bring it up under the 2D / 3D switch (lying: the scene alone).
   if (is3d && !embed && matchMedia('(max-width: 860px)').matches) {
@@ -162,6 +163,7 @@ async function setView(mode) {
     requestAnimationFrame(() => document.querySelector(lying ? '#canvasWrap' : '.stage-bar').scrollIntoView({ block: lying ? 'end' : 'start' }));
   }
   if (is3d || split) {
+    window.preload3d?.();   // all the 3D modules in one wave (index.html, scripts/preload.js)
     view3d ??= await import('./3d/scene3d.js');
     view3d.show(document.getElementById('view3d'));
   } else if (view3d) {
@@ -187,6 +189,30 @@ function initViewSwitch() {
     document.getElementById('exitFsBtn').hidden = !document.fullscreenElement;
   });
 }
+
+// "Plan + 3D" on a wide screen: the plan tools stand in a column at the right of the plan, the scene tools at the
+// right of the scene and the view switch on top of the plan column, so both views get the full height (2D and 3D alone
+// keep their bars). The nodes are moved, their listeners stay.
+const wideSplit = matchMedia('(min-width: 861px)');
+let barHome = null;
+function splitSide() {
+  const stage = document.querySelector('.stage'), bar = stage.querySelector('.stage-bar');
+  barHome ??= { seg: bar.querySelector('.seg'), tools: bar.querySelector('.btn-group') };
+  const on = stage.classList.contains('isSplit') && wideSplit.matches && !embed;
+  if (stage.classList.contains('splitSide') === on) return;
+  stage.classList.toggle('splitSide', on);
+  const { seg, tools } = barHome;
+  seg.classList.toggle('view-seg', on);
+  tools.classList.toggle('side-tools', on);
+  if (on) {
+    tools.prepend(seg);
+    document.getElementById('canvasWrap').append(tools);
+  } else {
+    bar.prepend(seg);
+    bar.append(tools);
+  }
+}
+wideSplit.addEventListener('change', () => { splitSide(); requestDraw(); });
 
 // Split divider: drag to share the height between the plan and the scene (kept per browser).
 function initSplit() {
@@ -228,29 +254,34 @@ async function loadCatalog() {
 
 // The floor view embedded in the showcase card: only the 3D scene, the apartment is not saved.
 const embed = ['floor', 'building'].includes(new URLSearchParams(location.search).get('embed'));
+// The 3D code and the building are fetched at once, side by side with the planner's own start (not after it).
+const early = embed ? {
+  floor: import('./floor3d.js').then(f => { f.prefetchBuilding(f.embedParams()); return f; }),
+  scene: import('./3d/scene3d.js'), controls: import('./3d/controls3d.js'), anim: import('./3d/anim3d.js')
+} : null;
+for (const p of Object.values(early || {})) p.catch(() => {});
 
 async function startEmbed() {
   try {
-    const floor = await import('./floor3d.js');
+    const floor = await early.floor;
     const params = floor.embedParams();
     if (!params) throw new Error('bad params');
     const ctx = await floor.openFloor(params);
     await setView('3d');
     view3d.setContext(floor.floorContext(ctx));
-    const controls = await import('./3d/controls3d.js');
-    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await import('./3d/anim3d.js')).setDoorHook, release: controls.release });
+    const controls = await early.controls;
+    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await early.anim).setDoorHook, release: controls.release });
     controls.setMode('walk');
     controls.walkNow();
     const card = document.querySelector('#walkOverlay [data-i18n]');
     card.dataset.i18n = 'v3d.clickToContinue';
     card.textContent = t('v3d.clickToContinue');
+    // The showcase hides its "loading" cover once the first frame is on screen (or after a backstop).
+    await Promise.race([view3d.nextFrame(), new Promise(r => setTimeout(r, 8000))]);
   } catch {
     toast(t('bld.loadFail'), true);
   }
-  // The showcase hides its "loading" cover once the first frame is on screen.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (parent !== window) parent.postMessage({ type: 'fsp3d:ready' }, location.origin);
-  }));
+  if (parent !== window) parent.postMessage({ type: 'fsp3d:ready' }, location.origin);
 }
 
 async function start() {
@@ -284,3 +315,5 @@ async function start() {
 }
 
 start();
+// The 3D code comes in the background once the planner is up: «3D» then opens without waiting for it.
+if (!embed) (window.requestIdleCallback || (f => setTimeout(f, 2000)))(() => window.preload3d?.(), { timeout: 4000 });

@@ -186,11 +186,7 @@ function attempt(view, kit, seed, catalog) {
     const it = { id: 0, type: spec.type, w, d: spec.d ?? c.d, h: Math.min(spec.h ?? c.h, room.H - elev), x, y, rot, color: c.color };
     if (elev > 0) it.elev = elev;
     if (c.layer) it.layer = c.layer;
-    const role = c.cat === 'kitchen' && c.facade ? 'kitchen' : FABRIC.has(c.type) ? 'fabric' : WOOD_CATS.has(c.cat) ? 'wood' : null;
-    if (role) {
-      it.materials = { body: palette[role === 'kitchen' ? 'facade' : role] };
-      if (c.facade) it.materials.facade = palette[role === 'kitchen' ? 'kitchen' : 'facade'];
-    }
+    // No materials: the room's furniture style gives the look (style.js STYLE_MATS).
     return it;
   }
 

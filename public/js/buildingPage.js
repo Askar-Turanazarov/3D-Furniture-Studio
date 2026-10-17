@@ -342,7 +342,19 @@ function openInPlanner(a) {
     toast(t('storage.full'), true);
     return;
   }
-  location.href = langPath('');
+  // At once: the button says the planner is opening, the facade stops drawing and loading, the page goes.
+  const btn = $('aptPlanner'), was = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = t('bld.opening');
+  ext?.pause(true);
+  // Back from the planner (the page comes from the back-forward cache): the card works again.
+  addEventListener('pageshow', e => {
+    if (!e.persisted) return;
+    btn.disabled = false;
+    btn.innerHTML = was;
+    ext?.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
+  }, { once: true });
+  location.assign(langPath(''));
 }
 
 // From the street through the doors: a short fade, then the lobby in the floor dialog (the walker at the doors).

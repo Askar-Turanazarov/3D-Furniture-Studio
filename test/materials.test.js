@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { itemLook, hasFacade, setItemMaterial, setItemColor, MAT_KINDS } from '../public/js/materials.js';
+import { itemLook, hasFacade, setItemMaterial, setItemColor, MAT_KINDS, resetToStyle } from '../public/js/materials.js';
 import { item } from './helpers.js';
 
 const cat = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url), 'utf8'));
@@ -43,4 +43,11 @@ test('body material sets the plan colour; own colour drops the body material onl
   assert.deepEqual(it.materials, { facade: 'graphite' });
   setItemMaterial(it, 'facade', null);
   assert.equal(it.materials, undefined);
+});
+
+test('a new room style: every item follows it (own style, materials and colour reset)', () => {
+  const items = [{ id: 1, type: 'wardrobe', style: 'classic', materials: { body: 'walnut' }, ownColor: true, color: '#123456' }, { id: 2, type: 'bed' }];
+  assert.equal(resetToStyle(items), 1);
+  assert.deepEqual(Object.keys(items[0]).sort(), ['color', 'id', 'type']);
+  assert.equal(resetToStyle(items), 0);
 });

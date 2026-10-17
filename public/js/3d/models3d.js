@@ -623,6 +623,7 @@ function lampHead(rTop, rBottom, hh, c, s, power) {
   shadeMat.side = THREE.DoubleSide;
   shadeMat.emissive = new THREE.Color('#ffd9a0');
   shadeMat.emissiveIntensity = 0.35;
+  shadeMat.userData.glow = 0.35;
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, hh, 24, 1, true), shadeMat);
   shade.position.y = hh / 2;
   const light = new THREE.PointLight('#ffd9a8', power, 0, 2);

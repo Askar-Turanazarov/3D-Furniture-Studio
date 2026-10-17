@@ -103,7 +103,8 @@ function gaps(len, spans) {
 /**
  * Corner shade of a room shell: L, W, H in metres; openings [{ wall, offset, width, kind, sill, height }] in cm
  * (doors and doorways have no sill). Floor strips stop at doorways; a vertical corner strip is left out
- * where an opening reaches that corner.
+ * where an opening reaches that corner. The strips up the walls and under the ceiling are a child mesh
+ * 'cornerShadeUpper': the overview cuts walls and ceilings away, and they must not float in the air.
  */
 export function cornerShade(L, W, H, openings = []) {
   const pos = [], col = [], idx = [];
@@ -116,6 +117,8 @@ export function cornerShade(L, W, H, openings = []) {
   for (const [x0, x1] of gaps(L, doors('south'))) addStrip(pos, col, idx, [x0, e, W - e], [x1, e, W - e], [0, 0, -s], a);
   for (const [z0, z1] of gaps(W, doors('west'))) addStrip(pos, col, idx, [e, e, z0], [e, e, z1], [s, 0, 0], a);
   for (const [z0, z1] of gaps(W, doors('east'))) addStrip(pos, col, idx, [L - e, e, z0], [L - e, e, z1], [-s, 0, 0], a);
+  const floor = meshOf(pos, col, idx, 'cornerShade');
+  pos.length = col.length = idx.length = 0;
   const y = H - e, k = a * 0.8;
   addStrip(pos, col, idx, [0, y, e], [L, y, e], [0, 0, s], k);
   addStrip(pos, col, idx, [0, y, W - e], [L, y, W - e], [0, 0, -s], k);
@@ -139,5 +142,6 @@ export function cornerShade(L, W, H, openings = []) {
     if (!near(wx, L, ex)) addStrip(pos, col, idx, [x, 0, pz], [x, H, pz], [sx * c, 0, 0], a * 0.8);
     if (!near(wz, W, ez)) addStrip(pos, col, idx, [px, 0, z], [px, H, z], [0, 0, sz * c], a * 0.8);
   }
-  return meshOf(pos, col, idx, 'cornerShade');
+  floor.add(meshOf(pos, col, idx, 'cornerShadeUpper'));
+  return floor;
 }

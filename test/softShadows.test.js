@@ -23,12 +23,13 @@ test('contact shadows only under items standing on the floor', () => {
 });
 
 test('corner shade: no floor strip across a doorway, no corner strip where an opening reaches the corner', () => {
-  const quads = m => m.geometry.index.count / 6;
+  const quads = m => (m.geometry.index.count + m.children[0].geometry.index.count) / 6;
   const plain = cornerShade(4, 3, 2.7);
   const door = cornerShade(4, 3, 2.7, [{ wall: 'north', offset: 150, width: 90, height: 210 }]);
   assert.equal(quads(door), quads(plain) + 1, 'the north floor strip is split in two');
   const window0 = cornerShade(4, 3, 2.7, [{ wall: 'west', offset: 0, width: 120, kind: 'window', sill: 90, height: 140 }]);
   assert.equal(quads(window0), quads(plain) - 1, 'the west strip of the north-west corner is left out');
+  assert.equal(plain.children[0].name, 'cornerShadeUpper', 'wall and ceiling strips apart: the overview hides them');
 });
 
 test('shade strips: one quad per strip, dark on the line, clear at the far edge', () => {

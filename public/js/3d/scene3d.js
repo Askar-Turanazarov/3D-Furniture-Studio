@@ -44,7 +44,7 @@ export const nextFrame = () => new Promise(r => drawnWaiters.push(r));
 const lastView = new THREE.Matrix4(), lastProj = new THREE.Matrix4();
 // Device tier (perf.js): pixel ratio, shadows, anisotropy; in Auto the governor lowers it when frames are slow.
 let tier = 'mid', gov = null, prevDrawn = false;
-const EXPOSURE = 1.45;
+const EXPOSURE = 1.15;
 // Glow of lit shades on the "high" tier: render → bloom → tone mapping (loaded only when needed).
 let composer = null, bloom = null, bloomLoading = false;
 

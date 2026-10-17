@@ -302,6 +302,9 @@ function applyLevels(group) {
   if (u.hemi) u.hemi.intensity = c.hemi + (c.bounce || 0);
   M.sky.color.set(c.sky);
   M.lampShade.emissiveIntensity = c.shade;
+  // Crystal drops and linen drums glow only while the ceiling lights are on.
+  if (glass) glass.emissiveIntensity = 0.6 * c.ceil;
+  if (linenShade) linenShade.emissiveIntensity = 0.45 * c.ceil;
   u.sun.color.set(c.sunColor);
   u.sun.intensity = c.sunPower * u.sunScale;
   u.place(c.sunHeight);
@@ -309,6 +312,10 @@ function applyLevels(group) {
 }
 
 // Floor lamps and sconces carry their own light (userData.lampPower); level = lights.userData.cur.fix.
+// Glowing parts (lamp shades, light strips) carry their full glow in material.userData.glow.
 export function applyFixtures(furniture, level) {
-  furniture.traverse(o => { if (o.isLight && o.userData.lampPower) o.intensity = o.userData.lampPower * level; });
+  furniture.traverse(o => {
+    if (o.isLight && o.userData.lampPower) o.intensity = o.userData.lampPower * level;
+    else if (o.material?.userData?.glow) o.material.emissiveIntensity = o.material.userData.glow * level;
+  });
 }

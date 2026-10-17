@@ -140,7 +140,9 @@ function mirrorcab(w, d, h, c, s) {
     const left = n === 1 || i === 0;
     g.add(hinged(leaf, left ? x - dw / 2 : x + dw / 2, d / 2 - 0.008, left ? -1 : 1));
   }
-  const strip = box(w - 0.06, 0.01, 0.02, new THREE.MeshStandardMaterial({ color: '#fff7e6', emissive: '#fff1d6', emissiveIntensity: 0.6 }), 0, -0.012, 0);
+  const stripMat = new THREE.MeshStandardMaterial({ color: '#fff7e6', emissive: '#fff1d6', emissiveIntensity: 0.6 });
+  stripMat.userData.glow = 0.6;
+  const strip = box(w - 0.06, 0.01, 0.02, stripMat, 0, -0.012, 0);
   strip.castShadow = false;
   g.add(strip);
   return g;

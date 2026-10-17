@@ -30,7 +30,7 @@ test('light targets: numbers and colours, darker towards night', () => {
   assert.equal(night.ceil, 1);
   const off = targetsFor({ scene: 'night', lampsOn: false });
   assert.deepEqual([off.ceil, off.fix, off.shade], [0, 0, 0]);       // L: off means off, no glow
-  assert.ok(targetsFor({ scene: 'day', lampsOn: true }).ceil === 1);
+  assert.ok(targetsFor({ scene: 'day', lampsOn: true }).ceil < 1, 'by day the lamps read dimmer');
   assert.equal(easeInOut(0), 0);
   assert.equal(easeInOut(1), 1);
   assert.equal(easeInOut(0.5), 0.5);

@@ -220,7 +220,7 @@ async function setBloom(on) {
     const c = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
     c.addPass(new RenderPass(scene, camera));
     // Only what is brighter than white glows: lit shades, the sun on glass; walls and furniture stay crisp.
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 1.1);
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.18, 0.4, 1.3);
     c.addPass(bloom);
     c.addPass(new OutputPass());
     composer = c;

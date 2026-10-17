@@ -1,0 +1,78 @@
+// <link rel="modulepreload"> for every module a page imports statically (npm run preload).
+// Without it the browser finds the modules one level of imports at a time: on a slow line (≈ 1 s a request)
+// the planner waited for ~8 such waves before anything ran; with the list all of them load in one wave.
+// test/preload.test.js checks that the lists in the pages match the imports.
+const fs = require('fs');
+const path = require('path');
+
+const PUBLIC = path.join(__dirname, '..', 'public');
+// Per page: the modules to preload at once (the entry's imports and what it imports on start), and the 3D modules
+// the planner imports later (window.preload3d() — at once in the embedded floor view, on idle or on «3D» otherwise).
+const PAGES = {
+  'index.html': { entry: '/js/main.js', lazy: ['/js/floor3d.js', '/js/3d/scene3d.js', '/js/3d/controls3d.js', '/js/3d/anim3d.js'] },
+  'building.html': { entry: '/js/buildingPage.js', start: ['/js/bld3d/exterior.js', '/js/facade.js', '/js/bld3d/facadeTex.js'] }
+};
+const MAP = { three: '/vendor/three/build/three.module.js', 'three/addons/': '/vendor/three/examples/jsm/' };
+
+function fileOf(url) {
+  return url.startsWith('/vendor/three/') ? path.join(__dirname, '..', 'node_modules', 'three', url.slice(14)) : path.join(PUBLIC, url);
+}
+
+function resolve(spec, from) {
+  if (MAP[spec]) return MAP[spec];
+  if (spec.startsWith('three/addons/')) return MAP['three/addons/'] + spec.slice(13);
+  if (spec.startsWith('.')) return path.posix.normalize(path.posix.join(path.posix.dirname(from), spec));
+  return spec.startsWith('/') ? spec : null;
+}
+
+/** Static imports reachable from the entries, the entries included (dynamic import() is not followed). */
+function graph(...entries) {
+  const seen = new Set(), todo = [...entries];
+  while (todo.length) {
+    const url = todo.pop();
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const src = fs.readFileSync(fileOf(url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const m of src.matchAll(/(?:^|[;\n}])\s*(?:import|export)\s+(?:[^'"();]*?\sfrom\s+)?['"]([^'"]+)['"]/g)) {
+      const u = resolve(m[1], url);
+      if (u) todo.push(u);
+    }
+  }
+  return [...seen].sort();
+}
+
+/** The two lists of a page: { now, lazy } (urls). */
+function lists(page) {
+  const { entry, start = [], lazy = [] } = PAGES[page];
+  const base = graph(entry);
+  const now = [...new Set([...base.filter(u => u !== entry), ...graph(...start)])].sort();
+  const lazyList = lazy.length ? graph(...lazy).filter(u => !base.includes(u)) : [];
+  return { now, lazy: lazyList };
+}
+
+const link = u => `<link rel="modulepreload" href="${u}">`;
+function block({ now, lazy }) {
+  const out = ['<!--preload-->', ...now.map(u => '  ' + link(u))];
+  if (lazy.length) out.push(`  <script>window.preload3d=function(){if(window.preload3d.done)return;window.preload3d.done=1;` +
+    `${JSON.stringify(lazy)}.forEach(function(u){var l=document.createElement('link');l.rel='modulepreload';l.href=u;document.head.appendChild(l)})};` +
+    `if(/[?&]embed=/.test(location.search))window.preload3d()</script>`);
+  out.push('  <!--/preload-->');
+  return out;
+}
+
+function update(write = true) {
+  const out = {};
+  for (const page of Object.keys(PAGES)) {
+    const file = path.join(PUBLIC, page);
+    const html = fs.readFileSync(file, 'utf8');
+    const nl = html.includes('\r\n') ? '\r\n' : '\n';
+    const l = lists(page);
+    const next = html.replace(/<!--preload-->[\s\S]*?<!--\/preload-->/, block(l).join(nl));
+    out[page] = { same: next === html, now: l.now.length, lazy: l.lazy.length };
+    if (write && next !== html) fs.writeFileSync(file, next);
+  }
+  return out;
+}
+
+module.exports = { graph, lists, update, PAGES };
+if (require.main === module) console.log(update());

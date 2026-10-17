@@ -163,6 +163,7 @@ async function setView(mode) {
     requestAnimationFrame(() => document.querySelector(lying ? '#canvasWrap' : '.stage-bar').scrollIntoView({ block: lying ? 'end' : 'start' }));
   }
   if (is3d || split) {
+    window.preload3d?.();   // all the 3D modules in one wave (index.html, scripts/preload.js)
     view3d ??= await import('./3d/scene3d.js');
     view3d.show(document.getElementById('view3d'));
   } else if (view3d) {
@@ -314,3 +315,5 @@ async function start() {
 }
 
 start();
+// The 3D code comes in the background once the planner is up: «3D» then opens without waiting for it.
+if (!embed) (window.requestIdleCallback || (f => setTimeout(f, 2000)))(() => window.preload3d?.(), { timeout: 4000 });

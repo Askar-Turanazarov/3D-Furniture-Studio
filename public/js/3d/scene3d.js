@@ -352,9 +352,31 @@ function cull() {
   let changed = false;
   for (const [id, e] of rooms3d) {
     const v = !seen || seen.has(id);
-    for (const o of [e.shell?.group, e.furniture]) if (o && o.visible !== v) { o.visible = v; changed = true; }
+    if (e.furniture && e.furniture.visible !== v) { e.furniture.visible = v; changed = true; }
+    // A hidden room still shows the leaves of its closed doors into a room in sight: the leaf belongs to the
+    // room that owns the door, and without it the doorway would show the empty background.
+    const keep = v || !e.shell ? [] : portals.filter(l => l.room === id && seen.has(l.to))
+      .map(l => e.shell.doors.find(d => d.userData.door.id === l.door)).filter(Boolean);
+    if (e.shell && showShell(e.shell, v, keep)) changed = true;
   }
   if (changed) shadowsDirty = true;
+}
+
+// Shows a shell, or hides all of it but the `keep` objects (and the groups they sit in). True when it changed.
+function showShell(shell, v, keep) {
+  const key = v ? 'all' : keep.map(o => o.userData.door.id).join(',') || 'none';
+  if (shell.cullKey === key) return false;
+  shell.cullKey = key;
+  const g = shell.group;
+  g.traverse(o => { if (o.userData.culled) { o.visible = true; delete o.userData.culled; } });
+  const hide = o => { if (o.visible) { o.visible = false; o.userData.culled = true; } };
+  if (v) return true;
+  if (!keep.length) { hide(g); return true; }
+  const path = new Set();
+  for (const k of keep) for (let o = k; o && o !== g; o = o.parent) path.add(o);
+  const walk = o => { for (const c of o.children) if (!path.has(c)) hide(c); else if (!keep.includes(c)) walk(c); };
+  walk(g);
+  return true;
 }
 
 // Rebuild only what changed: a room shell when its size, openings, structure, style or doorways change,

@@ -33,13 +33,15 @@ export function setItemColor(item, color) {
   if (item.materials?.body) setItemMaterial(item, 'body', null);
 }
 
-/** A new furniture style for the room: the items lose their materials and own colours, the style gives the look. */
+/** A new furniture style for the room: the items lose their own style, materials and colours — the room style gives
+ * the look of all its furniture. */
 export function resetToStyle(items) {
   let n = 0;
   for (const it of items) {
-    if (it.materials || it.ownColor) n++;
+    if (it.materials || it.ownColor || it.style) n++;
     delete it.materials;
     delete it.ownColor;
+    delete it.style;
   }
   return n;
 }

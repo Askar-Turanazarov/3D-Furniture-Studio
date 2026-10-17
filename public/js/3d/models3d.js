@@ -183,16 +183,18 @@ function fm(kind, c, s, role = 'body') {
   return furnitureMat(kind, c, s);
 }
 
-// Box with UVs scaled to metres (1 texture tile = 1 m) on every face.
+// Box with UVs scaled to metres (1 texture tile = 1 m) on every face; the grain of the photo (along u) runs along
+// the long side of each face, as on real boards: up a door or a side, along a shelf.
 function box(w, h, d, mat, x = 0, y = 0, z = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
   const uv = g.attributes.uv;
   // Face order: +x, -x, +y, -y, +z, -z (4 vertices each).
   const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
   for (let f = 0; f < 6; f++) {
+    const [a, b] = dims[f], turn = b > a;
     for (let v = 0; v < 4; v++) {
-      const i = f * 4 + v;
-      uv.setXY(i, uv.getX(i) * dims[f][0], uv.getY(i) * dims[f][1]);
+      const i = f * 4 + v, u0 = uv.getX(i), v0 = uv.getY(i);
+      if (turn) uv.setXY(i, v0 * b, u0 * a); else uv.setXY(i, u0 * a, v0 * b);
     }
   }
   const m = new THREE.Mesh(g, mat);

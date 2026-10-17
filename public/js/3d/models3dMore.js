@@ -315,14 +315,14 @@ function cornersofa(w, d, h, c, s) {
 
 // Sideboard: a cabinet with doors on tapered legs.
 function sideboard(w, d, h, c, s) {
-  const g = new THREE.Group(), legH = Math.min(0.15, h * 0.18), dark = fm('dark', c, s);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+  const bare = conf().bare, g = new THREE.Group(), legH = bare ? 0 : Math.min(0.15, h * 0.18), dark = fm('dark', c, s);
+  if (!bare) for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const x = sx * (w / 2 - 0.05), z = sz * (d / 2 - 0.05);
     g.add(leg(taper(0.018, 0.011, legH, dark, x, 0, z), x, z, legH, 0.035, c, s));
   }
   const wood = fm('wood', c, s), face = fm('wood', c, s, 'facade'), metal = mat('metal', '', s), ch = h - legH;
   g.add(box(w, ch, d - 0.02, wood, 0, legH, -0.01));
-  g.add(box(w + 0.02, 0.025, d + 0.01, wood, 0, h - 0.025, 0));
+  if (!bare) g.add(box(w + 0.02, 0.025, d + 0.01, wood, 0, h - 0.025, 0));
   const n = Math.max(2, Math.min(4, Math.round(w / 0.45))), dw = (w - 0.004 * (n + 1)) / n;
   for (let i = 0; i < n; i++) {
     const x = -w / 2 + 0.004 + dw / 2 + i * (dw + 0.004), leaf = new THREE.Group();
@@ -338,8 +338,8 @@ function sideboard(w, d, h, c, s) {
 // Display cabinet: glass doors over lit shelves with some dishes.
 function vitrine(w, d, h, c, s) {
   const g = new THREE.Group(), wood = fm('wood', c, s), glass = mat('glass', '', s);
-  const t = 0.02, base = 0.08;
-  g.add(box(w, base, d - 0.03, fm('dark', c, s), 0, 0, -0.015));
+  const t = 0.02, base = conf().bare ? t : 0.08;
+  if (!conf().bare) g.add(box(w, base, d - 0.03, fm('dark', c, s), 0, 0, -0.015));
   for (const sx of [-1, 1]) g.add(box(t, h - base, d - 0.02, wood, sx * (w / 2 - t / 2), base, -0.01));
   g.add(box(w, t, d - 0.02, wood, 0, h - t, -0.01));
   g.add(box(w - 2 * t, h - base, 0.008, wood, 0, base, -d / 2 + 0.004));

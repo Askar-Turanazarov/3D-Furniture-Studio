@@ -86,3 +86,32 @@ test('every catalog item builds in every style, the base ones too', async () => 
     }
   }
 });
+
+test('cabinets have their own silhouette in every style: inside the box, doors still open', async () => {
+  const { FURN_STYLES } = await import('../public/js/style.js');
+  const { DRESSED } = await import('../public/js/3d/modelsDress.js');
+  const sig = new Map();
+  for (const type of DRESSED) {
+    const c = catalog.find(x => x.type === type);
+    if (!c) continue;
+    const seen = new Set();
+    for (const style of FURN_STYLES) {
+      const obj = buildItem({ id: 5, type, w: c.w, d: c.d, h: c.h, x: 0, y: 0, rot: 0, color: c.color, style }, 'ok', [], {}, catalog);
+      obj.position.set(0, 0, 0);
+      obj.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(obj), tol = 0.012, where = `${style} ${type}`;
+      assert.ok(b.min.x >= -c.w / 200 - tol && b.max.x <= c.w / 200 + tol, `${where} x ${b.min.x.toFixed(3)}..${b.max.x.toFixed(3)}`);
+      assert.ok(b.min.z >= -c.d / 200 - tol && b.max.z <= c.d / 200 + 0.03,   // handles stand out at the front
+        `${where} z ${b.min.z.toFixed(3)}..${b.max.z.toFixed(3)}`);
+      assert.ok(b.min.y >= -tol && b.max.y <= c.h / 100 + tol, `${where} y ${b.min.y.toFixed(3)}..${b.max.y.toFixed(3)}`);
+      assert.ok(triangles(obj) <= 12000, `${where}: ${triangles(obj)} triangles`);
+      if (['wardrobe', 'dresser'].includes(type)) assert.ok(obj.userData.movers.length > 0, `${where} movers`);
+      let meshes = 0;
+      obj.traverse(o => { if (o.isMesh) meshes++; });
+      seen.add(`${meshes}|${triangles(obj)}`);
+    }
+    sig.set(type, seen.size);
+  }
+  // Each style builds a different model (not only other materials).
+  for (const [type, n] of sig) assert.equal(n, FURN_STYLES.length, type);
+});

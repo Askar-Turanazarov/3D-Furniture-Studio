@@ -1217,6 +1217,31 @@ body.embed .site-foot { display: none; }
 @media (min-width: 1100px) { .brand-desc { display: inline-flex; } }
 
 /* ---------- plan + 3D (split): the plan above, the scene below, a draggable divider ---------- */
+/* wide screens: the tools in columns at the right of the plan and of the scene (main.js splitSide) */
+.stage.splitSide .stage-bar { display: none; }
+.stage.splitSide { --side: 240px; }
+.stage.splitSide #plan { width: calc(100% - var(--side)); }
+.side-tools {
+  position: absolute; top: 0; right: 0; width: var(--side); height: calc(var(--split) - 5px); z-index: 5;
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 10px; overflow-y: auto;
+  border-left: 1px solid var(--line); background: var(--surface);
+}
+.side-tools .view-seg { flex: 1 1 100%; display: flex; }
+.side-tools .view-seg button { flex: 1; justify-content: center; padding: 7px 4px; font-size: 10px; letter-spacing: .06em; white-space: nowrap; }
+.side-tools .btn:not(.icon):not(.zoom-val) {
+  flex: 1 1 calc(50% - 3px); min-width: 0; padding: 7px 8px; font-size: 10px; letter-spacing: .06em;
+  justify-content: flex-start; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stage.splitSide #view3d { flex-direction: row-reverse; }
+.stage.splitSide .v3d-bar {
+  width: var(--side); flex-direction: column; align-items: stretch; overflow-x: hidden; overflow-y: auto; padding: 10px;
+  border-bottom: 0; border-left: 1px solid rgba(201, 169, 110, .18);
+}
+.stage.splitSide .v3d-bar .seg { display: flex; }
+.stage.splitSide .v3d-bar .seg button { flex: 1; justify-content: center; }
+.stage.splitSide .v3d-bar .hud-btn { justify-content: flex-start; }
+.stage.splitSide .v3d-gap { flex: none; height: 4px; }
+.stage.splitSide .v3d-panel { top: 10px; }
 .canvas-wrap { --split: 42%; }
 .stage.isSplit #plan { bottom: auto; height: calc(var(--split) - 5px); }
 .stage.isSplit .view3d { top: calc(var(--split) + 5px); border-top: 1px solid var(--hairline); }

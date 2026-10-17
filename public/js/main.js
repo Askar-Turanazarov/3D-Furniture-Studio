@@ -155,6 +155,7 @@ async function setView(mode) {
   document.getElementById('splitHandle').hidden = !split;
   document.querySelector('.stage').classList.toggle('is3d', is3d);
   document.querySelector('.stage').classList.toggle('isSplit', split);
+  splitSide();
   requestDraw();
   // On a phone the scene is about a screen tall: bring it up under the 2D / 3D switch (lying: the scene alone).
   if (is3d && !embed && matchMedia('(max-width: 860px)').matches) {
@@ -187,6 +188,30 @@ function initViewSwitch() {
     document.getElementById('exitFsBtn').hidden = !document.fullscreenElement;
   });
 }
+
+// "Plan + 3D" on a wide screen: the plan tools stand in a column at the right of the plan, the scene tools at the
+// right of the scene and the view switch on top of the plan column, so both views get the full height (2D and 3D alone
+// keep their bars). The nodes are moved, their listeners stay.
+const wideSplit = matchMedia('(min-width: 861px)');
+let barHome = null;
+function splitSide() {
+  const stage = document.querySelector('.stage'), bar = stage.querySelector('.stage-bar');
+  barHome ??= { seg: bar.querySelector('.seg'), tools: bar.querySelector('.btn-group') };
+  const on = stage.classList.contains('isSplit') && wideSplit.matches && !embed;
+  if (stage.classList.contains('splitSide') === on) return;
+  stage.classList.toggle('splitSide', on);
+  const { seg, tools } = barHome;
+  seg.classList.toggle('view-seg', on);
+  tools.classList.toggle('side-tools', on);
+  if (on) {
+    tools.prepend(seg);
+    document.getElementById('canvasWrap').append(tools);
+  } else {
+    bar.prepend(seg);
+    bar.append(tools);
+  }
+}
+wideSplit.addEventListener('change', () => { splitSide(); requestDraw(); });
 
 // Split divider: drag to share the height between the plan and the scene (kept per browser).
 function initSplit() {

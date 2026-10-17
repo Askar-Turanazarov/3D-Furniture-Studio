@@ -76,3 +76,13 @@ test('cabinets, kitchens and lamps in luxe collections: hardware and facades sta
     }
   }
 });
+
+test('every catalog item builds in every style, the base ones too', async () => {
+  const { FURN_STYLES } = await import('../public/js/style.js');
+  for (const c of catalog) {
+    for (const furniture of FURN_STYLES) {
+      const item = { id: 1, type: c.type, w: c.w, d: c.d, h: c.h, x: 0, y: 0, rot: 0, color: c.color };
+      assert.doesNotThrow(() => buildItem(item, 'ok', [], { furniture }, catalog), `${furniture} ${c.type}`);
+    }
+  }
+});

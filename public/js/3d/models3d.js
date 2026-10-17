@@ -100,7 +100,7 @@ function panel(g, fw, fh, x, y, zFront, mat) {
 // ---- luxe collections on the base models (cabinets, kitchens, shelves …): hardware, legs, facades ----
 // milano — slim bronze edge pulls, no mouldings; couture — brass knob on a rosette, brass moulding frame;
 // deco — long brass bars, fluted fronts; organic — flat oak knobs, plain fronts.
-const metalOf = (c, s) => isLuxe(sty) ? luxePart('metal', s) : metalOf(c, s);
+const metalOf = (c, s) => isLuxe(sty) ? luxePart('metal', s) : furnitureMat('metal', c, s);
 
 function luxeHandle(x, y, z, len, vertical, s) {
   const metal = luxePart('metal', s), g = new THREE.Group();

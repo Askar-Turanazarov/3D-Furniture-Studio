@@ -310,7 +310,7 @@ function greyscale(t) {
   return toTexture(c);
 }
 
-export const PHOTO_MB = 13;   // the four base photo sets on disk, about
+export const PHOTO_MB = 2;    // the four base photo sets on disk, about
 
 // The base photo sets are loaded (Photo quality is then applied at once).
 export const photoReady = () => !!photo;
@@ -376,7 +376,26 @@ export const canFetchLib = () => libServer;
 
 // Download a library set through the server, then load it into the scene. The server downloads one set at a
 // time ('busy', e.g. the facade sets for another visitor): wait and retry.
+// Sets the server could not download in this session: not asked for again (the simple texture stays).
+const failedSets = new Set((() => {
+  try { return JSON.parse(sessionStorage.getItem('fsp3d.libFail') || '[]'); } catch { return []; }
+})());
+function setFailed(id) {
+  failedSets.add(id);
+  try { sessionStorage.setItem('fsp3d.libFail', JSON.stringify([...failedSets])); } catch { /* ignore */ }
+}
+
 export async function fetchLibSet(id) {
+  if (failedSets.has(id)) throw new Error('download_failed');
+  try {
+    await askServer(id);
+  } catch (e) {
+    if (e.message !== 'busy') setFailed(id);
+    throw e;
+  }
+}
+
+async function askServer(id) {
   for (let tries = 0; ; tries++) {
     // A request never hangs: the server answers within its own limit, this is the backstop.
     const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 120 * 1000);
@@ -405,7 +424,7 @@ async function loadLib(id) {
   const entry = (await libraryIndex()).find(e => e.id === id);
   if (!entry) return null;
   if (!entry.available) {
-    missingListeners.forEach(fn => fn(entry));
+    if (!failedSets.has(id)) missingListeners.forEach(fn => fn(entry));
     return null;
   }
   const rep = 1 / (entry.tile || 1);

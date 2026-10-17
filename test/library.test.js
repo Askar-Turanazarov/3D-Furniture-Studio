@@ -33,7 +33,7 @@ test('bundled sets have their maps in the repository', () => {
     for (const f of e.maps || ['color', 'normal', 'roughness']) {
       const p = new URL(`sets/${e.id}/${f}.jpg`, root);
       assert.ok(existsSync(p), `${e.id}/${f}.jpg`);
-      assert.ok(statSync(p).size > 10000, `${e.id}/${f}.jpg is too small`);
+      assert.ok(statSync(p).size > 4000, `${e.id}/${f}.jpg is too small`);   // a flat stone normal map is ~7 KB
     }
   }
 });

@@ -167,11 +167,24 @@ function floorProject(bld, floor, a, keep = null, fromStreet = false) {
   return { p, doors: extra?.doors || new Map() };
 }
 
+// The building, fetched once (the embedded view asks for it before the planner has started).
+let pending = null;
+export function prefetchBuilding(params) {
+  if (!params) return null;
+  if (pending?.b !== params.b) {
+    const p = fetch('/api/buildings/' + encodeURIComponent(params.b)).then(res => {
+      if (!res.ok) throw new Error(res.status);
+      return res.json();
+    });
+    p.catch(() => {});
+    pending = { b: params.b, p };
+  }
+  return pending.p;
+}
+
 // Load the building, open the apartment and its corridor (or a floor) as a temporary project.
 export async function openFloor({ b, apt, floor, street = false }) {
-  const res = await fetch('/api/buildings/' + encodeURIComponent(b));
-  if (!res.ok) throw new Error(res.status);
-  const bld = await res.json();
+  const bld = await prefetchBuilding({ b });
   const a = apt ? bld.floorsData.flatMap(f => f.apartments || []).find(q => q.no === apt) : null;
   if (apt && !a) throw new Error('no apartment');
   const n = a ? a.floor : Math.min(floor, bld.floorsData.length);

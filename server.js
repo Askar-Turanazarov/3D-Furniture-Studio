@@ -244,6 +244,7 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
     await fetchSet(String(req.params.id));
     res.json({ ok: true });
   } catch (e) {
+    if (!e.status) console.error('texture set', req.params.id, 'failed:', e.message, e.cause?.message || '');
     res.status(e.status || 502).json({ error: e.status === 404 ? 'unknown_set' : e.status === 429 ? 'busy' : 'download_failed' });
   }
 });

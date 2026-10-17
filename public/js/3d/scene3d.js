@@ -37,6 +37,10 @@ let context = null;        // static surroundings (the floor around an embedded 
 let quality = 'simple', softOn = true;
 // Drawing on demand: a frame is drawn only when something changed (camera, doors, light tweens, the scene).
 let dirty = true, shadowsDirty = true, visible = true, onScreen = true;
+let compiling = false;   // the first shaders are compiled in parallel (compileAsync): no frame until then
+const drawnWaiters = [];
+/** Resolves once the next frame is on screen. */
+export const nextFrame = () => new Promise(r => drawnWaiters.push(r));
 const lastView = new THREE.Matrix4(), lastProj = new THREE.Matrix4();
 // Device tier (perf.js): pixel ratio, shadows, anisotropy; in Auto the governor lowers it when frames are slow.
 let tier = 'mid', gov = null, prevDrawn = false;
@@ -120,8 +124,13 @@ function init(el) {
     emit();
   }));
   // A photo-library set has arrived: rebuild the shell and furniture with it.
+  // Sets arriving one after another make one rebuild, not one each.
+  let libTimer = 0;
   onLibLoaded((id, ok) => {
-    if (ok) { forget(); if (running) rebuild(); }
+    if (ok) {
+      clearTimeout(libTimer);
+      libTimer = setTimeout(() => { forget(); if (running) rebuild(); }, libPending() ? 400 : 60);
+    }
     if (!libPending() && note.mode === 'lib') hideNote();
   });
   // A set the finish needs is not on disk: the server downloads it at once (photo textures are the default), on
@@ -292,9 +301,12 @@ async function downloadMissing() {
   }
   note.fetching = false;
   if (!failed && note.missing.size && autoFetch()) return downloadMissing();   // more sets asked for meanwhile
-  if (failed) {
+  if (failed && !note.failShown) {
+    note.failShown = true;      // once a session: the simple textures stay, the scene works as it is
     showNote(t('tex.fetchFail'), 'error');
     hideNote(4000);
+  } else if (failed) {
+    hideNote();
   } else if (libPending()) {
     showNote(t('tex3d.libLoading'), 'lib');
     hideNote(30000);            // backstop: the note never stays for good
@@ -304,7 +316,7 @@ async function downloadMissing() {
 }
 
 // Simple (procedural) / Photo (CC0) textures; the whole scene is rebuilt with new materials.
-// The first switch to Photo loads ~13 MB: the HUD says so and counts the files.
+// The first switch to Photo loads ~2 MB: the HUD says so and counts the files.
 async function applyQuality(q, save = false) {
   const loading = q === 'photo' && !photoReady();
   const btn = container.querySelector('[data-quality="photo"]');
@@ -664,7 +676,7 @@ function loop() {
   if (!running) return;
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.25);
-  if (!visible || !onScreen) { prevDrawn = false; return; }
+  if (!visible || !onScreen || compiling) { prevDrawn = false; return; }
   if (controls.update(dt)) shadowsDirty = true;
   if (anim.update(dt)) shadowsDirty = true;
   cull();
@@ -683,6 +695,7 @@ function loop() {
   if (shadowsDirty) renderer.shadowMap.needsUpdate = true;
   dirty = shadowsDirty = false;
   draw();
+  for (const r of drawnWaiters.splice(0)) r();
   // Frame rate counts only frames drawn one after another (idle time is not slowness).
   if (prevDrawn) gov?.frame(dt);
   prevDrawn = true;
@@ -697,6 +710,10 @@ export function show(el) {
   redrawShadows();
   controls.updateHint();
   if (was) return;   // one loop only
+  // The shaders of the first frame are compiled off the main thread where the GPU allows it
+  // (KHR_parallel_shader_compile), so opening the 3D does not freeze the page.
+  compiling = true;
+  renderer.compileAsync(scene, camera).catch(() => {}).finally(() => { compiling = false; dirty = true; });
   clock.start();
   loop();
 }

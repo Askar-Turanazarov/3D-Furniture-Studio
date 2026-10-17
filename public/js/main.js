@@ -253,29 +253,34 @@ async function loadCatalog() {
 
 // The floor view embedded in the showcase card: only the 3D scene, the apartment is not saved.
 const embed = ['floor', 'building'].includes(new URLSearchParams(location.search).get('embed'));
+// The 3D code and the building are fetched at once, side by side with the planner's own start (not after it).
+const early = embed ? {
+  floor: import('./floor3d.js').then(f => { f.prefetchBuilding(f.embedParams()); return f; }),
+  scene: import('./3d/scene3d.js'), controls: import('./3d/controls3d.js'), anim: import('./3d/anim3d.js')
+} : null;
+for (const p of Object.values(early || {})) p.catch(() => {});
 
 async function startEmbed() {
   try {
-    const floor = await import('./floor3d.js');
+    const floor = await early.floor;
     const params = floor.embedParams();
     if (!params) throw new Error('bad params');
     const ctx = await floor.openFloor(params);
     await setView('3d');
     view3d.setContext(floor.floorContext(ctx));
-    const controls = await import('./3d/controls3d.js');
-    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await import('./3d/anim3d.js')).setDoorHook, release: controls.release });
+    const controls = await early.controls;
+    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await early.anim).setDoorHook, release: controls.release });
     controls.setMode('walk');
     controls.walkNow();
     const card = document.querySelector('#walkOverlay [data-i18n]');
     card.dataset.i18n = 'v3d.clickToContinue';
     card.textContent = t('v3d.clickToContinue');
+    // The showcase hides its "loading" cover once the first frame is on screen (or after a backstop).
+    await Promise.race([view3d.nextFrame(), new Promise(r => setTimeout(r, 8000))]);
   } catch {
     toast(t('bld.loadFail'), true);
   }
-  // The showcase hides its "loading" cover once the first frame is on screen.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (parent !== window) parent.postMessage({ type: 'fsp3d:ready' }, location.origin);
-  }));
+  if (parent !== window) parent.postMessage({ type: 'fsp3d:ready' }, location.origin);
 }
 
 async function start() {

@@ -11,7 +11,7 @@ import { SLAB } from '../facade.js';
 import { SETTINGS, readPref, tierFor, photoAuto } from '../3d/perf.js';
 import { createSite } from './site.js';
 import { createStreetWalk } from './streetWalk.js';
-import { applyPhotoFacade, PHOTO_UV } from './facadeTex.js';
+import { applyPhotoFacade, holdPhotos, PHOTO_UV } from './facadeTex.js';
 import { TWEEN_SEC, easeInOut } from '../lighting.js';
 import { createWindows } from './windows.js';
 import { shadeStrips } from '../3d/softShadows.js';
@@ -670,7 +670,7 @@ export function createExterior(container, { bld, fac, title = '', entrance = 'EN
     getTime: () => time,
     setAuto(on) { auto = on; if (on) lastTouch = -1e9; dirty = true; },
     getAuto: () => auto,
-    pause(on) { paused = on; dirty = true; clock.getDelta(); },
+    pause(on) { paused = on; holdPhotos(on); dirty = true; clock.getDelta(); },
     requestRender() { dirty = true; },
     refreshPhoto,
     renderer, scene, camera, site

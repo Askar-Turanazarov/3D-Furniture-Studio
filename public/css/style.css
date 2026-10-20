@@ -1001,6 +1001,20 @@ dialog.floor3d-dlg { width: min(1200px, 96vw); }
 .adm-table th { font-weight: 700; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: var(--caps); }
 .adm-table tbody tr { cursor: pointer; transition: background .15s; }
 .adm-table tbody tr:hover { background: var(--surface-2); }
+.bk-table tbody tr { cursor: default; }
+.bk-table { min-width: 620px; }
+.bk-table a { color: inherit; }
+.bk-live { color: var(--muted); font-size: 12.5px; }
+.top-actions a.btn { text-decoration: none; }
+.cl-stats { gap: 8px; }
+.cl-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; white-space: nowrap; }
+.cl-chip.good { color: var(--st-free); border-color: var(--st-free); }
+.cl-chip.bad { color: var(--st-sold); border-color: var(--st-sold); }
+.cl-chip.deny { color: var(--st-booked); border-color: var(--st-booked); }
+.cl-chip.agent { color: var(--muted); }
+.cl-table { min-width: 860px; }
+.cl-table td:nth-child(5) { max-width: 360px; }
+.cl-denied td { color: var(--muted); }
 .adm-table td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .adm-table a { color: var(--gold-2); }
 .st-new { border-left: 3px solid var(--gold); }

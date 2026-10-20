@@ -12,14 +12,14 @@ test('every glyph maps to a drawn icon', () => {
 });
 
 test('every data-icon in the pages has a path', () => {
-  for (const f of ['index.html', 'building.html', 'admin.html']) {
+  for (const f of ['index.html', 'building.html', 'admin.html', 'bookings.html', 'calls.html']) {
     const html = readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
     for (const m of html.matchAll(/data-icon="(\w+)"/g)) assert.ok(paths.has(m[1]), `${f}: ${m[1]}`);
   }
 });
 
 test('pages set the theme before the first paint and have the toggle', () => {
-  for (const f of ['index.html', 'building.html', 'admin.html']) {
+  for (const f of ['index.html', 'building.html', 'admin.html', 'bookings.html', 'calls.html']) {
     const html = readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
     const head = html.slice(0, html.indexOf('</head>'));
     assert.match(head, /dataset\.theme=localStorage\.getItem\('fsp3d\.theme'\)/, f);

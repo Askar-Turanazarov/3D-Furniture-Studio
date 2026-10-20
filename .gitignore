@@ -15,3 +15,5 @@ data/
 public/vendor/
 .env.local
 .vercel/
+booking.json*
+mcp-calls.jsonl*

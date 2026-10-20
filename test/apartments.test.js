@@ -1,4 +1,4 @@
-// Apartment templates (apartments.json): sound plans that stay valid empty and furnished.
+// Apartment templates (apartment-templates.json): sound plans that stay valid empty and furnished.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -9,7 +9,7 @@ import { aptRooms, furnishRooms } from '../public/js/aptTemplates.js';
 
 const read = f => JSON.parse(fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8'));
 const catalog = read('catalog.json').items;
-const data = read('apartments.json');
+const data = read('apartment-templates.json');
 const settings = { snap: 5, gap: 3, grid: 10, minPassage: 60 };
 const aptOf = a => ({ rooms: aptRooms(a, 'ru'), settings, catalog });
 const errorsOf = apt => apt.rooms.flatMap(r => [...validateAll(roomView(apt, r.id))]

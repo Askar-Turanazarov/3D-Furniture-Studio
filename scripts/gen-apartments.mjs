@@ -1,4 +1,4 @@
-// Generates apartments.json: typical apartments of three sets (khrushchevka, improved layout, new build).
+// Generates apartment-templates.json: typical apartments of three sets (khrushchevka, improved layout, new build).
 // Sizes follow typical floor plans of the series (rounded); no plan images are used.
 // A layout is rooms as rectangles on the apartment plan (cm, x → east, y → south, 10 cm partitions),
 // doors between neighbours (the wall and offset are found from the plan), windows on outer walls.
@@ -198,6 +198,6 @@ const sets = [
       en: 'Monolithic frame 2015+: 2.8 m ceiling, kitchen-living rooms, large windows, euro layouts' } }
 ];
 
-const out = new URL('../apartments.json', import.meta.url);
+const out = new URL('../apartment-templates.json', import.meta.url);
 fs.writeFileSync(out, JSON.stringify({ version: 1, sets, apartments }, null, 1) + '\n');
 for (const a of apartments) console.log(a.id.padEnd(10), String(a.total).padStart(5), 'm²  (', a.area, ')', a.plan.length, 'rooms');

@@ -17,7 +17,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const CATALOG = path.join(__dirname, 'catalog.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
-const APARTMENTS = path.join(__dirname, 'apartments.json');
+const APT_TEMPLATES = path.join(__dirname, 'apartment-templates.json');
+const APARTMENTS = path.join(__dirname, 'apartments.json');   // the new-building apartments: rooms, area, price, status
+const BOOKINGS = process.env.BOOKING_FILE || path.join(__dirname, 'booking.json');   // viewing bookings written by the MCP server
+const CALLS = process.env.CALLS_FILE || path.join(__dirname, 'mcp-calls.jsonl');     // the MCP server's call log
 const { validateOrder } = require('./server/validateOrder');
 const { createDb } = require('./server/db');
 const { writeZip } = require('./server/zip');
@@ -26,7 +29,7 @@ const { APT_STATUSES, BUILDING_ID, createBuildings } = require('./server/buildin
 const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 // Orders and apartment statuses: files locally, Postgres (Neon) with DATABASE_URL (server/db.js).
 const db = createDb({ root: __dirname, dataDir: DATA });
-const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => db.statuses(), set: db.setStatus });
+const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => db.statuses(), set: db.setStatus }, APARTMENTS);
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 // Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
@@ -81,13 +84,13 @@ app.get('/api/templates', async (req, res) => {
 
 app.get('/api/apartments', async (req, res) => {
   try {
-    res.set('Cache-Control', SHARED_JSON).type('json').send(await fs.readFile(APARTMENTS, 'utf8'));
+    res.set('Cache-Control', SHARED_JSON).type('json').send(await fs.readFile(APT_TEMPLATES, 'utf8'));
   } catch (e) {
     res.status(500).json({ error: 'apartments_unavailable' });
   }
 });
 
-// ---------- new-building showcase: generated buildings (scripts/gen-building.mjs) + statuses by the manager ----------
+// ---------- new-building showcase: generated buildings (scripts/gen-building.mjs) + apartments.json + statuses by the manager ----------
 app.get('/api/buildings', async (req, res) => {
   try {
     res.json(await buildings.list());
@@ -174,6 +177,39 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'save_failed' });
   }
+});
+
+// Viewing bookings from booking.json (written by mcp-server/), newest first; no file yet = no bookings.
+app.get('/api/bookings', admin, async (req, res) => {
+  let text;
+  try { text = await fs.readFile(BOOKINGS, 'utf8'); } catch (e) {
+    if (e.code === 'ENOENT') return res.json([]);
+    return res.status(500).json({ error: 'read_failed' });
+  }
+  try {
+    const list = JSON.parse(text);
+    if (!Array.isArray(list)) throw new Error('not a list');
+    res.json(list.map(({ id, createdAt, name, phone, no, datetime }) => ({ id, createdAt, name, phone, no, datetime }))
+      .sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt))));
+  } catch {
+    res.status(500).json({ error: 'bad_file' });
+  }
+});
+
+// The MCP call log (mcp-calls.jsonl, written by mcp-server/): the last 200 events, newest first; no file yet = no calls.
+app.get('/api/calls', admin, async (req, res) => {
+  let text;
+  try { text = await fs.readFile(CALLS, 'utf8'); } catch (e) {
+    if (e.code === 'ENOENT') return res.json([]);
+    return res.status(500).json({ error: 'read_failed' });
+  }
+  const events = [];
+  for (const line of text.split('\n')) {
+    try { if (line.trim()) events.push(JSON.parse(line)); } catch { /* a half-written or broken line is skipped */ }
+  }
+  // by time, not by line: a refused call is written a moment after its answer
+  events.sort((x, y) => String(x.at).localeCompare(String(y.at)));
+  res.json(events.slice(-200).reverse().map(({ at, type, tool, ok, ms, args, msg, reason }) => ({ at, type, tool, ok, ms, args, msg, reason })));
 });
 
 // Apartment status in the showcase: free → booked → sold (and back).

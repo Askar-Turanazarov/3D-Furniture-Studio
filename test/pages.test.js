@@ -53,6 +53,8 @@ test('static "/" and "/building.html" are the Russian pages with production URLs
 test('vercel.json ships both pages with the function', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   for (const f of ['public/index.html', 'public/building.html']) assert.ok(v.functions['server.js'].includeFiles.includes(f), f);
+  // Vercel refuses the whole deploy when a glob is longer than 256 characters
+  for (const k of ['includeFiles', 'excludeFiles']) assert.ok(v.functions['server.js'][k].length <= 256, k);
 });
 
 test('preview pictures: one per page and language, PNG 1200×630, small enough for messengers', () => {

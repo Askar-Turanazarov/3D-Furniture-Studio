@@ -1,5 +1,6 @@
-// New-building data for the showcase: generated buildings (buildings/<id>.json) with the manager's apartment
-// statuses on top (server/db.js: { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
+// New-building data for the showcase: generated buildings (buildings/<id>.json, the plans), the apartment list
+// (apartments.json: rooms, area, price, status) and the manager's apartment statuses on top
+// (server/db.js: { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -15,17 +16,36 @@ function applyStatuses(b, overrides) {
   return b;
 }
 
+// The apartment list wins over the generated values; an entry applies only on its own floor of the plan. Pure: changes and returns `b`.
+const LISTED = ['rooms', 'area', 'price', 'status'];
+function applyListing(b, listing) {
+  const own = new Map((listing || []).filter(x => x && x.building === b.id).map(x => [x.no, x]));
+  for (const f of b.floorsData) {
+    for (const a of f.apartments) {
+      const x = own.get(a.no);
+      if (!x || x.floor !== a.floor) continue;
+      for (const k of LISTED) if (k === 'status' ? APT_STATUSES.includes(x.status) : Number.isFinite(x[k]) && x[k] >= 0) a[k] = x[k];
+    }
+  }
+  return b;
+}
+
 const findApartment = (b, no) => b.floorsData.flatMap(f => f.apartments).find(a => a.no === no) || null;
 
-// dir — the buildings folder, statusStore — { read() → all statuses, set(building, apt, status) } (server/db.js).
-function createBuildings(dir, statusStore) {
+// dir — the buildings folder, statusStore — { read() → all statuses, set(building, apt, status) } (server/db.js),
+// listFile — apartments.json ({ apartments: [{ building, no, floor, rooms, area, price, status }] }).
+function createBuildings(dir, statusStore, listFile) {
   async function raw(id) {
     if (!BUILDING_ID.test(id)) return null;
     try { return JSON.parse(await fs.readFile(path.join(dir, id + '.json'), 'utf8')); } catch { return null; }
   }
   async function get(id) {
     const b = await raw(id);
-    return b && applyStatuses(b, await statusStore.read());
+    return b && applyStatuses(applyListing(b, await listing()), await statusStore.read());
+  }
+  async function listing() {
+    if (!listFile) return [];
+    try { return JSON.parse(await fs.readFile(listFile, 'utf8')).apartments || []; } catch { return []; }
   }
   async function list() {
     let files = [];
@@ -44,4 +64,4 @@ function createBuildings(dir, statusStore) {
   return { get, list, setStatus, apartment: async (id, no) => { const b = await get(id); return b && findApartment(b, no); } };
 }
 
-module.exports = { APT_STATUSES, BUILDING_ID, applyStatuses, findApartment, createBuildings };
+module.exports = { APT_STATUSES, BUILDING_ID, applyListing, applyStatuses, findApartment, createBuildings };

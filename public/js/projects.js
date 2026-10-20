@@ -148,7 +148,7 @@ function addRoomFromTemplate(tpl, name) {
   insertRoom(makeRoom(name, templateDoc(tpl, { plinth: state.room.plinth }), { purpose: tpl.purpose }));
 }
 
-// A whole apartment from an apartment template (apartments.json), empty or furnished by the kits.
+// A whole apartment from an apartment template (apartment-templates.json), empty or furnished by the kits.
 export function newProjectFromApartment(a, name, furnished) {
   const rooms = aptRooms(a, getLang());
   if (furnished) furnishRooms({ rooms, settings: DEFAULT_SETTINGS, catalog: state.catalog }, { seed: Math.floor(Math.random() * 2 ** 31) });

@@ -1,4 +1,4 @@
-// Apartment templates (apartments.json): loading, room documents of a whole apartment, furnishing it,
+// Apartment templates (apartment-templates.json): loading, room documents of a whole apartment, furnishing it,
 // a mini plan for the gallery cards. No DOM except drawAptPlan.
 import { makeRoom } from './storage.js';
 import { roomView, roomRect } from './apartment.js';

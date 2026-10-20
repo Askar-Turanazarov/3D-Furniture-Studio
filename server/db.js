@@ -8,10 +8,15 @@
 //   statuses() → { [building]: { [apt]: status } }
 //   setStatus(building, apt, status)
 //   allowOrder(ip) → bool               at most 5 orders per IP in 10 minutes
+//   addBooking(b) → b | null            a viewing booking (mcp-server/); null — that apartment and minute are taken
+//   listBookings() → [booking]          newest first
+//   logCall(event)                      the MCP call log; a failed write is only reported
+//   listCalls(limit) → [event]          newest first, at most limit (200)
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 const { createStore, createRateLimit } = require('./orderStore');
+const { logEvent, readCalls, KEEP } = require('./callLog');
 
 const LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
 
@@ -21,7 +26,35 @@ function newOrder(id, order, files) {
   return o;
 }
 
-function fileDb({ ordersFile, filesDir, statusFile }) {
+// One write queue per file for the whole process: the site and the MCP tools share it.
+const stores = new Map();
+const storeFor = file => stores.get(file) || stores.set(file, createStore(file)).get(file);
+const newestFirst = list => list.sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt)));
+
+// Viewing bookings in booking.json. A broken file is an error, not an empty list.
+function fileBookings(file) {
+  return {
+    addBooking: b => storeFor(file).update(list => {
+      if (list.some(x => x.no === b.no && Date.parse(x.datetime) === Date.parse(b.datetime))) return null;
+      list.push(b);
+      return b;
+    }),
+    async listBookings() {
+      let text;
+      try { text = await fs.readFile(file, 'utf8'); } catch (e) {
+        if (e.code === 'ENOENT') return [];
+        throw e;
+      }
+      const list = JSON.parse(text);
+      if (!Array.isArray(list)) throw new Error('bad_file');
+      return newestFirst(list);
+    }
+  };
+}
+
+const fileCalls = file => ({ logCall: e => logEvent(file, e), listCalls: (limit = 200) => readCalls(file, limit) });
+
+function fileDb({ ordersFile, filesDir, statusFile, bookingsFile, callsFile }) {
   const orders = createStore(ordersFile);
   const status = createStore(statusFile, () => ({}));
   const limit = createRateLimit(LIMIT);
@@ -47,7 +80,9 @@ function fileDb({ ordersFile, filesDir, statusFile }) {
     orderFile: (id, name) => fs.readFile(path.join(filesDir, String(id), name)).catch(() => null),
     statuses: () => status.read(),
     setStatus: (b, apt, s) => status.update(all => { (all[b] ||= {})[apt] = s; }),
-    allowOrder: async ip => limit(ip)
+    allowOrder: async ip => limit(ip),
+    ...fileBookings(bookingsFile),
+    ...fileCalls(callsFile)
   };
 }
 
@@ -59,7 +94,12 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS order_files (order_id bigint NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
      name text NOT NULL, data bytea NOT NULL, PRIMARY KEY (order_id, name))`,
   `CREATE TABLE IF NOT EXISTS apt_status (building text NOT NULL, apt integer NOT NULL, status text NOT NULL,
-     updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (building, apt))`
+     updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (building, apt))`,
+  // one booking per apartment and minute: the unique key decides, also between parallel functions
+  `CREATE TABLE IF NOT EXISTS bookings (id uuid PRIMARY KEY, apt integer NOT NULL, at timestamptz NOT NULL,
+     created_at timestamptz NOT NULL DEFAULT now(), doc jsonb NOT NULL, UNIQUE (apt, at))`,
+  'CREATE TABLE IF NOT EXISTS mcp_calls (id bigserial PRIMARY KEY, at timestamptz NOT NULL, doc jsonb NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS mcp_calls_at ON mcp_calls (at)'
 ];
 
 // sql(text, params) → rows. Neon's HTTP driver: one statement per request, no connection to keep.
@@ -79,6 +119,7 @@ function pgDb(url, { query, batch } = {}) {
     return query(text, params);
   };
   // The IP itself is not kept: a hash, enough to count the orders.
+  const doc = r => (typeof r.doc === 'string' ? JSON.parse(r.doc) : r.doc);
   const ipHash = ip => crypto.createHash('sha256').update('fsp3d:' + String(ip || '')).digest('hex').slice(0, 32);
 
   return {
@@ -128,6 +169,27 @@ function pgDb(url, { query, batch } = {}) {
       const [r] = await q('SELECT count(*)::int AS n FROM orders WHERE ip_hash = $1 AND created_at > now() - make_interval(secs => $2)',
         [ipHash(ip), LIMIT.windowMs / 1000]);
       return r.n < LIMIT.max;
+    },
+    async addBooking(b) {
+      const rows = await q(`INSERT INTO bookings (id, apt, at, created_at, doc) VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT DO NOTHING RETURNING id`, [b.id, b.no, new Date(Date.parse(b.datetime)).toISOString(), b.createdAt, JSON.stringify(b)]);
+      return rows.length ? b : null;
+    },
+    async listBookings() {
+      return (await q('SELECT doc FROM bookings ORDER BY created_at DESC')).map(doc);
+    },
+    // Like the file: the log keeps its last KEEP events (trimmed every 50th write), a failed write never breaks a tool.
+    async logCall(event) {
+      try {
+        const e = { at: new Date().toISOString(), ...event };
+        const [r] = await q('INSERT INTO mcp_calls (at, doc) VALUES ($1, $2) RETURNING id', [e.at, JSON.stringify(e)]);
+        if (r && Number(r.id) % 50 === 0) await q('DELETE FROM mcp_calls WHERE id <= $1', [Number(r.id) - KEEP]);
+      } catch (e) {
+        console.error('call log write failed:', e.code || e.name);
+      }
+    },
+    async listCalls(limit = 200) {
+      return (await q('SELECT doc FROM mcp_calls ORDER BY at DESC, id DESC LIMIT $1', [limit])).map(doc);
     }
   };
 }
@@ -138,8 +200,10 @@ function createDb({ url = process.env.DATABASE_URL, root, dataDir } = {}) {
   return fileDb({
     ordersFile: path.join(root, 'order.json'),
     filesDir: path.join(root, 'orders'),
-    statusFile: path.join(dataDir, 'building-status.json')
+    statusFile: path.join(dataDir, 'building-status.json'),
+    bookingsFile: process.env.BOOKING_FILE || path.join(root, 'booking.json'),
+    callsFile: process.env.CALLS_FILE || path.join(root, 'mcp-calls.jsonl')
   });
 }
 
-module.exports = { createDb, fileDb, pgDb };
+module.exports = { createDb, fileDb, pgDb, fileBookings, fileCalls };

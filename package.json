@@ -13,9 +13,11 @@
     "admin-password": "node scripts/admin-password.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.2",
     "express": "^4.21.2",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "zod": "^4.6.7"
   }
 }

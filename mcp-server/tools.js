@@ -1,13 +1,26 @@
 // The tools of «Новостройка»: apartments from ../apartments.json. Prices in sum (integers), area in m², rooms 0 = studio.
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { z } from 'zod';
 import { annuity } from './mortgage.js';
 import { bookViewing, BookingError } from './bookings.js';
-import { logEvent, safeArgs } from './calllog.js';
+import { safeArgs } from './calllog.js';
 
 const root = f => fileURLToPath(new URL('../' + f, import.meta.url));
 export const FILES = { apartments: root('apartments.json'), bookings: root('booking.json'), calls: root('mcp-calls.jsonl') };
+
+// What the tools work with: { apartments — path, statuses() — the manager's statuses (optional), addBooking(b), logCall(e) }.
+// files — either that, or the paths { apartments, bookings, calls } (tests, the local run without the site's storage).
+export function context(files = FILES) {
+  if (files.addBooking) return files;
+  const { fileBookings, fileCalls } = createRequire(import.meta.url)('../server/db.js');
+  return { ...files, ...fileBookings(files.bookings), logCall: files.calls ? fileCalls(files.calls).logCall : async () => {} };
+}
+
+// The site's storage (server/db.js createDb): bookings and the call log in booking.json / mcp-calls.jsonl or Postgres.
+export const dbContext = db => ({ apartments: FILES.apartments, statuses: () => db.statuses(),
+  addBooking: b => db.addBooking(b), logCall: e => db.logCall(e) });
 
 const short = ({ no, floor, rooms, area, price, status }) => ({ no, floor, rooms, area, price, status });
 const kind = a => (a.rooms ? `${a.rooms}-комн.` : 'студия');
@@ -35,11 +48,11 @@ function summary(tool, r) {
 }
 
 // Every tool runs through here: errors become plain-text answers, each call lands in the call log.
-const safe = (files, tool, handler, seen = {}) => async args => {
+const safe = (ctx, tool, handler, seen = {}) => async args => {
   seen.logged = true;
   const t0 = Date.now();
   const r = await run(handler, args);
-  await logEvent(files.calls, { type: 'call', tool, ok: !r.isError, ms: Date.now() - t0, args: safeArgs(tool, args), msg: summary(tool, r) });
+  await ctx.logCall({ type: 'call', tool, ok: !r.isError, ms: Date.now() - t0, args: safeArgs(tool, args), msg: summary(tool, r) });
   return r;
 };
 
@@ -78,7 +91,8 @@ export function getApartment(list, no) {
 const APT = z.object({ no: z.number(), floor: z.number(), rooms: z.number(), area: z.number(), price: z.number(), status: z.string() });
 
 // seen.logged — set once a tool ran and wrote its line (index.js logs the calls the SDK refused before any tool ran).
-export function registerTools(server, files = FILES, seen = {}) {
+// files — the context (see context() above).
+export function registerTools(server, files = context(), seen = {}) {
   const wrap = (tool, handler) => safe(files, tool, handler, seen);
   server.registerTool('search_apartments', {
     title: 'Поиск квартир',
@@ -141,7 +155,7 @@ export function registerTools(server, files = FILES, seen = {}) {
 
   server.registerTool('book_viewing', {
     title: 'Запись на показ',
-    description: 'Записывает на показ квартиры в booking.json (с id и временем создания). Проверяет, что квартира существует и не продана и что на это же время на эту квартиру нет другой записи. Время — Ташкент. Статус квартиры не меняется.',
+    description: 'Записывает на показ квартиры (с id и временем создания). Проверяет, что квартира существует и не продана и что на это же время на эту квартиру нет другой записи. Время — Ташкент. Статус квартиры не меняется.',
     inputSchema: z.strictObject({
       name: z.string().trim().min(2).max(80).describe('Имя'),
       phone: z.string().trim().min(7).max(30).describe('Телефон, например +998 90 123 45 67'),
@@ -150,7 +164,7 @@ export function registerTools(server, files = FILES, seen = {}) {
     }),
     outputSchema: { id: z.string(), no: z.number().int(), name: z.string(), phone: z.string(), datetime: z.string(), createdAt: z.string() }
   }, wrap('book_viewing', async args => {
-    const b = await bookViewing(files.bookings, await apartmentsOf(files), args);
+    const b = await bookViewing(files.addBooking, await apartmentsOf(files), args);
     return ok(b, `Записано: ${b.name}, квартира №${b.no}, ${b.datetime.slice(0, 16).replace('T', ' ')} (Ташкент). Номер записи ${b.id}`);
   }));
 }

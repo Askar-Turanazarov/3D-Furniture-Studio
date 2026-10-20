@@ -19,8 +19,6 @@ const CATALOG = path.join(__dirname, 'catalog.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
 const APT_TEMPLATES = path.join(__dirname, 'apartment-templates.json');
 const APARTMENTS = path.join(__dirname, 'apartments.json');   // the new-building apartments: rooms, area, price, status
-const BOOKINGS = process.env.BOOKING_FILE || path.join(__dirname, 'booking.json');   // viewing bookings written by the MCP server
-const CALLS = process.env.CALLS_FILE || path.join(__dirname, 'mcp-calls.jsonl');     // the MCP server's call log
 const { validateOrder } = require('./server/validateOrder');
 const { createDb } = require('./server/db');
 const { writeZip } = require('./server/zip');
@@ -28,7 +26,8 @@ const { fetchSet, libraryStatus, readLibMap } = require('./server/textureFetch')
 const { APT_STATUSES, BUILDING_ID, createBuildings } = require('./server/buildings');
 const auth = require('./server/adminAuth');
 const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
-// Orders and apartment statuses: files locally, Postgres (Neon) with DATABASE_URL (server/db.js).
+// Orders, apartment statuses, viewing bookings and the MCP call log: files locally
+// (booking.json / mcp-calls.jsonl, or BOOKING_FILE / CALLS_FILE), Postgres (Neon) with DATABASE_URL (server/db.js).
 const db = createDb({ root: __dirname, dataDir: DATA });
 const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => db.statuses(), set: db.setStatus }, APARTMENTS);
 
@@ -65,6 +64,26 @@ const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=864
 const { version } = require('./package.json');
 app.get('/api/health', (req, res) => {
   res.set('Cache-Control', 'no-store').json({ ok: true, db: db.kind, version });
+});
+
+// The MCP server «Новостройка» (mcp-server/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.
+// Bookings and the call log go to the site's storage, the tools see the manager's statuses. No MCP_TOKEN — off.
+const MCP_MIN_TOKEN = 32;   // as mcp-server/index.js MIN_TOKEN
+let mcp = null;
+app.all('/mcp', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const token = process.env.MCP_TOKEN || '';
+  if (token.length < MCP_MIN_TOKEN) return res.status(503).json({ error: 'mcp_disabled' });
+  try {
+    mcp ||= import('./mcp-server/index.js').then(m => ({ handle: m.handleMcp, ctx: m.dbContext(db) }));
+    const { handle, ctx } = await mcp;
+    // req._body: express.json has read the body; otherwise the MCP code reads (and checks) it itself
+    await handle(req, res, { token, ctx, parsed: req._body ? req.body : undefined });
+  } catch (e) {
+    mcp = null;
+    console.error('mcp request failed:', e.code || e.message);
+    if (!res.headersSent) res.status(500).json({ error: 'internal' }); else res.destroy();
+  }
 });
 
 app.get('/api/catalog', async (req, res) => {
@@ -229,37 +248,25 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
   }
 });
 
-// Viewing bookings from booking.json (written by mcp-server/), newest first; no file yet = no bookings.
+// Viewing bookings (written by the MCP tools), newest first; none yet = an empty list, a broken file = 500.
 app.get('/api/bookings', admin, async (req, res) => {
-  let text;
-  try { text = await fs.readFile(BOOKINGS, 'utf8'); } catch (e) {
-    if (e.code === 'ENOENT') return res.json([]);
-    return res.status(500).json({ error: 'read_failed' });
-  }
   try {
-    const list = JSON.parse(text);
-    if (!Array.isArray(list)) throw new Error('not a list');
+    const list = await db.listBookings();
     res.json(list.map(({ id, createdAt, name, phone, no, datetime }) => ({ id, createdAt, name, phone, no, datetime }))
       .sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt))));
   } catch {
-    res.status(500).json({ error: 'bad_file' });
+    res.status(500).json({ error: 'read_failed' });
   }
 });
 
-// The MCP call log (mcp-calls.jsonl, written by mcp-server/): the last 200 events, newest first; no file yet = no calls.
+// The MCP call log: the last 200 events, newest first; none yet = an empty list.
 app.get('/api/calls', admin, async (req, res) => {
-  let text;
-  try { text = await fs.readFile(CALLS, 'utf8'); } catch (e) {
-    if (e.code === 'ENOENT') return res.json([]);
-    return res.status(500).json({ error: 'read_failed' });
+  try {
+    const events = await db.listCalls(200);
+    res.json(events.map(({ at, type, tool, ok, ms, args, msg, reason }) => ({ at, type, tool, ok, ms, args, msg, reason })));
+  } catch {
+    res.status(500).json({ error: 'read_failed' });
   }
-  const events = [];
-  for (const line of text.split('\n')) {
-    try { if (line.trim()) events.push(JSON.parse(line)); } catch { /* a half-written or broken line is skipped */ }
-  }
-  // by time, not by line: a refused call is written a moment after its answer
-  events.sort((x, y) => String(x.at).localeCompare(String(y.at)));
-  res.json(events.slice(-200).reverse().map(({ at, type, tool, ok, ms, args, msg, reason }) => ({ at, type, tool, ok, ms, args, msg, reason })));
 });
 
 // Apartment status in the showcase: free → booked → sold (and back).

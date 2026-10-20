@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const { fileDb, pgDb } = require('../server/db.js');
@@ -46,11 +47,35 @@ function contract(name, make, opts = {}) {
     }
     assert.equal(allowed, 5);
   });
+
+  test(`db (${name}): viewing bookings — one per apartment and minute, newest first`, opts, async () => {
+    const db = make();
+    const no = 900000 + Math.floor(Math.random() * 99999);   // not a real apartment: Postgres keeps the rows
+    const bk = (datetime, createdAt) => ({ id: randomUUID(), no, name: 'Тест', phone: '+998 90 123 45 67', datetime, createdAt });
+    const a = bk('2030-01-10T15:00+05:00', '2026-10-20T10:00:00.000Z');
+    assert.deepEqual(await db.addBooking(a), a);
+    assert.equal(await db.addBooking(bk('2030-01-10T10:00Z', '2026-10-20T10:01:00.000Z')), null, 'the same minute in UTC');
+    const b = await db.addBooking(bk('2030-01-10T16:00+05:00', '2026-10-20T10:02:00.000Z'));
+    const mine = (await db.listBookings()).filter(x => x.no === no);
+    assert.deepEqual(mine.map(x => x.id), [b.id, a.id]);
+    assert.equal(mine[1].phone, '+998 90 123 45 67');
+  });
+
+  test(`db (${name}): the MCP call log, newest first, limited`, opts, async () => {
+    const db = make();
+    const tag = 'test-' + Math.random();
+    for (let i = 0; i < 3; i++) await db.logCall({ type: 'call', tool: 'search_apartments', ok: true, msg: `${tag} ${i}` });
+    const mine = (await db.listCalls(50)).filter(e => String(e.msg).startsWith(tag));
+    assert.deepEqual(mine.map(e => e.msg), [`${tag} 2`, `${tag} 1`, `${tag} 0`]);
+    assert.ok(mine.every(e => !Number.isNaN(Date.parse(e.at))));
+    assert.equal((await db.listCalls(2)).length, 2);
+  });
 }
 
 contract('files', () => {
   const dir = mkdtempSync(join(tmpdir(), 'fsp3d-db-'));
-  return fileDb({ ordersFile: join(dir, 'order.json'), filesDir: join(dir, 'orders'), statusFile: join(dir, 'data', 'st.json') });
+  return fileDb({ ordersFile: join(dir, 'order.json'), filesDir: join(dir, 'orders'), statusFile: join(dir, 'data', 'st.json'),
+    bookingsFile: join(dir, 'booking.json'), callsFile: join(dir, 'mcp-calls.jsonl') });
 });
 
 contract('postgres', () => pgDb(process.env.TEST_DATABASE_URL),

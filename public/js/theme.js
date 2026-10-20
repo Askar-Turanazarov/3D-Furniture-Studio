@@ -31,8 +31,9 @@ export function setTheme(theme, from = null) {
   const r = from.getBoundingClientRect();
   const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const R = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-  // the canvases redraw on the next frame: the new picture is taken after it
-  const vt = document.startViewTransition(() => { applyTheme(theme); return new Promise(ok => requestAnimationFrame(ok)); });
+  // the listeners redraw their canvases synchronously. No waiting for a frame here: rendering is paused while
+  // the callback runs, so requestAnimationFrame would only fire at the browser's 4 s timeout.
+  const vt = document.startViewTransition(() => applyTheme(theme));
   vt.ready.then(() => root.animate(
     { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${R}px at ${x}px ${y}px)`] },
     { duration: 750, easing: 'cubic-bezier(.65, 0, .25, 1)', pseudoElement: '::view-transition-new(root)' })).catch(() => {});

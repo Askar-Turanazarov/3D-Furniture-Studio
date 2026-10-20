@@ -1,18 +1,17 @@
-// Manager page: orders from order.json, statuses, notes. Every request carries Authorization: Bearer <ADMIN_TOKEN>;
-// the token lives only in this tab (sessionStorage). User data is put into the page as text, never as HTML.
+// Manager page: orders from order.json, statuses, notes. Sign-in by the manager password (adminAuth.js → session cookie).
+// User data is put into the page as text, never as HTML.
 import { t, getLang, applyStatic, initLangSwitcher, onLangChange } from './i18n.js';
 import { initTheme } from './theme.js';
 import { initIcons } from './icons.js';
+import { adminAuth } from './adminAuth.js';
 
 const $ = id => document.getElementById(id);
 const STATUSES = ['new', 'inWork', 'measure', 'done', 'cancelled'];
 const LOCALE = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-GB' };
-const KEY = 'fsp3d.adminToken';
 const sum = v => `${String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ${t('unit.sum')}`;
 const when = iso => new Date(iso).toLocaleString(LOCALE[getLang()] || 'en-GB', { dateStyle: 'short', timeStyle: 'short' });
 
-let token = '';
-try { token = sessionStorage.getItem(KEY) || ''; } catch { /* storage off */ }
+let auth;
 let orders = [];
 let openId = null;
 const blobs = [];
@@ -36,23 +35,18 @@ function toast(text, isError = false) {
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
-    headers: { Authorization: 'Bearer ' + token, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) }
+    headers: opts.body ? { 'Content-Type': 'application/json' } : {}
   });
   if (res.status === 401 || res.status === 503) {
-    logout(res.status === 503 ? t('adm.disabled') : t('adm.badToken'));
+    auth.signedOut(res.status);
     throw new Error('auth');
   }
   if (!res.ok) throw new Error(String(res.status));
   return res;
 }
 
-function logout(msg = '') {
-  token = '';
-  try { sessionStorage.removeItem(KEY); } catch { /* ignore */ }
-  $('admList').hidden = true;
-  $('admLogout').hidden = true;
-  $('admLogin').hidden = false;
-  $('admLoginErr').textContent = msg;
+function signedOut() {
+  orders = [];
   $('admDlg').open && $('admDlg').close();
 }
 
@@ -63,9 +57,6 @@ async function load() {
     if (e.message !== 'auth') toast(t('adm.loadFail'), true);
     return;
   }
-  $('admLogin').hidden = true;
-  $('admList').hidden = false;
-  $('admLogout').hidden = false;
   renderList();
 }
 
@@ -137,7 +128,7 @@ function aptStatus(ref) {
   return s;
 }
 
-// Picture of an order through the token → blob URL (freed when the card closes).
+// Picture of an order through the session → blob URL (freed when the card closes).
 async function picture(id, file) {
   try {
     const url = URL.createObjectURL(await (await api(`/api/orders/${id}/${file}`)).blob());
@@ -226,14 +217,6 @@ function init() {
     if (!$('admList').hidden) renderList();
     if ($('admDlg').open) openCard(openId);
   });
-  $('admLogin').addEventListener('submit', e => {
-    e.preventDefault();
-    token = e.target.elements.token.value.trim();
-    try { sessionStorage.setItem(KEY, token); } catch { /* ignore */ }
-    e.target.reset();
-    load();
-  });
-  $('admLogout').addEventListener('click', () => logout());
   $('admReload').addEventListener('click', load);
   $('admFilter').addEventListener('change', renderList);
   $('admSearch').addEventListener('input', renderList);
@@ -242,7 +225,7 @@ function init() {
     openId = null;
     blobs.splice(0).forEach(u => URL.revokeObjectURL(u));
   });
-  if (token) load();
+  auth = adminAuth({ list: 'admList', onIn: load, onOut: signedOut });
 }
 
 init();

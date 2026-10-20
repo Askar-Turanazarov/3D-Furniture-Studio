@@ -13,7 +13,7 @@ import { initOrder } from './order.js';
 import { initCompare } from './compare.js';
 import { initTextures } from './textures.js';
 import { initSnapshot } from './snapshot.js';
-import { initRenderer, requestDraw, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings, setPassages as setDrawPassages,
+import { initRenderer, requestDraw, drawNow, setErrors as setDrawErrors, setObWarnings as setDrawObWarnings, setPassages as setDrawPassages,
   setRoomErrors, liveRooms } from './renderer.js';
 import { roomView as aptRoomView, overlapsRooms } from './apartment.js';
 import { overlapText } from './interaction.js';
@@ -289,7 +289,7 @@ async function start() {
   initLangSwitcher();
   initTheme();
   initIcons();
-  onThemeChange(() => requestDraw());
+  onThemeChange(() => drawNow());   // synchronously: the theme switch takes its snapshot right after
   document.fonts?.ready.then(() => requestDraw());
   initRenderer(document.getElementById('plan'), document.getElementById('canvasWrap'));
   initInteraction(document.getElementById('plan'));

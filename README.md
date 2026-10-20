@@ -62,17 +62,17 @@ npm start
 ```
 Open http://localhost:3000 (Node.js 18+); the showcase is http://localhost:3000/building.html. Tests: `npm test`. Photo textures: `npm run textures` downloads the whole library (optional, sets are also fetched on demand). Building facade photos (travertine, black stone, concrete, timber) and the site (grass, asphalt, pavers, leaves, bark) are in the project (`public/textures/sets/`, ≈ 26 MB). Downloaded room sets go to `public/textures/lib/`, or to Vercel Blob when the project has a Blob store (`npm run textures -- --blob` fills it in advance).
 
-**Manager page with ADMIN_TOKEN.** Orders contain personal data (name, phone), so `/admin.html` works only with a token:
-1. Copy `.env.example` to `.env` and set `ADMIN_TOKEN` to a long random string (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` is not committed; a real environment variable `ADMIN_TOKEN` wins over the file.
-2. Restart `npm start`, open http://localhost:3000/admin.html and enter the token (kept only in this browser tab). Requests go with `Authorization: Bearer <token>`.
-3. Without `ADMIN_TOKEN` (or with one shorter than 16 characters / the `change-me…` placeholder) the API answers 503 and the page says it is disabled.
+**Manager page: sign-in by password.** Orders contain personal data (name, phone), so `/admin.html`, `/bookings.html` and `/calls.html` open only after the manager password:
+1. `npm run admin-password -- --save` — type the password (hidden, at least 10 characters); only its scrypt hash goes to `.env` as `ADMIN_PASSWORD_HASH`. `.env` is not committed.
+2. Restart `npm start`, open http://localhost:3000/admin.html and sign in. The browser gets an HttpOnly session cookie for 12 hours; «Sign out» ends it, a new password ends every session. 5 wrong passwords from one address → 15 minutes pause.
+3. Without `ADMIN_PASSWORD_HASH` the pages say they are disabled. `ADMIN_TOKEN` (≥ 16 characters) stays for scripts: `Authorization: Bearer <token>` to the same API.
 
 ### Deploy to Vercel
 
 1. Import the GitHub repository in Vercel (the Express app in `server.js` is detected by itself; `vercel.json` copies three.js into `public/vendor/three/` at build time and puts the functions in Frankfurt, `fra1`).
 2. Storage → **Neon** (region Frankfurt, `eu-central-1`) — gives `DATABASE_URL`: orders, their pictures and apartment statuses go to Postgres, the tables are created on the first request.
 3. Storage → **Blob** (public) — gives `BLOB_STORE_ID` (or `BLOB_READ_WRITE_TOKEN` for older stores): room texture sets downloaded on demand are kept there and served at the same `/textures/lib/` address (the CDN caches them). The facade and site sets are in the project.
-4. Settings → Environment Variables → `ADMIN_TOKEN` (a long random string) for `/admin.html`.
+4. The manager password: `npm run admin-password -- --vercel` sets `ADMIN_PASSWORD_HASH` (production). Optional: `ADMIN_TOKEN` (a long random string) for scripts.
 5. Redeploy. Locally `vercel env pull` writes the variables to `.env.local` (not committed), `npm start` then uses the same database; `npm run textures -- --blob` fills Blob in advance.
 
 Limits: an order is at most ≈ 4 MB (pictures are shrunk in the browser); own texture photos stay in the visitor's browser (IndexedDB). Without `DATABASE_URL` everything is kept in files, as in local work — on Vercel those files do not last.
@@ -107,7 +107,7 @@ Limits: an order is at most ≈ 4 MB (pictures are shrunk in the browser); own t
 server.js            Express: static, catalog, templates, apartments, buildings, orders (+ drawing files), manager API, textures (list / upload / reset / ZIP / library)
 server/              validateOrder (order check), orderStore (write queue, rate limit), buildings (apartment statuses), textureFetch, zip
 orders/<id>/         order drawings plan.png / 3d.jpg (not in git)
-.env.example         ADMIN_TOKEN for the manager page (copy to .env)
+.env.example         ADMIN_PASSWORD_HASH / ADMIN_TOKEN for the manager pages (copy to .env)
 catalog.json         furniture catalogue (types, default sizes, names in 3 languages)
 templates.json       room templates (Soviet-era / new build) and apartment sets
 apartment-templates.json  apartment templates (khrushchevka / improved / new build)
@@ -195,17 +195,17 @@ npm start
 ```
 http://localhost:3000 manzilini oching (Node.js 18+); vitrina — http://localhost:3000/building.html. Testlar: `npm test`. Foto-teksturalar: `npm run textures` butun kutubxonani yuklaydi (ixtiyoriy, to‘plamlar kerak bo‘lganda ham yuklanadi). Bino fasadi fotolari (travertin, qora tosh, beton, yog‘och) va hovli (o‘t, asfalt, plitka, barglar, po‘stloq) loyihada (`public/textures/sets/`, ≈ 26 MB). Yuklangan xona to‘plamlari `public/textures/lib/`ga, loyihada Blob ombori bo‘lsa esa Vercel Blob’ga tushadi (`npm run textures -- --blob` uni oldindan to‘ldiradi).
 
-**ADMIN_TOKEN bilan menejer sahifasi.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html` faqat token bilan ishlaydi:
-1. `.env.example` ni `.env` ga nusxalang va `ADMIN_TOKEN` ga uzun tasodifiy satr yozing (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` git ga tushmaydi; haqiqiy `ADMIN_TOKEN` muhit o‘zgaruvchisi fayldan ustun.
-2. `npm start` ni qayta ishga tushiring, http://localhost:3000/admin.html ni oching va tokenni kiriting (faqat shu brauzer yorlig‘ida saqlanadi). So‘rovlar `Authorization: Bearer <token>` bilan yuboriladi.
-3. `ADMIN_TOKEN` bo‘lmasa (yoki 16 belgidan qisqa / `change-me…` namunasi bo‘lsa) API 503 qaytaradi, sahifa o‘chirilganini aytadi.
+**Menejer sahifasi: parol bilan kirish.** Buyurtmalarda shaxsiy ma’lumotlar (ism, telefon) bor, shuning uchun `/admin.html`, `/bookings.html` va `/calls.html` faqat menejer paroli bilan ochiladi:
+1. `npm run admin-password -- --save` — parolni kiriting (yashirin, kamida 10 belgi); `.env`ga faqat uning scrypt xeshi `ADMIN_PASSWORD_HASH` sifatida yoziladi. `.env` git ga tushmaydi.
+2. `npm start` ni qayta ishga tushiring, http://localhost:3000/admin.html ni oching va kiring. Brauzer 12 soatlik HttpOnly sessiya cookie oladi; «Chiqish» uni tugatadi, yangi parol barcha sessiyalarni tugatadi. Bitta manzildan 5 ta noto‘g‘ri parol → 15 daqiqa tanaffus.
+3. `ADMIN_PASSWORD_HASH` bo‘lmasa sahifalar o‘chirilganini aytadi. `ADMIN_TOKEN` (≥ 16 belgi) skriptlar uchun qoladi: o‘sha API’ga `Authorization: Bearer <token>`.
 
 ### Vercel’ga joylash
 
 1. GitHub repozitoriyasini Vercel’ga import qiling (`server.js`dagi Express ilovasi o‘zi aniqlanadi; `vercel.json` qurishda three.js’ni `public/vendor/three/`ga ko‘chiradi va funksiyalarni Frankfurtga, `fra1`, qo‘yadi).
 2. Storage → **Neon** (Frankfurt mintaqasi, `eu-central-1`) — `DATABASE_URL` beradi: arizalar, ularning rasmlari va kvartira holatlari Postgres’da, jadvallar birinchi so‘rovda yaratiladi.
 3. Storage → **Blob** (public) — `BLOB_STORE_ID` (eski omborlarda `BLOB_READ_WRITE_TOKEN`) beradi: kerak bo‘lganda yuklanadigan xona teksturalari shu yerda saqlanadi va o‘sha `/textures/lib/` manzilida beriladi (CDN keshlaydi). Fasad va hovli to‘plamlari loyihada.
-4. Settings → Environment Variables → `/admin.html` uchun `ADMIN_TOKEN` (uzun tasodifiy satr).
+4. Menejer paroli: `npm run admin-password -- --vercel` `ADMIN_PASSWORD_HASH` ni (production) o‘rnatadi. Ixtiyoriy: skriptlar uchun `ADMIN_TOKEN` (uzun tasodifiy satr).
 5. Qayta deploy qiling. Lokal ravishda `vercel env pull` o‘zgaruvchilarni `.env.local`ga yozadi (commit qilinmaydi), shunda `npm start` o‘sha bazadan foydalanadi; `npm run textures -- --blob` Blob’ni oldindan to‘ldiradi.
 
 Cheklovlar: ariza ≈ 4 MB gacha (rasmlar brauzerda kichraytiriladi); o‘z tekstura fotolaringiz tashrif buyuruvchining brauzerida qoladi (IndexedDB). `DATABASE_URL` bo‘lmasa hammasi lokal ishdagidek fayllarda saqlanadi — Vercel’da bu fayllar saqlanib qolmaydi.
@@ -240,7 +240,7 @@ Cheklovlar: ariza ≈ 4 MB gacha (rasmlar brauzerda kichraytiriladi); o‘z teks
 server.js            Express: statik, katalog, shablonlar, kvartiralar, binolar, buyurtmalar (+ chizma fayllari), menejer API, teksturalar (ro‘yxat / yuklash / tiklash / ZIP / kutubxona)
 server/              validateOrder (buyurtmani tekshirish), orderStore (yozish navbati, chastota limiti), buildings (kvartira holatlari), textureFetch, zip
 orders/<id>/         buyurtma chizmalari plan.png / 3d.jpg (git da yo‘q)
-.env.example         menejer sahifasi uchun ADMIN_TOKEN (.env ga nusxalang)
+.env.example         menejer sahifalari uchun ADMIN_PASSWORD_HASH / ADMIN_TOKEN (.env ga nusxalang)
 catalog.json         mebel katalogi (turlar, standart o‘lchamlar, 3 tildagi nomlar)
 templates.json       xona shablonlari (sovet uyi / yangi bino) va kvartira to‘plamlari
 apartment-templates.json  kvartira shablonlari (xrushchyovka / yaxshilangan / yangi bino)
@@ -329,17 +329,17 @@ npm start
 ```
 Откройте http://localhost:3000 (Node.js 18+); витрина — http://localhost:3000/building.html. Тесты: `npm test`. Фото-текстуры: `npm run textures` скачивает всю библиотеку (не обязательно, наборы скачиваются и по требованию). Фото фасада новостройки (травертин, чёрный камень, бетон, дерево) и участка (трава, асфальт, плитка, листья, кора) лежат в проекте (`public/textures/sets/`, ≈ 26 МБ). Скачанные наборы комнат — в `public/textures/lib/`, а при подключённом Blob — в Vercel Blob (`npm run textures -- --blob` заполняет его заранее).
 
-**Страница менеджера с ADMIN_TOKEN.** В заявках персональные данные (имя, телефон), поэтому `/admin.html` работает только с токеном:
-1. Скопируйте `.env.example` в `.env` и задайте `ADMIN_TOKEN` — длинную случайную строку (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). `.env` не коммитится; настоящая переменная окружения `ADMIN_TOKEN` важнее файла.
-2. Перезапустите `npm start`, откройте http://localhost:3000/admin.html и введите токен (хранится только в этой вкладке браузера). Запросы идут с `Authorization: Bearer <токен>`.
-3. Без `ADMIN_TOKEN` (или если он короче 16 символов / это заглушка `change-me…`) API отвечает 503, а страница пишет, что отключена.
+**Страница менеджера: вход по паролю.** В заявках персональные данные (имя, телефон), поэтому `/admin.html`, `/bookings.html` и `/calls.html` открываются только после пароля менеджера:
+1. `npm run admin-password -- --save` — введите пароль (скрыто, не короче 10 символов); в `.env` попадает только его scrypt-хеш `ADMIN_PASSWORD_HASH`. `.env` не коммитится.
+2. Перезапустите `npm start`, откройте http://localhost:3000/admin.html и войдите. Браузер получает HttpOnly-cookie сессии на 12 часов; «Выйти» её завершает, новый пароль завершает все сессии. 5 неверных паролей с одного адреса → пауза 15 минут.
+3. Без `ADMIN_PASSWORD_HASH` страницы пишут, что отключены. `ADMIN_TOKEN` (≥ 16 символов) остаётся для скриптов: `Authorization: Bearer <токен>` к тому же API.
 
 ### Деплой на Vercel
 
 1. Импортируйте GitHub-репозиторий в Vercel (Express-приложение из `server.js` определяется само; `vercel.json` при сборке копирует three.js в `public/vendor/three/` и ставит функции во Франкфурт, `fra1`).
 2. Storage → **Neon** (регион Франкфурт, `eu-central-1`) — даёт `DATABASE_URL`: заявки, их картинки и статусы квартир хранятся в Postgres, таблицы создаются при первом запросе.
 3. Storage → **Blob** (public) — даёт `BLOB_STORE_ID` (у старых хранилищ — `BLOB_READ_WRITE_TOKEN`): наборы текстур комнат, скачанные по требованию, хранятся там и отдаются по тому же адресу `/textures/lib/` (их кэширует CDN). Наборы фасада и участка — в проекте.
-4. Settings → Environment Variables → `ADMIN_TOKEN` (длинная случайная строка) для `/admin.html`.
+4. Пароль менеджера: `npm run admin-password -- --vercel` задаёт `ADMIN_PASSWORD_HASH` (production). По желанию: `ADMIN_TOKEN` (длинная случайная строка) для скриптов.
 5. Сделайте Redeploy. Локально `vercel env pull` записывает переменные в `.env.local` (не в git), тогда `npm start` работает с той же базой; `npm run textures -- --blob` заранее заполняет Blob.
 
 Ограничения: заявка — до ≈ 4 МБ (картинки уменьшаются в браузере); свои фото-текстуры остаются в браузере посетителя (IndexedDB). Без `DATABASE_URL` всё хранится в файлах, как при локальной работе, — на Vercel эти файлы не сохраняются.
@@ -374,7 +374,7 @@ npm start
 server.js            Express: статика, каталог, шаблоны, квартиры, дома, заявки (+ файлы чертежей), API менеджера, текстуры (список / загрузка / сброс / ZIP / библиотека)
 server/              validateOrder (проверка заявки), orderStore (очередь записи, лимит частоты), buildings (статусы квартир), textureFetch, zip
 orders/<id>/         чертежи заявок plan.png / 3d.jpg (не в git)
-.env.example         ADMIN_TOKEN для страницы менеджера (скопировать в .env)
+.env.example         ADMIN_PASSWORD_HASH / ADMIN_TOKEN для страниц менеджера (скопировать в .env)
 catalog.json         каталог мебели (типы, размеры по умолчанию, названия на 3 языках)
 templates.json       шаблоны комнат (советский дом / новостройка) и наборы квартир
 apartment-templates.json  шаблоны квартир (хрущёвка / улучшенная / новостройка)

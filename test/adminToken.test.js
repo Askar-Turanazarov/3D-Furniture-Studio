@@ -13,7 +13,7 @@ const statusWith = token => Number(execFileSync(process.execPath, ['-e', `
   const s = require(${JSON.stringify(server)}).listen(0, async () => {
     const r = await fetch('http://127.0.0.1:' + s.address().port + '/api/orders', { headers: { Authorization: 'Bearer ' + process.env.ADMIN_TOKEN } });
     console.log(r.status); s.close();
-  });`], { env: { ...process.env, ADMIN_TOKEN: token, DATA_DIR: mkdtempSync(join(tmpdir(), 'fsp3d-')) }, encoding: 'utf8' }).trim());
+  });`], { env: { ...process.env, ADMIN_TOKEN: token, ADMIN_PASSWORD_HASH: '', DATA_DIR: mkdtempSync(join(tmpdir(), 'fsp3d-')) }, encoding: 'utf8' }).trim());
 
 test('a short or placeholder ADMIN_TOKEN keeps the manager API off (503)', () => {
   for (const weak of ['', '123', 'fifteen-chars-x', 'change-me-to-a-long-random-string', 'CHANGE-ME-please-1234567']) {

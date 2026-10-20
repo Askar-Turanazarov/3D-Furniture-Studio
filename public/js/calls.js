@@ -1,12 +1,12 @@
 // Manager page «Журнал вызовов»: the MCP call log (mcp-calls.jsonl) through GET /api/calls, refreshed every 3 s.
-// Each subagent has its own tools, so the tool tells who called. Same sign-in as the orders page; data goes in as text only.
+// Each subagent has its own tools, so the tool tells who called. Same sign-in as the orders page (manager password → session cookie, adminAuth.js); data goes in as text only.
 import { t, getLang, applyStatic, initLangSwitcher, onLangChange } from './i18n.js';
 import { initTheme } from './theme.js';
 import { initIcons } from './icons.js';
+import { adminAuth } from './adminAuth.js';
 
 const $ = id => document.getElementById(id);
 const LOCALE = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-GB' };
-const KEY = 'fsp3d.adminToken';
 const EVERY_MS = 3000;
 const AGENT = { search_apartments: 'apt_finder', get_apartment: 'apt_finder', calc_mortgage: 'mortgage_consultant', book_viewing: 'booking_manager' };
 const loc = () => LOCALE[getLang()] || 'en-GB';
@@ -36,8 +36,8 @@ function argsText(tool, a = {}) {
   return parts.join(' · ') || '—';
 }
 
-let token = '';
-try { token = sessionStorage.getItem(KEY) || ''; } catch { /* storage off */ }
+let auth;
+let signedIn = false;
 let events = [];
 let shown = '';
 let timer = null;
@@ -53,22 +53,19 @@ function toast(text) {
   toastTimer = setTimeout(() => { box.hidden = true; }, 5000);
 }
 
-function logout(msg = '') {
-  token = '';
-  try { sessionStorage.removeItem(KEY); } catch { /* ignore */ }
+function stop() {
+  signedIn = false;
   clearInterval(timer);
   timer = null;
-  $('clList').hidden = true;
-  $('admLogout').hidden = true;
-  $('admLogin').hidden = false;
-  $('admLoginErr').textContent = msg;
+  events = [];
+  shown = '';
 }
 
 async function load() {
-  if (!token || document.hidden) return;
+  if (!signedIn || document.hidden) return;
   let res;
-  try { res = await fetch('/api/calls', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }); } catch { res = null; }
-  if (res && (res.status === 401 || res.status === 503)) return logout(res.status === 503 ? t('adm.disabled') : t('adm.badToken'));
+  try { res = await fetch('/api/calls', { cache: 'no-store' }); } catch { res = null; }
+  if (res && (res.status === 401 || res.status === 503)) return auth.signedOut(res.status);
   if (!res || !res.ok) {
     if (!failed) toast(t('cl.loadFail'));
     failed = true;
@@ -76,9 +73,6 @@ async function load() {
   }
   failed = false;
   events = await res.json();
-  $('admLogin').hidden = true;
-  $('clList').hidden = false;
-  $('admLogout').hidden = false;
   render();
 }
 
@@ -122,6 +116,7 @@ function render(force = false) {
 }
 
 function start() {
+  signedIn = true;
   load();
   clearInterval(timer);
   timer = setInterval(load, EVERY_MS);
@@ -133,16 +128,8 @@ function init() {
   initTheme();
   initIcons();
   onLangChange(() => { if (!$('clList').hidden) render(true); });
-  $('admLogin').addEventListener('submit', e => {
-    e.preventDefault();
-    token = e.target.elements.token.value.trim();
-    try { sessionStorage.setItem(KEY, token); } catch { /* ignore */ }
-    e.target.reset();
-    start();
-  });
-  $('admLogout').addEventListener('click', () => logout());
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
-  if (token) start();
+  auth = adminAuth({ list: 'clList', onIn: start, onOut: stop });
 }
 
 init();

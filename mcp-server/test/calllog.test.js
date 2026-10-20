@@ -31,6 +31,12 @@ test('each of the four tools leaves one line: tool, ok, ms, args, msg', async ()
   assert.match(log[2].msg, /^Платёж 1\s763\s848 сум в месяц, переплата 131\s661\s730 сум$/);
   assert.deepEqual(log[3].args, { no: free.no, datetime: `${day}T15:00` });
   assert.equal(log[3].msg, `Записано на показ: квартира №${free.no}, ${day} 15:00`);
+  // the same line in all three languages; msg is the Russian one
+  for (const e of log) assert.deepEqual(Object.keys(e.msgs), ['ru', 'uz', 'en']), assert.equal(e.msgs.ru, e.msg);
+  assert.equal(log[0].msgs.en.startsWith('Found: '), true);
+  assert.match(log[1].msgs.uz, /^№9999 kvartira topilmadi/);
+  assert.match(log[2].msgs.en, /^Monthly payment 1\s763\s848 sum, overpayment 131\s661\s730 sum$/);
+  assert.equal(log[3].msgs.uz, `Ko‘rishga yozildi: №${free.no} kvartira, ${day} 15:00`);
 });
 
 test('the log never holds the name, the phone or the token', () => {
@@ -87,6 +93,7 @@ test('a call refused before the tool is logged with field names only, no values'
   assert.deepEqual(added.map(e => [e.tool, e.ok, e.args.fields]), [
     ['book_viewing', false, ['name', 'phone', 'datetime', 'apartment']], ['no_such_tool', false, ['client_phone']]]);
   assert.match(added[0].msg, /Неверные параметры/);
+  assert.equal(added[0].msgs.en, 'Invalid parameters: the call was refused before the tool');
   const text = fs.readFileSync(s.files.calls, 'utf8');
   for (const secret of ['Азиз', '555 12 34']) assert.ok(!text.includes(secret), secret);
 });

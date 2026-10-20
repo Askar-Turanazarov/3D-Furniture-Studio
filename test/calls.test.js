@@ -35,6 +35,9 @@ test('newest first, a broken line skipped, denied events kept, only known fields
   const list = await (await get()).json();
   assert.deepEqual(list.map(e => e.type + (e.msg || e.reason)), ['callНайдено: 2', 'deniedno_token', 'callНайдено: 1']);
   assert.equal('extra' in list[1], false);
+  // lines logged in Russian only come with the uz / en texts read back (mcp-server/logText.js)
+  assert.deepEqual(list[0].msgs, { ru: 'Найдено: 2', uz: 'Topildi: 2', en: 'Found: 2' });
+  assert.equal(list[1].msgs, undefined);
 });
 
 test('at most the last 200 events', async () => {

@@ -989,6 +989,7 @@ dialog.floor3d-dlg { width: min(1200px, 96vw); }
 .top-actions .btn.ghost { color: var(--text); border-color: var(--line-2); }
 .adm { flex: 1; overflow: auto; padding: 22px 24px; }
 .adm-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); padding: 18px 20px; }
+html[data-adm="in"] .adm-login { display: none; }   /* signed in earlier: no login flash before adminAuth.js runs */
 .adm-login { max-width: 420px; margin: 48px auto; display: flex; flex-direction: column; gap: 12px; }
 .adm-login input, .adm-tools input, .adm-tools select, .adm-table select { font: inherit; color: var(--text); }
 .adm-err { color: var(--danger); min-height: 1.4em; margin: 0; }
@@ -1012,6 +1013,31 @@ dialog.floor3d-dlg { width: min(1200px, 96vw); }
 .cl-chip.bad { color: var(--st-sold); border-color: var(--st-sold); }
 .cl-chip.deny { color: var(--st-booked); border-color: var(--st-booked); }
 .cl-chip.agent { color: var(--muted); }
+/* the stat chips filter the log: lift on hover, filled when pressed, a tooltip that explains the number */
+.cl-filter { position: relative; cursor: pointer; background: transparent; font: inherit; font-size: 12px; line-height: inherit; color: inherit;
+  transition: transform .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.cl-filter.agent:hover, .cl-filter.agent[aria-pressed="true"] { color: var(--text); border-color: var(--gold-3); }
+.cl-filter:hover { z-index: 5; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0, 0, 0, .28); }
+.cl-filter:focus-visible { z-index: 5; }   /* the open tooltip stays above the next chips */
+.cl-filter:active { transform: translateY(0) scale(.96); }
+.cl-filter:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cl-filter[aria-pressed="true"] { background: var(--gold-soft); box-shadow: 0 0 0 1px currentColor inset; animation: cl-press .32s ease; }
+.cl-filter.bad:not(.zero) { color: var(--danger); border-color: var(--danger); }   /* errors stand out once there are any */
+.cl-filter.zero:not([aria-pressed="true"]) { opacity: .55; }
+@keyframes cl-press { 0% { transform: scale(.92); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.cl-tip { position: absolute; top: calc(100% + 10px); left: 0; z-index: 20; width: max-content; max-width: min(300px, 80vw);
+  padding: 9px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--gold-3); color: var(--text);
+  font-size: 12.5px; line-height: 1.45; white-space: normal; text-align: left; pointer-events: none;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .35); opacity: 0; transform: translate(var(--shift, 0px), -4px); transition: opacity .18s ease, transform .18s ease; }
+.cl-tip::before { content: ''; position: absolute; top: -6px; left: calc(16px - var(--shift, 0px)); width: 10px; height: 10px; background: inherit;
+  border-left: 1px solid var(--gold-3); border-top: 1px solid var(--gold-3); transform: rotate(45deg); }
+.cl-filter:hover .cl-tip, .cl-filter:focus-visible .cl-tip { opacity: 1; transform: translate(var(--shift, 0px), 0); transition-delay: .25s; }
+.cl-reset { padding: 3px 10px; border-radius: 999px; border: 1px dashed var(--gold-3); background: transparent; color: var(--gold);
+  font: inherit; font-size: 12px; cursor: pointer; animation: cl-in .22s ease; transition: background-color .18s ease, color .18s ease; }
+.cl-reset:hover { background: var(--gold-soft); color: var(--gold-2); }
+@keyframes cl-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+#clRows tr { animation: cl-row .25s ease both; }
+@keyframes cl-row { from { opacity: 0; } to { opacity: 1; } }
 .cl-table { min-width: 860px; }
 .cl-table td:nth-child(5) { max-width: 360px; }
 .cl-denied td { color: var(--muted); }

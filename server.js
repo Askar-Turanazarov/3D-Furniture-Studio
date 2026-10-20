@@ -260,10 +260,15 @@ app.get('/api/bookings', admin, async (req, res) => {
 });
 
 // The MCP call log: the last 200 events, newest first; none yet = an empty list.
+// msgs — the result line in ru / uz / en; lines logged before it hold Russian only and are read back (mcp-server/logText.js).
+let logText;
 app.get('/api/calls', admin, async (req, res) => {
   try {
+    logText ||= import('./mcp-server/logText.js');
+    const { fromLegacy } = await logText;
     const events = await db.listCalls(200);
-    res.json(events.map(({ at, type, tool, ok, ms, args, msg, reason }) => ({ at, type, tool, ok, ms, args, msg, reason })));
+    res.json(events.map(({ at, type, tool, ok, ms, args, msg, msgs, reason }) =>
+      ({ at, type, tool, ok, ms, args, msg, msgs: msgs || fromLegacy(msg) || undefined, reason })));
   } catch {
     res.status(500).json({ error: 'read_failed' });
   }

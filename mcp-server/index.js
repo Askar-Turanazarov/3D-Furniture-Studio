@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { registerTools, context, dbContext } from './tools.js';
+import { logTexts, ruText } from './logText.js';
 
 export { dbContext };
 
@@ -76,7 +77,7 @@ export async function handleMcp(req, res, { token, ctx, parsed }) {
   if (body?.method === 'tools/call' && !seen.logged) {
     const { name, arguments: a } = body.params || {};
     await ctx.logCall({ at: new Date(t0).toISOString(), type: 'call', tool: String(name).slice(0, 60), ok: false, ms: Date.now() - t0,
-      args: { fields: Object.keys(a && typeof a === 'object' ? a : {}).slice(0, 20) }, msg: 'Неверные параметры: вызов отклонён до инструмента' });
+      args: { fields: Object.keys(a && typeof a === 'object' ? a : {}).slice(0, 20) }, msg: ruText('badParams'), msgs: logTexts('badParams') });
   }
 }
 

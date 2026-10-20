@@ -2,6 +2,7 @@
 // Times are Tashkent time, stored as "YYYY-MM-DDTHH:MM+05:00". A booking never changes the apartment status.
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
+import { ruText } from './logText.js';
 
 export const { PHONE } = createRequire(import.meta.url)('../server/validateOrder.js');
 
@@ -17,19 +18,26 @@ export function parseTime(s) {
   return { ms, local: new Date(ms + TZ_MS).toISOString().slice(0, 16) + TZ };
 }
 
-export class BookingError extends Error {}
+// key / vars — the same text in all three languages for the call log (logText.js).
+export class BookingError extends Error {
+  constructor(key, vars = {}) {
+    super(ruText(key, vars));
+    this.key = key;
+    this.vars = vars;
+  }
+}
 
 // addBooking(b) → b | null (the slot is taken). → the saved booking; throws BookingError when the apartment is unknown
 // or sold, the time is past or the slot is taken.
 export async function bookViewing(addBooking, apartments, { name, phone, datetime, no }, now = Date.now()) {
   const a = apartments.find(x => x.no === no);
-  if (!a) throw new BookingError(`Квартира №${no} не найдена. Номера квартир можно найти через search_apartments`);
-  if (a.status === 'sold') throw new BookingError(`Квартира №${no} продана, запись на показ невозможна`);
-  if (!PHONE.test(phone)) throw new BookingError('Телефон в неверном формате, например +998 90 123 45 67');
+  if (!a) throw new BookingError('notFound', { no, hint: true });
+  if (a.status === 'sold') throw new BookingError('sold', { no });
+  if (!PHONE.test(phone)) throw new BookingError('phone');
   const t = parseTime(datetime);
-  if (!t) throw new BookingError('Дата и время в формате 2026-10-25T15:00 (время Ташкента)');
-  if (t.ms <= now) throw new BookingError('Дата и время показа должны быть в будущем');
+  if (!t) throw new BookingError('dateFormat');
+  if (t.ms <= now) throw new BookingError('past');
   const b = { id: crypto.randomUUID(), no, name: name.trim(), phone: phone.trim(), datetime: t.local, createdAt: new Date(now).toISOString() };
-  if (!(await addBooking(b))) throw new BookingError(`Это время занято: на ${t.local.slice(0, 16).replace('T', ' ')} (Ташкент) на квартиру №${no} уже есть запись. Выберите другое время`);
+  if (!(await addBooking(b))) throw new BookingError('taken', { no, when: t.local.slice(0, 16).replace('T', ' ') });
   return b;
 }

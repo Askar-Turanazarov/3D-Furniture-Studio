@@ -5,9 +5,19 @@ import { t } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const MSG = { 401: 'adm.badPassword', 429: 'adm.tooMany', 503: 'adm.disabled' };
+// A hint, not a secret: "signed in on this browser before". The page head reads it so the login form
+// doesn't flash between admin pages; the cookie still decides — a 401 from the data shows the form again.
+const HINT = 'fsp3d.adm';
+
+function remember(signedIn) {
+  if (signedIn) document.documentElement.dataset.adm = 'in';
+  else delete document.documentElement.dataset.adm;
+  try { signedIn ? localStorage.setItem(HINT, '1') : localStorage.removeItem(HINT); } catch { /* private mode */ }
+}
 
 export function adminAuth({ list, onIn, onOut = () => {} }) {
   function show(signedIn, msg = '') {
+    remember(signedIn);
     $(list).hidden = !signedIn;
     $('admLogout').hidden = !signedIn;
     $('admLogin').hidden = signedIn;
@@ -44,7 +54,14 @@ export function adminAuth({ list, onIn, onOut = () => {} }) {
     show(false);
   });
 
-  // Already signed in in this browser? Then straight to the data.
+  // Signed in here before: straight to the data, its own request checks the session.
+  if (document.documentElement.dataset.adm === 'in') {
+    show(true);
+    onIn();
+    return { signedOut };
+  }
+
+  // Maybe signed in without the hint (storage cleared)? Ask the server once.
   fetch('/api/admin/me', { cache: 'no-store' }).then(r => {
     if (r.ok) { show(true); onIn(); } else show(false, r.status === 503 ? t('adm.disabled') : '');
   }, () => show(false, t('adm.loginFail')));

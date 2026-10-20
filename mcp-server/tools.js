@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { z } from 'zod';
 import { annuity } from './mortgage.js';
 import { bookViewing, BookingError } from './bookings.js';
+import { logTexts, ruText } from './logText.js';
 import { safeArgs } from './calllog.js';
 
 const root = f => fileURLToPath(new URL('../' + f, import.meta.url));
@@ -27,32 +28,34 @@ const kind = a => (a.rooms ? `${a.rooms}-комн.` : 'студия');
 const sum = n => n.toLocaleString('ru-RU') + ' сум';
 const line = a => `№${a.no}: ${kind(a)}, ${a.area} м², этаж ${a.floor}, ${sum(a.price)}, ${a.status}`;
 const ok = (data, text) => ({ structuredContent: data, content: [{ type: 'text', text }] });
-const fail = text => ({ isError: true, content: [{ type: 'text', text }] });
+// key / vars: the same text in three languages for the call log (logText.js); safe() takes it off before the answer goes out.
+const fail = (key, vars) => ({ isError: true, content: [{ type: 'text', text: ruText(key, vars) }], log: { key, vars } });
 
 // A broken or missing data file must not show its path to the client: log the code, answer in general terms.
 async function run(handler, args) {
   try { return await handler(args); } catch (e) {
-    if (e instanceof BookingError) return fail(e.message);
+    if (e instanceof BookingError) return fail(e.key, e.vars);
     console.error('tool failed:', e.code || e.name);
-    return fail('Внутренняя ошибка сервера, попробуйте позже');
+    return fail('internal');
   }
 }
 
-// The first line of the answer for the call log; a booking is logged without the client's name.
-function summary(tool, r) {
-  const d = r.structuredContent;
-  if (r.isError || !d) return r.content[0].text.split('\n')[0];
-  if (tool === 'book_viewing') return `Записано на показ: квартира №${d.no}, ${d.datetime.slice(0, 16).replace('T', ' ')}`;
-  if (tool === 'calc_mortgage') return `Платёж ${sum(d.monthly)} в месяц, переплата ${sum(d.overpay)}`;
-  return r.content[0].text.split('\n')[0];
+// The answer in a line for the call log, as { ru, uz, en }; a booking is logged without the client's name.
+function summary(tool, d, log) {
+  if (log) return logTexts(log.key, log.vars);
+  if (tool === 'book_viewing') return logTexts('booked', { no: d.no, when: d.datetime.slice(0, 16).replace('T', ' ') });
+  if (tool === 'calc_mortgage') return logTexts('mortgage', d);
+  if (tool === 'get_apartment') return logTexts('apt', { ...d, perM2: d.pricePerM2 });
+  return logTexts('found', { n: d.total });
 }
 
 // Every tool runs through here: errors become plain-text answers, each call lands in the call log.
 const safe = (ctx, tool, handler, seen = {}) => async args => {
   seen.logged = true;
   const t0 = Date.now();
-  const r = await run(handler, args);
-  await ctx.logCall({ type: 'call', tool, ok: !r.isError, ms: Date.now() - t0, args: safeArgs(tool, args), msg: summary(tool, r) });
+  const { log, ...r } = await run(handler, args);
+  const msgs = summary(tool, r.structuredContent, log);
+  await ctx.logCall({ type: 'call', tool, ok: !r.isError, ms: Date.now() - t0, args: safeArgs(tool, args), msg: msgs.ru, msgs });
   return r;
 };
 
@@ -118,7 +121,7 @@ export function registerTools(server, files = context(), seen = {}) {
     outputSchema: APT.extend({ pricePerM2: z.number().int() }).shape
   }, wrap('get_apartment', async ({ no }) => {
     const a = getApartment(await apartmentsOf(files), no);
-    if (!a) return fail(`Квартира №${no} не найдена. Номера квартир можно найти через search_apartments`);
+    if (!a) return fail('notFound', { no, hint: true });
     return ok(a, `${line(a)}, ${sum(a.pricePerM2)}/м²`);
   }));
 
@@ -138,11 +141,11 @@ export function registerTools(server, files = context(), seen = {}) {
       monthly: z.number().int(), total: z.number().int(), overpay: z.number().int(), no: z.number().int().optional()
     }
   }, wrap('calc_mortgage', async ({ loan, price, no, downPct = 0, years, rate }) => {
-    if ([loan, price, no].filter(v => v != null).length !== 1) return fail('Укажите что-то одно: сумму кредита (loan), цену (price) или номер квартиры (no)');
-    if (loan != null && downPct) return fail('Взнос (downPct) указывается с ценой (price) или номером (no), а не с суммой кредита');
+    if ([loan, price, no].filter(v => v != null).length !== 1) return fail('oneOf');
+    if (loan != null && downPct) return fail('downWithLoan');
     if (no != null) {
       const a = (await apartmentsOf(files)).find(x => x.no === no);
-      if (!a) return fail(`Квартира №${no} не найдена`);
+      if (!a) return fail('notFound', { no });
       price = a.price;
     }
     const r = { ...annuity({ price, downPct, loan, years, rate }), ...(no != null ? { no } : {}) };
